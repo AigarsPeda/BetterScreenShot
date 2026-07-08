@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
@@ -20,7 +19,6 @@ namespace BetterScreenShot
         private readonly Action<SelectedCaptureResult?> completeSelection;
         private readonly string deviceName;
         private readonly Forms.Label instructionLabel;
-        private readonly SelectionBorderForm borderForm;
         private System.Drawing.Point? dragStart;
         private System.Drawing.Point? dragCurrent;
         private bool suppressComplete;
@@ -31,7 +29,6 @@ namespace BetterScreenShot
             this.overlayBounds = overlayBounds;
             this.captureBounds = captureBounds;
             this.completeSelection = completeSelection;
-            borderForm = new SelectionBorderForm();
 
             FormBorderStyle = Forms.FormBorderStyle.None;
             ShowInTaskbar = false;
@@ -39,11 +36,17 @@ namespace BetterScreenShot
             TopMost = true;
             Bounds = overlayBounds;
             Cursor = Forms.Cursors.Cross;
-            DoubleBuffered = true;
             KeyPreview = true;
             AutoScaleMode = Forms.AutoScaleMode.None;
             BackColor = Color.Black;
-            Opacity = 0.65;
+            Opacity = 0.35;
+            SetStyle(
+                Forms.ControlStyles.UserPaint |
+                Forms.ControlStyles.AllPaintingInWmPaint |
+                Forms.ControlStyles.OptimizedDoubleBuffer |
+                Forms.ControlStyles.ResizeRedraw,
+                true);
+            UpdateStyles();
 
             instructionLabel = new Forms.Label
             {
@@ -62,11 +65,6 @@ namespace BetterScreenShot
             MouseMove += OverlayMouseMove;
             MouseUp += OverlayMouseUp;
             KeyDown += OverlayKeyDown;
-            FormClosed += (_, _) =>
-            {
-                borderForm.SafeClose();
-                borderForm.Dispose();
-            };
 
             DebugLog($"Overlay created device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds}");
         }
@@ -123,9 +121,14 @@ namespace BetterScreenShot
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            Activate();
-            ApplyDimRegion(null);
+            BringInputToFront();
             DebugLog($"Overlay shown device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds} windowPx={FormatRect(GetWindowRectPixels())} clientPx=({ClientSize.Width},{ClientSize.Height})");
+        }
+
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+            Focus();
         }
 
         protected override void OnFormClosed(Forms.FormClosedEventArgs e)
@@ -138,6 +141,37 @@ namespace BetterScreenShot
             }
         }
 
+        protected override void OnPaint(Forms.PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            var selection = GetSelectionRect();
+            if (selection is null || selection.Value.Width < 2 || selection.Value.Height < 2)
+            {
+                return;
+            }
+
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+            using var borderPen = new Pen(Color.FromArgb(92, 200, 255), 2);
+            var drawRect = Rectangle.Inflate(selection.Value, -1, -1);
+            if (drawRect.Width > 0 && drawRect.Height > 0)
+            {
+                e.Graphics.DrawRectangle(borderPen, drawRect);
+            }
+        }
+
+        protected override bool ProcessCmdKey(ref Forms.Message msg, Forms.Keys keyData)
+        {
+            if (keyData == Forms.Keys.Escape)
+            {
+                Capture = false;
+                completeSelection(null);
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void OverlayMouseDown(object? sender, Forms.MouseEventArgs e)
         {
             if (e.Button != Forms.MouseButtons.Left)
@@ -147,8 +181,9 @@ namespace BetterScreenShot
 
             dragStart = e.Location;
             dragCurrent = e.Location;
+            Capture = true;
             instructionLabel.Visible = false;
-            UpdateSelectionVisuals();
+            InvalidateSelection(null, GetSelectionRect());
 
             DebugLog($"MouseDown device={deviceName} localOverlayPx={FormatPoint(dragStart.Value)} screenOverlayPx={FormatScreenPoint(dragStart.Value)} overlayBounds={overlayBounds} captureBounds={captureBounds}");
         }
@@ -160,8 +195,9 @@ namespace BetterScreenShot
                 return;
             }
 
+            var previousSelection = GetSelectionRect();
             dragCurrent = e.Location;
-            UpdateSelectionVisuals();
+            InvalidateSelection(previousSelection, GetSelectionRect());
         }
 
         private void OverlayMouseUp(object? sender, Forms.MouseEventArgs e)
@@ -173,8 +209,8 @@ namespace BetterScreenShot
 
             dragCurrent = e.Location;
             var overlaySelection = GetSelectionRect();
-            borderForm.SafeClose();
-            ApplyDimRegion(null);
+            Capture = false;
+            InvalidateSelection(overlaySelection, null);
 
             if (overlaySelection is null || overlaySelection.Value.Width < 2 || overlaySelection.Value.Height < 2)
             {
@@ -204,32 +240,16 @@ namespace BetterScreenShot
         {
             if (e.KeyCode == Forms.Keys.Escape)
             {
+                Capture = false;
                 completeSelection(null);
             }
         }
 
-        private void UpdateSelectionVisuals()
+        private void BringInputToFront()
         {
-            var overlaySelection = GetSelectionRect();
-            ApplyDimRegion(overlaySelection);
-            borderForm.ShowSelection(overlaySelection, overlayBounds.Location);
-        }
-
-        private void ApplyDimRegion(Rectangle? transparentHole)
-        {
-            Region?.Dispose();
-
-            if (transparentHole is null || transparentHole.Value.Width < 2 || transparentHole.Value.Height < 2)
-            {
-                Region = new Region(new Rectangle(0, 0, Width, Height));
-                return;
-            }
-
-            using var path = new GraphicsPath();
-            path.AddRectangle(new Rectangle(0, 0, Width, Height));
-            path.AddRectangle(transparentHole.Value);
-            Region = new Region(path);
-            Region.Xor(transparentHole.Value);
+            Activate();
+            BringToFront();
+            Focus();
         }
 
         private Rectangle? GetSelectionRect()
@@ -264,7 +284,6 @@ namespace BetterScreenShot
         {
             foreach (var overlay in Forms.Application.OpenForms.OfType<MonitorSelectionOverlayForm>().ToList())
             {
-                overlay.borderForm.SafeClose();
                 overlay.Hide();
             }
         }
@@ -337,6 +356,37 @@ namespace BetterScreenShot
             return new System.Drawing.Point(
                 Math.Clamp((int)Math.Round(overlayPoint.X * scaleX), 0, Math.Max(0, captureBounds.Width - 1)),
                 Math.Clamp((int)Math.Round(overlayPoint.Y * scaleY), 0, Math.Max(0, captureBounds.Height - 1)));
+        }
+
+        private void InvalidateSelection(Rectangle? previousSelection, Rectangle? currentSelection)
+        {
+            var invalidRect = Rectangle.Empty;
+
+            if (previousSelection is not null)
+            {
+                invalidRect = InflateForBorder(previousSelection.Value);
+            }
+
+            if (currentSelection is not null)
+            {
+                invalidRect = invalidRect.IsEmpty
+                    ? InflateForBorder(currentSelection.Value)
+                    : Rectangle.Union(invalidRect, InflateForBorder(currentSelection.Value));
+            }
+
+            if (invalidRect.IsEmpty)
+            {
+                Invalidate();
+            }
+            else
+            {
+                Invalidate(invalidRect);
+            }
+        }
+
+        private static Rectangle InflateForBorder(Rectangle rect)
+        {
+            return Rectangle.Inflate(rect, 4, 4);
         }
 
         private static Rectangle GetMonitorBounds(Forms.Screen screen)
@@ -479,55 +529,6 @@ namespace BetterScreenShot
 
             public int Width => Right - Left;
             public int Height => Bottom - Top;
-        }
-
-        private sealed class SelectionBorderForm : Forms.Form
-        {
-            public SelectionBorderForm()
-            {
-                FormBorderStyle = Forms.FormBorderStyle.None;
-                ShowInTaskbar = false;
-                StartPosition = Forms.FormStartPosition.Manual;
-                TopMost = true;
-                AutoScaleMode = Forms.AutoScaleMode.None;
-                BackColor = Color.Magenta;
-                TransparencyKey = Color.Magenta;
-            }
-
-            public void ShowSelection(Rectangle? overlayRect, System.Drawing.Point overlayLocation)
-            {
-                if (overlayRect is null || overlayRect.Value.Width < 2 || overlayRect.Value.Height < 2)
-                {
-                    SafeClose();
-                    return;
-                }
-
-                Bounds = new Rectangle(overlayLocation.X + overlayRect.Value.X, overlayLocation.Y + overlayRect.Value.Y, overlayRect.Value.Width, overlayRect.Value.Height);
-
-                if (!Visible)
-                {
-                    Show();
-                }
-                else
-                {
-                    Invalidate();
-                }
-            }
-
-            public void SafeClose()
-            {
-                if (Visible)
-                {
-                    Hide();
-                }
-            }
-
-            protected override void OnPaint(Forms.PaintEventArgs e)
-            {
-                base.OnPaint(e);
-                using var borderPen = new Pen(Color.FromArgb(92, 200, 255), 2);
-                e.Graphics.DrawRectangle(borderPen, 0, 0, Math.Max(0, Width - 1), Math.Max(0, Height - 1));
-            }
         }
     }
 }
