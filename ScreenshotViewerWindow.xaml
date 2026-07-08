@@ -5,26 +5,27 @@
         Width="1000"
         Height="700"
         WindowStartupLocation="CenterScreen"
-        Background="#FF111111">
+        Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
+        Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}">
     <DockPanel>
         <Border DockPanel.Dock="Top"
-                Background="#FF1B1B1B"
+                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
                 Padding="16"
-                BorderBrush="#FF2F2F2F"
+                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
                 BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="Captured Screenshot"
-                               Foreground="White"
                                FontSize="20"
                                FontWeight="SemiBold" />
                     <TextBlock Name="FilePathText"
                                Margin="0,6,0,0"
-                               Foreground="#FFB8B8B8"
                                FontSize="12"
                                TextWrapping="Wrap" />
                 </StackPanel>
@@ -34,12 +35,18 @@
                         VerticalAlignment="Top"
                         Content="Save As"
                         Click="SaveAsButton_Click" />
+                <Button Grid.Column="3"
+                        Width="100"
+                        Height="36"
+                        VerticalAlignment="Top"
+                        Content="Delete"
+                        Click="DeleteButton_Click" />
             </Grid>
         </Border>
 
         <ScrollViewer HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto"
-                      Background="#FF0D0D0D">
+                      Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
             <Grid Margin="20">
                 <Image Name="ViewerImage"
                        Stretch="Uniform" />

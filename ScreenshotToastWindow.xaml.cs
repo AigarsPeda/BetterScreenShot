@@ -1,11 +1,13 @@
 using System;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 
 namespace BetterScreenShot
 {
     public partial class ScreenshotToastWindow : Window
     {
+        private const double ScreenMargin = 16;
         private static ScreenshotToastWindow? currentToast;
         private readonly string filePath;
 
@@ -15,7 +17,6 @@ namespace BetterScreenShot
 
             this.filePath = filePath;
             PreviewImage.Source = ScreenshotFileService.LoadBitmap(filePath);
-            PathText.Text = filePath;
 
             Loaded += (_, _) => PositionWindow(captureBounds);
             Closed += (_, _) =>
@@ -38,45 +39,60 @@ namespace BetterScreenShot
         {
             var screen = System.Windows.Forms.Screen.FromRectangle(captureBounds);
             var workArea = screen.WorkingArea;
-            Left = workArea.Right - Width - 16;
-            Top = workArea.Bottom - Height - 16;
+            var dpi = VisualTreeHelper.GetDpi(this);
+
+            var workAreaLeft = workArea.Left / dpi.DpiScaleX;
+            var workAreaTop = workArea.Top / dpi.DpiScaleY;
+            var workAreaRight = workArea.Right / dpi.DpiScaleX;
+            var workAreaBottom = workArea.Bottom / dpi.DpiScaleY;
+
+            Left = Math.Max(workAreaLeft + ScreenMargin, workAreaRight - ActualWidth - ScreenMargin);
+            Top = Math.Max(workAreaTop + ScreenMargin, workAreaBottom - ActualHeight - ScreenMargin);
         }
 
-        private void OpenButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (!File.Exists(filePath))
-            {
-                System.Windows.MessageBox.Show("The screenshot file no longer exists.", "Open Screenshot", MessageBoxButton.OK, MessageBoxImage.Warning);
-                Close();
-                return;
-            }
-
-            var viewer = new ScreenshotViewerWindow(filePath);
-            viewer.Show();
-            viewer.Activate();
-            Close();
-        }
-
-        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        private void CopyButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (File.Exists(filePath))
+                ScreenshotFileService.CopyToClipboard(filePath);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Could not copy the screenshot. {ex.Message}", "Copy Screenshot", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var savedPath = ScreenshotFileService.SaveCopyAs(filePath);
+
+                if (savedPath is null)
                 {
-                    File.Delete(filePath);
+                    return;
                 }
 
+                ScreenshotFileService.DeleteIfExists(filePath);
                 Close();
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Could not delete the screenshot. {ex.Message}", "Delete Screenshot", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Could not save the screenshot. {ex.Message}", "Save Screenshot", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            Close();
+            try
+            {
+                ScreenshotFileService.DeleteIfExists(filePath);
+                Close();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Could not discard the screenshot. {ex.Message}", "Discard Screenshot", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

@@ -68,9 +68,9 @@ namespace BetterScreenShot
 
         private void HandleCapture(Rectangle bounds)
         {
-            var filePath = ScreenshotCaptureService.CaptureAndSave(bounds);
+            var filePath = ScreenshotCaptureService.CaptureToTemporaryFile(bounds);
             ScreenshotToastWindow.ShowToast(filePath, bounds);
-            StatusText.Text = $"Saved to Pictures: {filePath}";
+            StatusText.Text = "Screenshot captured. Use the popup to open, save, or discard it.";
         }
     }
 }

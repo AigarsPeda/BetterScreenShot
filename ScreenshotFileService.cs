@@ -17,6 +17,11 @@ namespace BetterScreenShot
             return image;
         }
 
+        public static void CopyToClipboard(string sourceFilePath)
+        {
+            System.Windows.Clipboard.SetImage(LoadBitmap(sourceFilePath));
+        }
+
         public static string? SaveCopyAs(string sourceFilePath)
         {
             var dialog = new Microsoft.Win32.SaveFileDialog
@@ -35,6 +40,14 @@ namespace BetterScreenShot
 
             File.Copy(sourceFilePath, dialog.FileName, true);
             return dialog.FileName;
+        }
+
+        public static void DeleteIfExists(string filePath)
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
         }
     }
 }
