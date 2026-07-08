@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -68,14 +66,11 @@ namespace BetterScreenShot
             };
 
             Controls.Add(instructionLabel);
-
             MouseDown += OverlayMouseDown;
             MouseMove += OverlayMouseMove;
             MouseUp += OverlayMouseUp;
             KeyDown += OverlayKeyDown;
             ResumeLayout(false);
-
-            DebugLog($"Overlay created device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds}");
         }
 
         protected override CreateParams CreateParams
@@ -151,7 +146,6 @@ namespace BetterScreenShot
             base.OnShown(e);
             ApplyLayeredAlpha();
             BringInputToFront();
-            DebugLog($"Overlay shown device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds} windowPx={FormatRect(GetWindowRectPixels())} clientPx=({ClientSize.Width},{ClientSize.Height})");
         }
 
         protected override void OnActivated(EventArgs e)
@@ -242,8 +236,6 @@ namespace BetterScreenShot
             Capture = true;
             instructionLabel.Visible = false;
             UpdateSelectionPresentation(null, GetSelectionRect());
-
-            DebugLog($"MouseDown device={deviceName} localOverlayPx={FormatPoint(dragStart.Value)} screenOverlayPx={FormatScreenPoint(dragStart.Value)} overlayBounds={overlayBounds} captureBounds={captureBounds}");
         }
 
         private void OverlayMouseMove(object? sender, Forms.MouseEventArgs e)
@@ -287,9 +279,6 @@ namespace BetterScreenShot
             WaitForOverlayToDisappear();
 
             using var monitorBitmap = CaptureBitmap(captureBounds);
-            DebugLog($"MouseUp device={deviceName} overlayRectPx={overlaySelection.Value} captureRectPx={captureSelection} screenRectPx={screenRect}");
-            SaveSelectionDebugArtifacts(monitorBitmap, overlaySelection.Value, captureSelection, screenRect, dragStart.Value, dragCurrent.Value);
-
             var croppedBitmap = monitorBitmap.Clone(captureSelection, PixelFormat.Format32bppArgb);
             completeSelection?.Invoke(new SelectedCaptureResult(croppedBitmap, screenRect));
         }
@@ -404,21 +393,27 @@ namespace BetterScreenShot
                     return cachedOverlays;
                 }
 
-                if (cachedOverlays is not null)
-                {
-                    foreach (var overlay in cachedOverlays)
-                    {
-                        overlay.suppressComplete = true;
-                        overlay.Close();
-                        overlay.Dispose();
-                    }
-                }
-
+                DisposeCachedOverlays();
                 cachedOverlays = Forms.Screen.AllScreens
                     .Select(screen => new MonitorSelectionOverlayForm(screen.DeviceName, screen.Bounds, GetMonitorBounds(screen)))
                     .ToList();
 
                 return cachedOverlays;
+            }
+        }
+
+        private static void DisposeCachedOverlays()
+        {
+            if (cachedOverlays is null)
+            {
+                return;
+            }
+
+            foreach (var overlay in cachedOverlays)
+            {
+                overlay.suppressComplete = true;
+                overlay.Close();
+                overlay.Dispose();
             }
         }
 
@@ -432,83 +427,19 @@ namespace BetterScreenShot
 
             foreach (var screen in screens)
             {
-                var captureBounds = GetMonitorBounds(screen);
                 var overlay = overlays.FirstOrDefault(item => item.deviceName == screen.DeviceName);
                 if (overlay is null)
                 {
                     return false;
                 }
 
-                if (overlay.overlayBounds != screen.Bounds || overlay.captureBounds != captureBounds)
+                if (overlay.overlayBounds != screen.Bounds || overlay.captureBounds != GetMonitorBounds(screen))
                 {
                     return false;
                 }
             }
 
             return true;
-        }
-
-        private void SaveSelectionDebugArtifacts(Bitmap monitorBitmap, Rectangle overlayRect, Rectangle captureRect, Rectangle screenRect, System.Drawing.Point startPoint, System.Drawing.Point endPoint)
-        {
-            try
-            {
-                var folder = GetDesktopDebugFolder();
-                Directory.CreateDirectory(folder);
-                var stamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss_fff");
-
-                using (var annotatedBitmap = (Bitmap)monitorBitmap.Clone())
-                using (var graphics = Graphics.FromImage(annotatedBitmap))
-                using (var redPen = new Pen(Color.Red, 4))
-                using (var greenPen = new Pen(Color.Lime, 2))
-                using (var pointBrush = new SolidBrush(Color.Yellow))
-                using (var font = new Font("Segoe UI", 18, FontStyle.Bold))
-                using (var textBrush = new SolidBrush(Color.Yellow))
-                using (var textBackgroundBrush = new SolidBrush(Color.FromArgb(170, 0, 0, 0)))
-                {
-                    graphics.DrawRectangle(redPen, captureRect);
-                    graphics.DrawRectangle(greenPen, 0, 0, annotatedBitmap.Width - 1, annotatedBitmap.Height - 1);
-                    DrawPointMarker(graphics, pointBrush, ConvertOverlayPointToCapturePoint(startPoint));
-                    DrawPointMarker(graphics, pointBrush, ConvertOverlayPointToCapturePoint(endPoint));
-
-                    var lines = new[]
-                    {
-                        $"device={deviceName}",
-                        $"overlayBounds={overlayBounds}",
-                        $"captureBounds={captureBounds}",
-                        $"overlayRect={overlayRect}",
-                        $"captureRect={captureRect}",
-                        $"screenRect={screenRect}"
-                    };
-
-                    var y = 20f;
-                    foreach (var line in lines)
-                    {
-                        var measured = graphics.MeasureString(line, font);
-                        graphics.FillRectangle(textBackgroundBrush, 14, y - 2, measured.Width + 12, measured.Height + 4);
-                        graphics.DrawString(line, font, textBrush, 20, y);
-                        y += measured.Height + 6;
-                    }
-
-                    annotatedBitmap.Save(Path.Combine(folder, $"selection-debug-monitor-{stamp}.png"), ImageFormat.Png);
-                }
-
-                using var croppedBitmap = monitorBitmap.Clone(captureRect, PixelFormat.Format32bppArgb);
-                croppedBitmap.Save(Path.Combine(folder, $"selection-debug-crop-{stamp}.png"), ImageFormat.Png);
-                DebugLog($"Saved debug images device={deviceName} overlayRect={overlayRect} captureRect={captureRect} screenRect={screenRect} stamp={stamp} folder={folder}");
-            }
-            catch (Exception ex)
-            {
-                DebugLog($"Failed to save debug images: {ex.Message}");
-            }
-        }
-
-        private System.Drawing.Point ConvertOverlayPointToCapturePoint(System.Drawing.Point overlayPoint)
-        {
-            var scaleX = captureBounds.Width / (double)Math.Max(1, ClientSize.Width);
-            var scaleY = captureBounds.Height / (double)Math.Max(1, ClientSize.Height);
-            return new System.Drawing.Point(
-                Math.Clamp((int)Math.Round(overlayPoint.X * scaleX), 0, Math.Max(0, captureBounds.Width - 1)),
-                Math.Clamp((int)Math.Round(overlayPoint.Y * scaleY), 0, Math.Max(0, captureBounds.Height - 1)));
         }
 
         private void InvalidateSelection(Rectangle? previousSelection, Rectangle? currentSelection)
@@ -573,62 +504,9 @@ namespace BetterScreenShot
             return bitmap;
         }
 
-        private NativeRect GetWindowRectPixels()
-        {
-            return GetWindowRect(Handle, out var rect)
-                ? rect
-                : new NativeRect { Left = overlayBounds.Left, Top = overlayBounds.Top, Right = overlayBounds.Right, Bottom = overlayBounds.Bottom };
-        }
-
-        private static void DrawPointMarker(Graphics graphics, Brush brush, System.Drawing.Point point)
-        {
-            const int size = 10;
-            graphics.FillEllipse(brush, point.X - size / 2f, point.Y - size / 2f, size, size);
-        }
-
-        private static string FormatPoint(System.Drawing.Point point)
-        {
-            return $"({point.X},{point.Y})";
-        }
-
-        private string FormatScreenPoint(System.Drawing.Point localPoint)
-        {
-            return $"({overlayBounds.Left + localPoint.X},{overlayBounds.Top + localPoint.Y})";
-        }
-
-        private static string FormatRect(NativeRect rect)
-        {
-            return $"({rect.Left},{rect.Top},{rect.Width},{rect.Height})";
-        }
-
-        private static string GetDesktopDebugFolder()
-        {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "BetterScreenShotDebug");
-        }
-
-        private static void DebugLog(string message)
-        {
-            var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}";
-            Debug.WriteLine(line);
-
-            try
-            {
-                var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
-                Directory.CreateDirectory(folder);
-                File.AppendAllText(Path.Combine(folder, "selection-debug.log"), line + Environment.NewLine);
-            }
-            catch
-            {
-            }
-        }
-
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DevMode lpDevMode);
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect lpRect);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -672,18 +550,6 @@ namespace BetterScreenShot
             public int dmReserved2;
             public int dmPanningWidth;
             public int dmPanningHeight;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct NativeRect
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-
-            public int Width => Right - Left;
-            public int Height => Bottom - Top;
         }
     }
 }
