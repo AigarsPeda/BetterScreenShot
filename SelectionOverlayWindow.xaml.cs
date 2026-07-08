@@ -11,6 +11,11 @@ namespace BetterScreenShot
             InitializeComponent();
         }
 
+        public static void WarmUp()
+        {
+            MonitorSelectionOverlayForm.WarmUpOverlays();
+        }
+
         public static SelectedCaptureResult? SelectArea(System.Action? onOverlaysShown = null)
         {
             return MonitorSelectionOverlayForm.SelectArea(onOverlaysShown);

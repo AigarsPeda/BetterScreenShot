@@ -16,21 +16,25 @@ namespace BetterScreenShot
     internal sealed class MonitorSelectionOverlayForm : Forms.Form
     {
         private const byte OverlayAlpha = 115;
+        private const int EnumCurrentSettings = -1;
+        private const int LwaAlpha = 0x2;
+        private static readonly object OverlaySync = new();
+        private static List<MonitorSelectionOverlayForm>? cachedOverlays;
+
         private readonly Rectangle overlayBounds;
         private readonly Rectangle captureBounds;
-        private readonly Action<SelectedCaptureResult?> completeSelection;
         private readonly string deviceName;
         private readonly Forms.Label instructionLabel;
         private System.Drawing.Point? dragStart;
         private System.Drawing.Point? dragCurrent;
         private bool suppressComplete;
+        private Action<SelectedCaptureResult?>? completeSelection;
 
-        private MonitorSelectionOverlayForm(string deviceName, Rectangle overlayBounds, Rectangle captureBounds, Action<SelectedCaptureResult?> completeSelection)
+        private MonitorSelectionOverlayForm(string deviceName, Rectangle overlayBounds, Rectangle captureBounds)
         {
             this.deviceName = deviceName;
             this.overlayBounds = overlayBounds;
             this.captureBounds = captureBounds;
-            this.completeSelection = completeSelection;
 
             SuspendLayout();
             FormBorderStyle = Forms.FormBorderStyle.None;
@@ -87,18 +91,17 @@ namespace BetterScreenShot
             }
         }
 
+        public static void WarmUpOverlays()
+        {
+            foreach (var overlay in GetOrCreateOverlays())
+            {
+                _ = overlay.Handle;
+            }
+        }
+
         public static SelectedCaptureResult? SelectArea(Action? onOverlaysShown = null)
         {
-            var screens = Forms.Screen.AllScreens
-                .Select(screen => new
-                {
-                    screen.DeviceName,
-                    OverlayBounds = screen.Bounds,
-                    CaptureBounds = GetMonitorBounds(screen)
-                })
-                .ToList();
-
-            var overlays = new List<MonitorSelectionOverlayForm>();
+            var overlays = GetOrCreateOverlays();
             var frame = new DispatcherFrame();
             SelectedCaptureResult? selectedCapture = null;
             var completed = false;
@@ -113,28 +116,23 @@ namespace BetterScreenShot
                 completed = true;
                 selectedCapture = capture;
 
-                foreach (var overlay in overlays.ToList())
+                foreach (var overlay in overlays)
                 {
-                    overlay.suppressComplete = true;
-                    if (!overlay.IsDisposed)
-                    {
-                        overlay.Close();
-                    }
+                    overlay.EndSelectionSession();
                 }
 
                 frame.Continue = false;
             }
 
-            overlays.AddRange(screens.Select(screen => new MonitorSelectionOverlayForm(screen.DeviceName, screen.OverlayBounds, screen.CaptureBounds, Complete)));
-
             foreach (var overlay in overlays)
             {
+                overlay.BeginSelectionSession(Complete);
                 overlay.Show();
                 overlay.BringInputToFront();
             }
 
             Forms.Application.DoEvents();
-            Thread.Sleep(30);
+            Thread.Sleep(15);
             Forms.Application.DoEvents();
             onOverlaysShown?.Invoke();
 
@@ -174,7 +172,7 @@ namespace BetterScreenShot
 
             if (!suppressComplete)
             {
-                completeSelection(null);
+                completeSelection?.Invoke(null);
             }
         }
 
@@ -202,11 +200,34 @@ namespace BetterScreenShot
             if (keyData == Forms.Keys.Escape)
             {
                 Capture = false;
-                completeSelection(null);
+                completeSelection?.Invoke(null);
                 return true;
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private void BeginSelectionSession(Action<SelectedCaptureResult?> completion)
+        {
+            suppressComplete = false;
+            completeSelection = completion;
+            dragStart = null;
+            dragCurrent = null;
+            instructionLabel.Visible = true;
+            Bounds = overlayBounds;
+            ResetOverlayRegion();
+            Invalidate();
+        }
+
+        private void EndSelectionSession()
+        {
+            suppressComplete = true;
+            Capture = false;
+            dragStart = null;
+            dragCurrent = null;
+            completeSelection = null;
+            ResetOverlayRegion();
+            Hide();
         }
 
         private void OverlayMouseDown(object? sender, Forms.MouseEventArgs e)
@@ -251,7 +272,7 @@ namespace BetterScreenShot
 
             if (overlaySelection is null || overlaySelection.Value.Width < 2 || overlaySelection.Value.Height < 2)
             {
-                completeSelection(null);
+                completeSelection?.Invoke(null);
                 return;
             }
 
@@ -270,7 +291,7 @@ namespace BetterScreenShot
             SaveSelectionDebugArtifacts(monitorBitmap, overlaySelection.Value, captureSelection, screenRect, dragStart.Value, dragCurrent.Value);
 
             var croppedBitmap = monitorBitmap.Clone(captureSelection, PixelFormat.Format32bppArgb);
-            completeSelection(new SelectedCaptureResult(croppedBitmap, screenRect));
+            completeSelection?.Invoke(new SelectedCaptureResult(croppedBitmap, screenRect));
         }
 
         private void OverlayKeyDown(object? sender, Forms.KeyEventArgs e)
@@ -278,7 +299,7 @@ namespace BetterScreenShot
             if (e.KeyCode == Forms.Keys.Escape)
             {
                 Capture = false;
-                completeSelection(null);
+                completeSelection?.Invoke(null);
             }
         }
 
@@ -317,9 +338,9 @@ namespace BetterScreenShot
             return Rectangle.FromLTRB(left, top, right, bottom);
         }
 
-        private void HideAllOverlayForms()
+        private static void HideAllOverlayForms()
         {
-            foreach (var overlay in Forms.Application.OpenForms.OfType<MonitorSelectionOverlayForm>().ToList())
+            foreach (var overlay in cachedOverlays ?? Enumerable.Empty<MonitorSelectionOverlayForm>())
             {
                 overlay.ResetOverlayRegion();
                 overlay.Hide();
@@ -372,6 +393,59 @@ namespace BetterScreenShot
             {
                 SetLayeredWindowAttributes(Handle, 0, OverlayAlpha, LwaAlpha);
             }
+        }
+
+        private static List<MonitorSelectionOverlayForm> GetOrCreateOverlays()
+        {
+            lock (OverlaySync)
+            {
+                if (cachedOverlays is not null && MatchesCurrentScreens(cachedOverlays))
+                {
+                    return cachedOverlays;
+                }
+
+                if (cachedOverlays is not null)
+                {
+                    foreach (var overlay in cachedOverlays)
+                    {
+                        overlay.suppressComplete = true;
+                        overlay.Close();
+                        overlay.Dispose();
+                    }
+                }
+
+                cachedOverlays = Forms.Screen.AllScreens
+                    .Select(screen => new MonitorSelectionOverlayForm(screen.DeviceName, screen.Bounds, GetMonitorBounds(screen)))
+                    .ToList();
+
+                return cachedOverlays;
+            }
+        }
+
+        private static bool MatchesCurrentScreens(IReadOnlyList<MonitorSelectionOverlayForm> overlays)
+        {
+            var screens = Forms.Screen.AllScreens;
+            if (screens.Length != overlays.Count)
+            {
+                return false;
+            }
+
+            foreach (var screen in screens)
+            {
+                var captureBounds = GetMonitorBounds(screen);
+                var overlay = overlays.FirstOrDefault(item => item.deviceName == screen.DeviceName);
+                if (overlay is null)
+                {
+                    return false;
+                }
+
+                if (overlay.overlayBounds != screen.Bounds || overlay.captureBounds != captureBounds)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void SaveSelectionDebugArtifacts(Bitmap monitorBitmap, Rectangle overlayRect, Rectangle captureRect, Rectangle screenRect, System.Drawing.Point startPoint, System.Drawing.Point endPoint)
@@ -548,9 +622,6 @@ namespace BetterScreenShot
             }
         }
 
-        private const int EnumCurrentSettings = -1;
-        private const int LwaAlpha = 0x2;
-
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DevMode lpDevMode);
@@ -611,11 +682,8 @@ namespace BetterScreenShot
             public int Right;
             public int Bottom;
 
-            public readonly int Width => Right - Left;
-            public readonly int Height => Bottom - Top;
+            public int Width => Right - Left;
+            public int Height => Bottom - Top;
         }
     }
 }
-
-
-

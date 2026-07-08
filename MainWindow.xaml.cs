@@ -14,6 +14,12 @@ namespace BetterScreenShot
         public MainWindow()
         {
             InitializeComponent();
+            Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(new Action(SelectionOverlayWindow.WarmUp), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 
         private void CaptureButton_Click(object sender, RoutedEventArgs e)
