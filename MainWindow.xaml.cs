@@ -42,9 +42,9 @@ namespace BetterScreenShot
             {
                 Hide();
 
-                var selectedArea = SelectionOverlayWindow.SelectArea();
+                var selectedCapture = SelectionOverlayWindow.SelectArea();
 
-                if (selectedArea is null)
+                if (selectedCapture is null)
                 {
                     StatusText.Text = "Selection cancelled.";
                     Show();
@@ -56,7 +56,14 @@ namespace BetterScreenShot
 
                 Show();
                 Activate();
-                HandleCapture(selectedArea.Value);
+
+                using (selectedCapture.CapturedBitmap)
+                {
+                    var filePath = ScreenshotCaptureService.SaveBitmapToTemporaryFile(selectedCapture.CapturedBitmap);
+                    ScreenshotToastWindow.ShowToast(filePath, selectedCapture.SourceScreenBounds);
+                }
+
+                StatusText.Text = "Screenshot captured. Use the popup to open, save, or discard it.";
             }
             catch (Exception ex)
             {

@@ -13,7 +13,11 @@ namespace BetterScreenShot
             using var graphics = Graphics.FromImage(bitmap);
 
             graphics.CopyFromScreen(bounds.Left, bounds.Top, 0, 0, bounds.Size);
+            return SaveBitmapToTemporaryFile(bitmap);
+        }
 
+        public static string SaveBitmapToTemporaryFile(Bitmap bitmap)
+        {
             var screenshotsFolder = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
             Directory.CreateDirectory(screenshotsFolder);
 

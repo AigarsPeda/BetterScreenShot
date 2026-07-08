@@ -55,6 +55,8 @@ namespace BetterScreenShot
             try
             {
                 ScreenshotFileService.CopyToClipboard(filePath);
+                ScreenshotFileService.DeleteIfExists(filePath);
+                Close();
             }
             catch (Exception ex)
             {
