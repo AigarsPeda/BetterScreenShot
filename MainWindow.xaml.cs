@@ -40,18 +40,18 @@ namespace BetterScreenShot
         {
             try
             {
-                var previousOpacity = Opacity;
-                Opacity = 0;
+                Hide();
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+                await Task.Delay(50);
 
                 var selectedCapture = SelectionOverlayWindow.SelectArea();
 
-                Opacity = previousOpacity;
+                Show();
+                Activate();
 
                 if (selectedCapture is null)
                 {
                     StatusText.Text = "Selection cancelled.";
-                    Activate();
                     return;
                 }
 
@@ -68,7 +68,11 @@ namespace BetterScreenShot
             }
             catch (Exception ex)
             {
-                Opacity = 1;
+                if (!IsVisible)
+                {
+                    Show();
+                }
+
                 Activate();
                 StatusText.Text = $"Error: {ex.Message}";
             }

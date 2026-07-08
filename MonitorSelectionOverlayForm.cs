@@ -15,6 +15,7 @@ namespace BetterScreenShot
 {
     internal sealed class MonitorSelectionOverlayForm : Forms.Form
     {
+        private const byte OverlayAlpha = 115;
         private readonly Rectangle overlayBounds;
         private readonly Rectangle captureBounds;
         private readonly Action<SelectedCaptureResult?> completeSelection;
@@ -31,6 +32,7 @@ namespace BetterScreenShot
             this.captureBounds = captureBounds;
             this.completeSelection = completeSelection;
 
+            SuspendLayout();
             FormBorderStyle = Forms.FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = Forms.FormStartPosition.Manual;
@@ -40,7 +42,6 @@ namespace BetterScreenShot
             KeyPreview = true;
             AutoScaleMode = Forms.AutoScaleMode.None;
             BackColor = Color.Black;
-            Opacity = 0.45;
             DoubleBuffered = true;
             SetStyle(
                 Forms.ControlStyles.UserPaint |
@@ -68,8 +69,22 @@ namespace BetterScreenShot
             MouseMove += OverlayMouseMove;
             MouseUp += OverlayMouseUp;
             KeyDown += OverlayKeyDown;
+            ResumeLayout(false);
 
             DebugLog($"Overlay created device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds}");
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                const int WS_EX_LAYERED = 0x00080000;
+                const int WS_EX_TOOLWINDOW = 0x00000080;
+
+                var cp = base.CreateParams;
+                cp.ExStyle |= WS_EX_LAYERED | WS_EX_TOOLWINDOW;
+                return cp;
+            }
         }
 
         public static SelectedCaptureResult? SelectArea()
@@ -122,9 +137,16 @@ namespace BetterScreenShot
             return selectedCapture;
         }
 
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            ApplyLayeredAlpha();
+        }
+
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
+            ApplyLayeredAlpha();
             BringInputToFront();
             DebugLog($"Overlay shown device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds} windowPx={FormatRect(GetWindowRectPixels())} clientPx=({ClientSize.Width},{ClientSize.Height})");
         }
@@ -339,6 +361,14 @@ namespace BetterScreenShot
             UpdateOverlayRegion(null);
         }
 
+        private void ApplyLayeredAlpha()
+        {
+            if (IsHandleCreated)
+            {
+                SetLayeredWindowAttributes(Handle, 0, OverlayAlpha, LwaAlpha);
+            }
+        }
+
         private void SaveSelectionDebugArtifacts(Bitmap monitorBitmap, Rectangle overlayRect, Rectangle captureRect, Rectangle screenRect, System.Drawing.Point startPoint, System.Drawing.Point endPoint)
         {
             try
@@ -514,6 +544,7 @@ namespace BetterScreenShot
         }
 
         private const int EnumCurrentSettings = -1;
+        private const int LwaAlpha = 0x2;
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -522,6 +553,10 @@ namespace BetterScreenShot
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect lpRect);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct DevMode
