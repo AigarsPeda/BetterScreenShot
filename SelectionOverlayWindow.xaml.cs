@@ -11,9 +11,9 @@ namespace BetterScreenShot
             InitializeComponent();
         }
 
-        public static SelectedCaptureResult? SelectArea()
+        public static SelectedCaptureResult? SelectArea(System.Action? onOverlaysShown = null)
         {
-            return MonitorSelectionOverlayForm.SelectArea();
+            return MonitorSelectionOverlayForm.SelectArea(onOverlaysShown);
         }
 
         private void OverlayCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

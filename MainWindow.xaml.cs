@@ -40,11 +40,12 @@ namespace BetterScreenShot
         {
             try
             {
-                Hide();
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
-                await Task.Delay(50);
 
-                var selectedCapture = SelectionOverlayWindow.SelectArea();
+                var selectedCapture = SelectionOverlayWindow.SelectArea(() =>
+                {
+                    Dispatcher.Invoke(Hide);
+                });
 
                 Show();
                 Activate();

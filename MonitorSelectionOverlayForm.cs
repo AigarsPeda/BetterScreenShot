@@ -87,7 +87,7 @@ namespace BetterScreenShot
             }
         }
 
-        public static SelectedCaptureResult? SelectArea()
+        public static SelectedCaptureResult? SelectArea(Action? onOverlaysShown = null)
         {
             var screens = Forms.Screen.AllScreens
                 .Select(screen => new
@@ -132,6 +132,11 @@ namespace BetterScreenShot
                 overlay.Show();
                 overlay.BringInputToFront();
             }
+
+            Forms.Application.DoEvents();
+            Thread.Sleep(30);
+            Forms.Application.DoEvents();
+            onOverlaysShown?.Invoke();
 
             Dispatcher.PushFrame(frame);
             return selectedCapture;
@@ -606,8 +611,11 @@ namespace BetterScreenShot
             public int Right;
             public int Bottom;
 
-            public int Width => Right - Left;
-            public int Height => Bottom - Top;
+            public readonly int Width => Right - Left;
+            public readonly int Height => Bottom - Top;
         }
     }
 }
+
+
+
