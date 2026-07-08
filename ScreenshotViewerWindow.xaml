@@ -1,0 +1,49 @@
+<Window x:Class="BetterScreenShot.ScreenshotViewerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Screenshot Viewer"
+        Width="1000"
+        Height="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#FF111111">
+    <DockPanel>
+        <Border DockPanel.Dock="Top"
+                Background="#FF1B1B1B"
+                Padding="16"
+                BorderBrush="#FF2F2F2F"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Captured Screenshot"
+                               Foreground="White"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Name="FilePathText"
+                               Margin="0,6,0,0"
+                               Foreground="#FFB8B8B8"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Width="100"
+                        Height="36"
+                        VerticalAlignment="Top"
+                        Content="Save As"
+                        Click="SaveAsButton_Click" />
+            </Grid>
+        </Border>
+
+        <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="#FF0D0D0D">
+            <Grid Margin="20">
+                <Image Name="ViewerImage"
+                       Stretch="Uniform" />
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
