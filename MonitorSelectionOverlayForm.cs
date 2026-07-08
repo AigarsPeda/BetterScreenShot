@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
@@ -40,6 +41,7 @@ namespace BetterScreenShot
             AutoScaleMode = Forms.AutoScaleMode.None;
             BackColor = Color.Black;
             Opacity = 0.45;
+            DoubleBuffered = true;
             SetStyle(
                 Forms.ControlStyles.UserPaint |
                 Forms.ControlStyles.AllPaintingInWmPaint |
@@ -47,6 +49,7 @@ namespace BetterScreenShot
                 Forms.ControlStyles.ResizeRedraw,
                 true);
             UpdateStyles();
+            ResetOverlayRegion();
 
             instructionLabel = new Forms.Label
             {
@@ -112,6 +115,7 @@ namespace BetterScreenShot
             foreach (var overlay in overlays)
             {
                 overlay.Show();
+                overlay.BringInputToFront();
             }
 
             Dispatcher.PushFrame(frame);
@@ -129,6 +133,12 @@ namespace BetterScreenShot
         {
             base.OnActivated(e);
             Focus();
+        }
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            UpdateOverlayRegion(GetSelectionRect());
         }
 
         protected override void OnFormClosed(Forms.FormClosedEventArgs e)
@@ -151,13 +161,7 @@ namespace BetterScreenShot
                 return;
             }
 
-            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
-
-            using (var selectionBrush = new SolidBrush(Color.FromArgb(70, Color.White)))
-            {
-                e.Graphics.FillRectangle(selectionBrush, selection.Value);
-            }
-
+            e.Graphics.SmoothingMode = SmoothingMode.None;
             using var borderPen = new Pen(Color.FromArgb(92, 200, 255), 2);
             var drawRect = Rectangle.Inflate(selection.Value, -1, -1);
             if (drawRect.Width > 0 && drawRect.Height > 0)
@@ -189,7 +193,7 @@ namespace BetterScreenShot
             dragCurrent = e.Location;
             Capture = true;
             instructionLabel.Visible = false;
-            InvalidateSelection(null, GetSelectionRect());
+            UpdateSelectionPresentation(null, GetSelectionRect());
 
             DebugLog($"MouseDown device={deviceName} localOverlayPx={FormatPoint(dragStart.Value)} screenOverlayPx={FormatScreenPoint(dragStart.Value)} overlayBounds={overlayBounds} captureBounds={captureBounds}");
         }
@@ -203,7 +207,7 @@ namespace BetterScreenShot
 
             var previousSelection = GetSelectionRect();
             dragCurrent = e.Location;
-            InvalidateSelection(previousSelection, GetSelectionRect());
+            UpdateSelectionPresentation(previousSelection, GetSelectionRect());
         }
 
         private void OverlayMouseUp(object? sender, Forms.MouseEventArgs e)
@@ -216,7 +220,7 @@ namespace BetterScreenShot
             dragCurrent = e.Location;
             var overlaySelection = GetSelectionRect();
             Capture = false;
-            InvalidateSelection(overlaySelection, null);
+            UpdateSelectionPresentation(overlaySelection, null);
 
             if (overlaySelection is null || overlaySelection.Value.Width < 2 || overlaySelection.Value.Height < 2)
             {
@@ -290,6 +294,7 @@ namespace BetterScreenShot
         {
             foreach (var overlay in Forms.Application.OpenForms.OfType<MonitorSelectionOverlayForm>().ToList())
             {
+                overlay.ResetOverlayRegion();
                 overlay.Hide();
             }
         }
@@ -299,6 +304,39 @@ namespace BetterScreenShot
             Forms.Application.DoEvents();
             Thread.Sleep(60);
             Forms.Application.DoEvents();
+        }
+
+        private void UpdateSelectionPresentation(Rectangle? previousSelection, Rectangle? currentSelection)
+        {
+            UpdateOverlayRegion(currentSelection);
+            InvalidateSelection(previousSelection, currentSelection);
+        }
+
+        private void UpdateOverlayRegion(Rectangle? selection)
+        {
+            if (ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            {
+                return;
+            }
+
+            var region = new Region(new Rectangle(0, 0, ClientSize.Width, ClientSize.Height));
+            if (selection is not null && selection.Value.Width >= 2 && selection.Value.Height >= 2)
+            {
+                var hole = Rectangle.Inflate(selection.Value, -2, -2);
+                if (hole.Width > 0 && hole.Height > 0)
+                {
+                    region.Exclude(hole);
+                }
+            }
+
+            var oldRegion = Region;
+            Region = region;
+            oldRegion?.Dispose();
+        }
+
+        private void ResetOverlayRegion()
+        {
+            UpdateOverlayRegion(null);
         }
 
         private void SaveSelectionDebugArtifacts(Bitmap monitorBitmap, Rectangle overlayRect, Rectangle captureRect, Rectangle screenRect, System.Drawing.Point startPoint, System.Drawing.Point endPoint)
@@ -392,7 +430,7 @@ namespace BetterScreenShot
 
         private static Rectangle InflateForBorder(Rectangle rect)
         {
-            return Rectangle.Inflate(rect, 4, 4);
+            return Rectangle.Inflate(rect, 6, 6);
         }
 
         private static Rectangle GetMonitorBounds(Forms.Screen screen)
