@@ -39,7 +39,7 @@ namespace BetterScreenShot
             KeyPreview = true;
             AutoScaleMode = Forms.AutoScaleMode.None;
             BackColor = Color.Black;
-            Opacity = 0.35;
+            Opacity = 0.45;
             SetStyle(
                 Forms.ControlStyles.UserPaint |
                 Forms.ControlStyles.AllPaintingInWmPaint |
@@ -152,6 +152,12 @@ namespace BetterScreenShot
             }
 
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+
+            using (var selectionBrush = new SolidBrush(Color.FromArgb(70, Color.White)))
+            {
+                e.Graphics.FillRectangle(selectionBrush, selection.Value);
+            }
+
             using var borderPen = new Pen(Color.FromArgb(92, 200, 255), 2);
             var drawRect = Rectangle.Inflate(selection.Value, -1, -1);
             if (drawRect.Width > 0 && drawRect.Height > 0)
