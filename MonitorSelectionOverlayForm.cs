@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -15,11 +17,10 @@ namespace BetterScreenShot
     {
         private readonly Rectangle overlayBounds;
         private readonly Rectangle captureBounds;
-        private readonly Bitmap monitorBitmap;
         private readonly Action<SelectedCaptureResult?> completeSelection;
         private readonly string deviceName;
         private readonly Forms.Label instructionLabel;
-        private readonly SelectionPreviewForm previewForm;
+        private readonly SelectionBorderForm borderForm;
         private System.Drawing.Point? dragStart;
         private System.Drawing.Point? dragCurrent;
         private bool suppressComplete;
@@ -30,8 +31,7 @@ namespace BetterScreenShot
             this.overlayBounds = overlayBounds;
             this.captureBounds = captureBounds;
             this.completeSelection = completeSelection;
-            monitorBitmap = CaptureBitmap(captureBounds);
-            previewForm = new SelectionPreviewForm();
+            borderForm = new SelectionBorderForm();
 
             FormBorderStyle = Forms.FormBorderStyle.None;
             ShowInTaskbar = false;
@@ -42,8 +42,8 @@ namespace BetterScreenShot
             DoubleBuffered = true;
             KeyPreview = true;
             AutoScaleMode = Forms.AutoScaleMode.None;
-            BackgroundImage = CreateDimmedBackground(monitorBitmap, overlayBounds.Size);
-            BackgroundImageLayout = Forms.ImageLayout.None;
+            BackColor = Color.Black;
+            Opacity = 0.65;
 
             instructionLabel = new Forms.Label
             {
@@ -64,10 +64,8 @@ namespace BetterScreenShot
             KeyDown += OverlayKeyDown;
             FormClosed += (_, _) =>
             {
-                previewForm.SafeClose();
-                previewForm.Dispose();
-                BackgroundImage?.Dispose();
-                monitorBitmap.Dispose();
+                borderForm.SafeClose();
+                borderForm.Dispose();
             };
 
             DebugLog($"Overlay created device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds}");
@@ -126,6 +124,7 @@ namespace BetterScreenShot
         {
             base.OnShown(e);
             Activate();
+            ApplyDimRegion(null);
             DebugLog($"Overlay shown device={deviceName} overlayBounds={overlayBounds} captureBounds={captureBounds} windowPx={FormatRect(GetWindowRectPixels())} clientPx=({ClientSize.Width},{ClientSize.Height})");
         }
 
@@ -149,7 +148,7 @@ namespace BetterScreenShot
             dragStart = e.Location;
             dragCurrent = e.Location;
             instructionLabel.Visible = false;
-            UpdatePreview();
+            UpdateSelectionVisuals();
 
             DebugLog($"MouseDown device={deviceName} localOverlayPx={FormatPoint(dragStart.Value)} screenOverlayPx={FormatScreenPoint(dragStart.Value)} overlayBounds={overlayBounds} captureBounds={captureBounds}");
         }
@@ -162,7 +161,7 @@ namespace BetterScreenShot
             }
 
             dragCurrent = e.Location;
-            UpdatePreview();
+            UpdateSelectionVisuals();
         }
 
         private void OverlayMouseUp(object? sender, Forms.MouseEventArgs e)
@@ -174,7 +173,8 @@ namespace BetterScreenShot
 
             dragCurrent = e.Location;
             var overlaySelection = GetSelectionRect();
-            previewForm.SafeClose();
+            borderForm.SafeClose();
+            ApplyDimRegion(null);
 
             if (overlaySelection is null || overlaySelection.Value.Width < 2 || overlaySelection.Value.Height < 2)
             {
@@ -189,8 +189,12 @@ namespace BetterScreenShot
                 captureSelection.Width,
                 captureSelection.Height);
 
+            HideAllOverlayForms();
+            WaitForOverlayToDisappear();
+
+            using var monitorBitmap = CaptureBitmap(captureBounds);
             DebugLog($"MouseUp device={deviceName} overlayRectPx={overlaySelection.Value} captureRectPx={captureSelection} screenRectPx={screenRect}");
-            SaveSelectionDebugArtifacts(overlaySelection.Value, captureSelection, screenRect, dragStart.Value, dragCurrent.Value);
+            SaveSelectionDebugArtifacts(monitorBitmap, overlaySelection.Value, captureSelection, screenRect, dragStart.Value, dragCurrent.Value);
 
             var croppedBitmap = monitorBitmap.Clone(captureSelection, PixelFormat.Format32bppArgb);
             completeSelection(new SelectedCaptureResult(croppedBitmap, screenRect));
@@ -204,17 +208,28 @@ namespace BetterScreenShot
             }
         }
 
-        private void UpdatePreview()
+        private void UpdateSelectionVisuals()
         {
             var overlaySelection = GetSelectionRect();
-            if (overlaySelection is null || overlaySelection.Value.Width < 2 || overlaySelection.Value.Height < 2)
+            ApplyDimRegion(overlaySelection);
+            borderForm.ShowSelection(overlaySelection, overlayBounds.Location);
+        }
+
+        private void ApplyDimRegion(Rectangle? transparentHole)
+        {
+            Region?.Dispose();
+
+            if (transparentHole is null || transparentHole.Value.Width < 2 || transparentHole.Value.Height < 2)
             {
-                previewForm.SafeClose();
+                Region = new Region(new Rectangle(0, 0, Width, Height));
                 return;
             }
 
-            var captureSelection = ConvertOverlayRectToCaptureRect(overlaySelection.Value);
-            previewForm.ShowSelection(monitorBitmap, captureSelection, overlaySelection.Value, overlayBounds.Location);
+            using var path = new GraphicsPath();
+            path.AddRectangle(new Rectangle(0, 0, Width, Height));
+            path.AddRectangle(transparentHole.Value);
+            Region = new Region(path);
+            Region.Xor(transparentHole.Value);
         }
 
         private Rectangle? GetSelectionRect()
@@ -245,7 +260,23 @@ namespace BetterScreenShot
             return Rectangle.FromLTRB(left, top, right, bottom);
         }
 
-        private void SaveSelectionDebugArtifacts(Rectangle overlayRect, Rectangle captureRect, Rectangle screenRect, System.Drawing.Point startPoint, System.Drawing.Point endPoint)
+        private void HideAllOverlayForms()
+        {
+            foreach (var overlay in Forms.Application.OpenForms.OfType<MonitorSelectionOverlayForm>().ToList())
+            {
+                overlay.borderForm.SafeClose();
+                overlay.Hide();
+            }
+        }
+
+        private static void WaitForOverlayToDisappear()
+        {
+            Forms.Application.DoEvents();
+            Thread.Sleep(60);
+            Forms.Application.DoEvents();
+        }
+
+        private void SaveSelectionDebugArtifacts(Bitmap monitorBitmap, Rectangle overlayRect, Rectangle captureRect, Rectangle screenRect, System.Drawing.Point startPoint, System.Drawing.Point endPoint)
         {
             try
             {
@@ -336,16 +367,6 @@ namespace BetterScreenShot
             var bitmap = new Bitmap(bounds.Width, bounds.Height);
             using var graphics = Graphics.FromImage(bitmap);
             graphics.CopyFromScreen(bounds.Left, bounds.Top, 0, 0, bounds.Size);
-            return bitmap;
-        }
-
-        private static Bitmap CreateDimmedBackground(Bitmap source, Size overlaySize)
-        {
-            var bitmap = new Bitmap(overlaySize.Width, overlaySize.Height);
-            using var graphics = Graphics.FromImage(bitmap);
-            graphics.DrawImage(source, new Rectangle(0, 0, overlaySize.Width, overlaySize.Height));
-            using var overlayBrush = new SolidBrush(Color.FromArgb(160, 0, 0, 0));
-            graphics.FillRectangle(overlayBrush, 0, 0, overlaySize.Width, overlaySize.Height);
             return bitmap;
         }
 
@@ -460,11 +481,9 @@ namespace BetterScreenShot
             public int Height => Bottom - Top;
         }
 
-        private sealed class SelectionPreviewForm : Forms.Form
+        private sealed class SelectionBorderForm : Forms.Form
         {
-            private Bitmap? previewBitmap;
-
-            public SelectionPreviewForm()
+            public SelectionBorderForm()
             {
                 FormBorderStyle = Forms.FormBorderStyle.None;
                 ShowInTaskbar = false;
@@ -475,24 +494,15 @@ namespace BetterScreenShot
                 TransparencyKey = Color.Magenta;
             }
 
-            public void ShowSelection(Bitmap sourceBitmap, Rectangle captureRect, Rectangle overlayRect, System.Drawing.Point overlayLocation)
+            public void ShowSelection(Rectangle? overlayRect, System.Drawing.Point overlayLocation)
             {
-                if (captureRect.Width < 2 || captureRect.Height < 2 || overlayRect.Width < 2 || overlayRect.Height < 2)
+                if (overlayRect is null || overlayRect.Value.Width < 2 || overlayRect.Value.Height < 2)
                 {
                     SafeClose();
                     return;
                 }
 
-                previewBitmap?.Dispose();
-                previewBitmap = new Bitmap(overlayRect.Width, overlayRect.Height);
-                using (var graphics = Graphics.FromImage(previewBitmap))
-                {
-                    graphics.DrawImage(sourceBitmap, new Rectangle(0, 0, overlayRect.Width, overlayRect.Height), captureRect, GraphicsUnit.Pixel);
-                }
-
-                BackgroundImage = previewBitmap;
-                BackgroundImageLayout = Forms.ImageLayout.None;
-                Bounds = new Rectangle(overlayLocation.X + overlayRect.X, overlayLocation.Y + overlayRect.Y, overlayRect.Width, overlayRect.Height);
+                Bounds = new Rectangle(overlayLocation.X + overlayRect.Value.X, overlayLocation.Y + overlayRect.Value.Y, overlayRect.Value.Width, overlayRect.Value.Height);
 
                 if (!Visible)
                 {
@@ -510,10 +520,6 @@ namespace BetterScreenShot
                 {
                     Hide();
                 }
-
-                BackgroundImage = null;
-                previewBitmap?.Dispose();
-                previewBitmap = null;
             }
 
             protected override void OnPaint(Forms.PaintEventArgs e)
