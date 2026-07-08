@@ -4,7 +4,7 @@ using System.Windows;
 namespace BetterScreenShot
 {
     /// <summary>
-    /// Interaction logic for App.xaml
+    /// Interaction logic for App.xaml 1
     /// </summary>
     public partial class App : System.Windows.Application
     {
