@@ -2,20 +2,30 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using Microsoft.Win32;
 using MediaColor = System.Windows.Media.Color;
 using MediaColorConverter = System.Windows.Media.ColorConverter;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
+using Point = System.Windows.Point;
+using WpfCursors = System.Windows.Input.Cursors;
+using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 namespace BetterScreenShot
 {
     public partial class ScreenshotViewerWindow : Window
     {
         private const int DwmwaUseImmersiveDarkMode = 20;
+        private const double MinZoom = 1.0;
+        private const double MaxZoom = 5.0;
+        private const double ZoomStep = 0.2;
 
         private readonly string filePath;
         private bool shouldDeleteTemporaryFile = true;
+        private bool isDragging;
+        private Point lastDragPoint;
+        private double currentZoom = 1.0;
 
         public ScreenshotViewerWindow(string filePath)
         {
@@ -35,6 +45,7 @@ namespace BetterScreenShot
             SourceInitialized += ScreenshotViewerWindow_SourceInitialized;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
             ApplyThemeFromSystem();
+            UpdateZoomState();
         }
 
         private void ScreenshotViewerWindow_SourceInitialized(object? sender, EventArgs e)
@@ -93,6 +104,95 @@ namespace BetterScreenShot
 
             var darkModeEnabled = theme == AppTheme.Dark ? 1 : 0;
             DwmSetWindowAttribute(helper.Handle, DwmwaUseImmersiveDarkMode, ref darkModeEnabled, sizeof(int));
+        }
+
+        private void UpdateZoomState()
+        {
+            ImageScaleTransform.ScaleX = currentZoom;
+            ImageScaleTransform.ScaleY = currentZoom;
+
+            if (currentZoom <= MinZoom)
+            {
+                ImageTranslateTransform.X = 0;
+                ImageTranslateTransform.Y = 0;
+            }
+
+            ImageViewport.Cursor = currentZoom > MinZoom ? WpfCursors.SizeAll : WpfCursors.Arrow;
+        }
+
+        private void ChangeZoom(double delta)
+        {
+            currentZoom = Math.Clamp(Math.Round(currentZoom + delta, 2), MinZoom, MaxZoom);
+            UpdateZoomState();
+        }
+
+        private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
+        {
+            ChangeZoom(-ZoomStep);
+        }
+
+        private void ZoomInButton_Click(object sender, RoutedEventArgs e)
+        {
+            ChangeZoom(ZoomStep);
+        }
+
+        private void ImageViewport_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            ChangeZoom(e.Delta > 0 ? ZoomStep : -ZoomStep);
+            e.Handled = true;
+        }
+
+        private void ImageViewport_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (currentZoom <= MinZoom)
+            {
+                return;
+            }
+
+            isDragging = true;
+            lastDragPoint = e.GetPosition(ImageViewport);
+            ImageViewport.CaptureMouse();
+            ImageViewport.Cursor = WpfCursors.Hand;
+        }
+
+        private void ImageViewport_MouseMove(object sender, WpfMouseEventArgs e)
+        {
+            if (!isDragging || currentZoom <= MinZoom)
+            {
+                return;
+            }
+
+            var currentPoint = e.GetPosition(ImageViewport);
+            var delta = currentPoint - lastDragPoint;
+            lastDragPoint = currentPoint;
+
+            ImageTranslateTransform.X += delta.X;
+            ImageTranslateTransform.Y += delta.Y;
+        }
+
+        private void ImageViewport_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            EndDrag();
+        }
+
+        private void ImageViewport_MouseLeave(object sender, WpfMouseEventArgs e)
+        {
+            if (isDragging && e.LeftButton != MouseButtonState.Pressed)
+            {
+                EndDrag();
+            }
+        }
+
+        private void EndDrag()
+        {
+            if (!isDragging)
+            {
+                return;
+            }
+
+            isDragging = false;
+            ImageViewport.ReleaseMouseCapture();
+            ImageViewport.Cursor = currentZoom > MinZoom ? WpfCursors.SizeAll : WpfCursors.Arrow;
         }
 
         private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)

@@ -59,6 +59,11 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="ViewerZoomButtonStyle" TargetType="Button" BasedOn="{StaticResource ViewerActionButtonStyle}">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
     </Window.Resources>
 
     <Grid Background="{DynamicResource ViewerPageBackgroundBrush}">
@@ -75,11 +80,43 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="12" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <Button Grid.Column="1"
+                        Style="{StaticResource ViewerZoomButtonStyle}"
+                        VerticalAlignment="Top"
+                        Click="ZoomOutButton_Click">
+                    <Viewbox Width="20"
+                             Height="20">
+                        <Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                  Data="M5 12h14" />
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+
+                <Button Grid.Column="3"
+                        Style="{StaticResource ViewerZoomButtonStyle}"
+                        VerticalAlignment="Top"
+                        Click="ZoomInButton_Click">
+                    <Viewbox Width="20"
+                             Height="20">
+                        <Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                  Data="M5 12h14" />
+                            <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                  Data="M12 5v14" />
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+
+                <Button Grid.Column="5"
                         Style="{StaticResource ViewerActionButtonStyle}"
                         VerticalAlignment="Top"
                         Click="SaveAsButton_Click">
@@ -103,7 +140,7 @@
                     </StackPanel>
                 </Button>
 
-                <Button Grid.Column="3"
+                <Button Grid.Column="7"
                         Style="{StaticResource ViewerActionButtonStyle}"
                         VerticalAlignment="Top"
                         Click="DeleteButton_Click">
@@ -140,14 +177,29 @@
                 BorderThickness="1"
                 CornerRadius="20"
                 ClipToBounds="True">
-            <Grid>
+            <Grid Name="ImageViewport"
+                  ClipToBounds="True"
+                  Background="Transparent"
+                  MouseWheel="ImageViewport_MouseWheel"
+                  MouseLeftButtonDown="ImageViewport_MouseLeftButtonDown"
+                  MouseMove="ImageViewport_MouseMove"
+                  MouseLeftButtonUp="ImageViewport_MouseLeftButtonUp"
+                  MouseLeave="ImageViewport_MouseLeave">
                 <Image Name="ViewerImage"
                        Margin="16"
                        Stretch="Uniform"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
                        SnapsToDevicePixels="True"
-                       RenderOptions.BitmapScalingMode="HighQuality" />
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderTransformOrigin="0.5,0.5">
+                    <Image.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1" ScaleY="1" />
+                            <TranslateTransform x:Name="ImageTranslateTransform" X="0" Y="0" />
+                        </TransformGroup>
+                    </Image.RenderTransform>
+                </Image>
             </Grid>
         </Border>
     </Grid>
