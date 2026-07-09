@@ -4,12 +4,23 @@
         Title="Screenshot Viewer"
         Width="1000"
         Height="700"
+        MinWidth="520"
+        MinHeight="360"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
-        Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}">
+        Background="{DynamicResource ViewerPageBackgroundBrush}"
+        Foreground="{DynamicResource ViewerPrimaryTextBrush}">
     <Window.Resources>
+        <SolidColorBrush x:Key="ViewerPageBackgroundBrush" Color="#F7F9FC" />
+        <SolidColorBrush x:Key="ViewerSurfaceBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ViewerSurfaceBorderBrush" Color="#D8E1EC" />
+        <SolidColorBrush x:Key="ViewerSurfaceHoverBrush" Color="#F5F9FD" />
+        <SolidColorBrush x:Key="ViewerSurfacePressedBrush" Color="#EEF4FB" />
+        <SolidColorBrush x:Key="ViewerPrimaryTextBrush" Color="#111827" />
+        <SolidColorBrush x:Key="ViewerSecondaryTextBrush" Color="#415063" />
+        <SolidColorBrush x:Key="ViewerCanvasBrush" Color="#EDEFF4" />
+
         <Style x:Key="ViewerLucideStrokeStyle" TargetType="Shape">
-            <Setter Property="Stroke" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}" />
+            <Setter Property="Stroke" Value="{DynamicResource ViewerPrimaryTextBrush}" />
             <Setter Property="StrokeThickness" Value="2" />
             <Setter Property="StrokeStartLineCap" Value="Round" />
             <Setter Property="StrokeEndLineCap" Value="Round" />
@@ -21,9 +32,10 @@
             <Setter Property="Height" Value="40" />
             <Setter Property="Padding" Value="14,0" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" />
+            <Setter Property="Background" Value="{DynamicResource ViewerSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ViewerSurfaceBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -40,21 +52,25 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" />
+                    <Setter Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" />
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}" />
+                    <Setter Property="Background" Value="{DynamicResource ViewerSurfacePressedBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
     </Window.Resources>
 
-    <DockPanel>
-        <Border DockPanel.Dock="Top"
-                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
-                Padding="16"
-                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
-                BorderThickness="0,0,0,1">
+    <Grid Background="{DynamicResource ViewerPageBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Margin="16,16,16,12"
+                Padding="0"
+                Background="Transparent">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -62,15 +78,7 @@
                     <ColumnDefinition Width="12" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel>
-                    <TextBlock Text="Captured Screenshot"
-                               FontSize="20"
-                               FontWeight="SemiBold" />
-                    <TextBlock Name="FilePathText"
-                               Margin="0,6,0,0"
-                               FontSize="12"
-                               TextWrapping="Wrap" />
-                </StackPanel>
+
                 <Button Grid.Column="1"
                         Style="{StaticResource ViewerActionButtonStyle}"
                         VerticalAlignment="Top"
@@ -90,9 +98,11 @@
                         </Viewbox>
                         <TextBlock VerticalAlignment="Center"
                                    FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ViewerPrimaryTextBrush}"
                                    Text="Save As" />
                     </StackPanel>
                 </Button>
+
                 <Button Grid.Column="3"
                         Style="{StaticResource ViewerActionButtonStyle}"
                         VerticalAlignment="Top"
@@ -116,19 +126,29 @@
                         </Viewbox>
                         <TextBlock VerticalAlignment="Center"
                                    FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ViewerPrimaryTextBrush}"
                                    Text="Delete" />
                     </StackPanel>
                 </Button>
             </Grid>
         </Border>
 
-        <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Auto"
-                      Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
-            <Grid Margin="20">
+        <Border Grid.Row="1"
+                Margin="16,0,16,16"
+                Background="{DynamicResource ViewerCanvasBrush}"
+                BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="20"
+                ClipToBounds="True">
+            <Grid>
                 <Image Name="ViewerImage"
-                       Stretch="Uniform" />
+                       Margin="16"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       SnapsToDevicePixels="True"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
             </Grid>
-        </ScrollViewer>
-    </DockPanel>
+        </Border>
+    </Grid>
 </Window>

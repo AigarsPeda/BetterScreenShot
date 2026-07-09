@@ -16,6 +16,7 @@ namespace BetterScreenShot
         private double hiddenLeft;
         private bool isAnimatingClose;
         private bool allowImmediateClose;
+        private bool preserveTemporaryFileForViewer;
 
         public ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds)
         {
@@ -151,11 +152,34 @@ namespace BetterScreenShot
             }
         }
 
+        private void PreviewButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                preserveTemporaryFileForViewer = true;
+
+                var viewerWindow = new ScreenshotViewerWindow(filePath);
+                viewerWindow.Show();
+                viewerWindow.Activate();
+
+                Close();
+            }
+            catch (Exception ex)
+            {
+                preserveTemporaryFileForViewer = false;
+                System.Windows.MessageBox.Show($"Could not open the screenshot preview. {ex.Message}", "Open Screenshot", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                ScreenshotFileService.DeleteIfExists(filePath);
+                if (!preserveTemporaryFileForViewer)
+                {
+                    ScreenshotFileService.DeleteIfExists(filePath);
+                }
+
                 Close();
             }
             catch (Exception ex)
@@ -165,4 +189,3 @@ namespace BetterScreenShot
         }
     }
 }
-
