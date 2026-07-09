@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using Microsoft.Win32;
 
 namespace BetterScreenShot
 {
@@ -23,6 +24,26 @@ namespace BetterScreenShot
             ViewerImage.Source = ScreenshotFileService.LoadBitmap(filePath);
             FilePathText.Text = "Temporary screenshot. Save it if you want to keep it.";
             Closed += ScreenshotViewerWindow_Closed;
+            Closed += ScreenshotViewerWindow_OnClosed;
+            SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+            ApplyThemeIcon();
+        }
+
+        private void ApplyThemeIcon()
+        {
+            Icon = ThemeIconService.CreateScanIcon(ThemeIconService.DetectWindowsTheme());
+        }
+
+        private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+        {
+            if (e.Category != UserPreferenceCategory.General &&
+                e.Category != UserPreferenceCategory.Color &&
+                e.Category != UserPreferenceCategory.VisualStyle)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(new Action(ApplyThemeIcon));
         }
 
         private void SaveAsButton_Click(object sender, RoutedEventArgs e)
@@ -83,6 +104,12 @@ namespace BetterScreenShot
             catch
             {
             }
+        }
+
+        private void ScreenshotViewerWindow_OnClosed(object? sender, System.EventArgs e)
+        {
+            SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+            Closed -= ScreenshotViewerWindow_OnClosed;
         }
     }
 }

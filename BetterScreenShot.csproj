@@ -12,8 +12,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="assets\scan.png" />
+
     <None Update="assets\*.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+
+    <None Update="assets\render-icon.html">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

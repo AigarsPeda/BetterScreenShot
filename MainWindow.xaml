@@ -6,13 +6,17 @@
         Width="520"
         MinHeight="260"
         MinWidth="380"
-        Background="#F7F9FC"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <SolidColorBrush x:Key="PageBackgroundBrush" Color="#F7F9FC" />
         <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
         <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#D8E1EC" />
+        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#FBFDFF" />
+        <SolidColorBrush x:Key="SurfaceHoverBorderBrush" Color="#C4D4E8" />
+        <SolidColorBrush x:Key="SurfacePressedBrush" Color="#F5F9FD" />
+        <SolidColorBrush x:Key="SurfacePressedBorderBrush" Color="#B7CCE6" />
         <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#97A6BA" />
         <SolidColorBrush x:Key="AccentBlueBrush" Color="#2563EB" />
         <SolidColorBrush x:Key="AccentBlueSoftBrush" Color="#E8F0FF" />
         <SolidColorBrush x:Key="AccentGreenBrush" Color="#0F9F6E" />
@@ -38,8 +42,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="CardBorder"
-                                Background="{StaticResource SurfaceBrush}"
-                                BorderBrush="{StaticResource SurfaceBorderBrush}"
+                                Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource SurfaceBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="18"
                                 Padding="10">
@@ -47,12 +51,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#C4D4E8" />
-                                <Setter TargetName="CardBorder" Property="Background" Value="#FBFDFF" />
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SurfaceHoverBorderBrush}" />
+                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="CardBorder" Property="Background" Value="#F5F9FD" />
-                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#B7CCE6" />
+                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource SurfacePressedBrush}" />
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SurfacePressedBorderBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -61,7 +65,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="{StaticResource PageBackgroundBrush}">
+    <Grid Background="{DynamicResource PageBackgroundBrush}">
         <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -86,22 +90,22 @@
                             Height="36"
                             VerticalAlignment="Center"
                             HorizontalAlignment="Left"
-                            Background="{StaticResource AccentBlueSoftBrush}"
+                            Background="{DynamicResource AccentBlueSoftBrush}"
                             CornerRadius="10">
                         <Viewbox Width="18" Height="18" Stretch="Uniform">
                             <Canvas Width="40" Height="40">
-                                <Path Stroke="{StaticResource AccentBlueBrush}"
+                                <Path Stroke="{DynamicResource AccentBlueBrush}"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
                                       StrokeLineJoin="Round"
                                       Data="M7 9 H33 A3 3 0 0 1 36 12 V26 A3 3 0 0 1 33 29 H7 A3 3 0 0 1 4 26 V12 A3 3 0 0 1 7 9 Z" />
-                                <Path Stroke="{StaticResource AccentBlueBrush}"
+                                <Path Stroke="{DynamicResource AccentBlueBrush}"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
                                       Data="M14 34 H26" />
-                                <Path Stroke="{StaticResource AccentBlueBrush}"
+                                <Path Stroke="{DynamicResource AccentBlueBrush}"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
@@ -116,12 +120,12 @@
                                FontSize="15"
                                FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource PrimaryTextBrush}" />
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
 
                     <Path Grid.Column="3"
                           VerticalAlignment="Center"
                           HorizontalAlignment="Right"
-                          Stroke="#97A6BA"
+                          Stroke="{DynamicResource SecondaryTextBrush}"
                           StrokeThickness="2"
                           StrokeStartLineCap="Round"
                           StrokeEndLineCap="Round"
@@ -146,29 +150,29 @@
                             Height="36"
                             VerticalAlignment="Center"
                             HorizontalAlignment="Left"
-                            Background="{StaticResource AccentGreenSoftBrush}"
+                            Background="{DynamicResource AccentGreenSoftBrush}"
                             CornerRadius="10">
                         <Viewbox Width="18" Height="18" Stretch="Uniform">
                             <Canvas Width="40" Height="40">
-                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                <Path Stroke="{DynamicResource AccentGreenBrush}"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
                                       StrokeLineJoin="Round"
                                       Data="M12 9 H8 A3 3 0 0 0 5 12 V16" />
-                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                <Path Stroke="{DynamicResource AccentGreenBrush}"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
                                       StrokeLineJoin="Round"
                                       Data="M28 9 H32 A3 3 0 0 1 35 12 V16" />
-                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                <Path Stroke="{DynamicResource AccentGreenBrush}"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
                                       StrokeLineJoin="Round"
                                       Data="M35 24 V28 A3 3 0 0 1 32 31 H28" />
-                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                <Path Stroke="{DynamicResource AccentGreenBrush}"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
@@ -184,12 +188,12 @@
                                FontSize="15"
                                FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource PrimaryTextBrush}" />
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
 
                     <Path Grid.Column="3"
                           VerticalAlignment="Center"
                           HorizontalAlignment="Right"
-                          Stroke="#97A6BA"
+                          Stroke="{DynamicResource SecondaryTextBrush}"
                           StrokeThickness="2"
                           StrokeStartLineCap="Round"
                           StrokeEndLineCap="Round"
@@ -202,21 +206,21 @@
                     Margin="0,8,0,0"
                     Padding="12,8"
                     HorizontalAlignment="Stretch"
-                    Background="{StaticResource StatusNeutralBrush}"
+                    Background="{DynamicResource StatusNeutralBrush}"
                     CornerRadius="14">
                 <StackPanel Orientation="Horizontal">
                     <Ellipse x:Name="StatusDot"
                              Width="10"
                              Height="10"
                              VerticalAlignment="Center"
-                             Fill="{StaticResource StatusNeutralTextBrush}" />
+                             Fill="{DynamicResource StatusNeutralTextBrush}" />
                     <TextBlock x:Name="StatusTextBlock"
                                Margin="10,0,0,0"
                                VerticalAlignment="Center"
                                FontSize="13"
                                FontWeight="SemiBold"
                                TextWrapping="Wrap"
-                               Foreground="{StaticResource StatusNeutralTextBrush}"
+                               Foreground="{DynamicResource StatusNeutralTextBrush}"
                                Text="Ready to capture." />
                 </StackPanel>
             </Border>

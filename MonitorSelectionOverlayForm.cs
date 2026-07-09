@@ -14,7 +14,7 @@ using Forms = System.Windows.Forms;
 
 namespace BetterScreenShot
 {
-    internal sealed class MonitorSelectionOverlayForm : Forms.Form
+    internal sealed partial class MonitorSelectionOverlayForm : Forms.Form
     {
         private const byte OverlayAlpha = 115;
         private const byte MonitorInputAlpha = 1;
@@ -652,9 +652,7 @@ namespace BetterScreenShot
                 }
 
                 DisposeCachedOverlays();
-                cachedOverlays = Forms.Screen.AllScreens
-                    .Select(screen => new MonitorSelectionOverlayForm(screen.DeviceName, screen.Bounds, GetMonitorBounds(screen)))
-                    .ToList();
+                cachedOverlays = [.. Forms.Screen.AllScreens.Select(screen => new MonitorSelectionOverlayForm(screen.DeviceName, screen.Bounds, GetMonitorBounds(screen)))];
 
                 return cachedOverlays;
             }
@@ -773,8 +771,8 @@ namespace BetterScreenShot
                 }
 
                 var svgContent = File.ReadAllText(assetPath);
-                var pathMatch = Regex.Match(svgContent, "d=\"(?<value>[^\"]+)\"");
-                var circleMatch = Regex.Match(svgContent, "<circle[^>]*cx=\"(?<cx>[^\"]+)\"[^>]*cy=\"(?<cy>[^\"]+)\"[^>]*r=\"(?<r>[^\"]+)\"");
+                var pathMatch = MyRegex().Match(svgContent);
+                var circleMatch = MyRegex1().Match(svgContent);
                 if (!pathMatch.Success || !circleMatch.Success)
                 {
                     return Forms.Cursors.Hand;
@@ -786,10 +784,12 @@ namespace BetterScreenShot
 
                 using (var context = visual.RenderOpen())
                 {
-                    var outerPen = new System.Windows.Media.Pen(System.Windows.Media.Brushes.Black, 4);
-                    outerPen.StartLineCap = System.Windows.Media.PenLineCap.Round;
-                    outerPen.EndLineCap = System.Windows.Media.PenLineCap.Round;
-                    outerPen.LineJoin = System.Windows.Media.PenLineJoin.Round;
+                    var outerPen = new System.Windows.Media.Pen(System.Windows.Media.Brushes.Black, 4)
+                    {
+                        StartLineCap = System.Windows.Media.PenLineCap.Round,
+                        EndLineCap = System.Windows.Media.PenLineCap.Round,
+                        LineJoin = System.Windows.Media.PenLineJoin.Round
+                    };
 
                     var innerPen = new System.Windows.Media.Pen(System.Windows.Media.Brushes.White, 2.2);
                     innerPen.StartLineCap = System.Windows.Media.PenLineCap.Round;
@@ -1123,6 +1123,11 @@ namespace BetterScreenShot
                 ApplyMonitorSelectionCursor();
             }
         }
+
+        [GeneratedRegex("d=\"(?<value>[^\"]+)\"")]
+        private static partial Regex MyRegex();
+        [GeneratedRegex("<circle[^>]*cx=\"(?<cx>[^\"]+)\"[^>]*cy=\"(?<cy>[^\"]+)\"[^>]*r=\"(?<r>[^\"]+)\"")]
+        private static partial Regex MyRegex1();
     }
 }
 
