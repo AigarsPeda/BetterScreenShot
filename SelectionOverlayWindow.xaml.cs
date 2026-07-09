@@ -19,6 +19,11 @@ namespace BetterScreenShot
         {
             return MonitorSelectionOverlayForm.SelectArea(onOverlaysShown);
         }
+
+        public static Rectangle? SelectMonitor(System.Action? onOverlaysShown = null)
+        {
+            return MonitorSelectionOverlayForm.SelectMonitor(onOverlaysShown);
+        }
     }
 
     public sealed class SelectedCaptureResult

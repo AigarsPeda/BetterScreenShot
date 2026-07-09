@@ -2,7 +2,6 @@ using System;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows;
-using Forms = System.Windows.Forms;
 
 namespace BetterScreenShot
 {
@@ -22,22 +21,38 @@ namespace BetterScreenShot
             Dispatcher.BeginInvoke(new Action(SelectionOverlayWindow.WarmUp), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 
-        private void CaptureButton_Click(object sender, RoutedEventArgs e)
+        private async void CaptureButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var primaryScreen = Forms.Screen.PrimaryScreen;
+                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
 
-                if (primaryScreen is null)
+                var selectedMonitorBounds = SelectionOverlayWindow.SelectMonitor(() =>
                 {
-                    StatusText.Text = "Error: No primary screen was found.";
+                    Dispatcher.Invoke(Hide);
+                });
+
+                Show();
+                Activate();
+
+                if (selectedMonitorBounds is null)
+                {
+                    StatusText.Text = "Full screen capture cancelled.";
                     return;
                 }
 
-                HandleCapture(primaryScreen.Bounds);
+                await Task.Delay(150);
+                Activate();
+                HandleCapture(selectedMonitorBounds.Value);
             }
             catch (Exception ex)
             {
+                if (!IsVisible)
+                {
+                    Show();
+                }
+
+                Activate();
                 StatusText.Text = $"Error: {ex.Message}";
             }
         }

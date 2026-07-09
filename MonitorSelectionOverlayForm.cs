@@ -25,8 +25,12 @@ namespace BetterScreenShot
         private readonly Forms.Label instructionLabel;
         private System.Drawing.Point? dragStart;
         private System.Drawing.Point? dragCurrent;
+        private Bitmap? monitorPreviewBitmap;
         private bool suppressComplete;
+        private bool isHoveringMonitor;
+        private SelectionMode selectionMode;
         private Action<SelectedCaptureResult?>? completeSelection;
+        private Action<MonitorSelectionOverlayForm?>? completeMonitorSelection;
 
         private MonitorSelectionOverlayForm(string deviceName, Rectangle overlayBounds, Rectangle captureBounds)
         {
@@ -66,9 +70,16 @@ namespace BetterScreenShot
             };
 
             Controls.Add(instructionLabel);
+            instructionLabel.MouseDown += InstructionLabel_MouseDown;
+            instructionLabel.MouseMove += InstructionLabel_MouseMove;
+            instructionLabel.MouseUp += InstructionLabel_MouseUp;
+            instructionLabel.MouseEnter += InstructionLabel_MouseEnter;
+            instructionLabel.MouseLeave += InstructionLabel_MouseLeave;
             MouseDown += OverlayMouseDown;
             MouseMove += OverlayMouseMove;
             MouseUp += OverlayMouseUp;
+            MouseEnter += OverlayMouseEnter;
+            MouseLeave += OverlayMouseLeave;
             KeyDown += OverlayKeyDown;
             ResumeLayout(false);
         }
@@ -121,7 +132,7 @@ namespace BetterScreenShot
 
             foreach (var overlay in overlays)
             {
-                overlay.BeginSelectionSession(Complete);
+                overlay.BeginAreaSelectionSession(Complete);
                 overlay.Show();
                 overlay.BringInputToFront();
             }
@@ -135,16 +146,61 @@ namespace BetterScreenShot
             return selectedCapture;
         }
 
+        public static Rectangle? SelectMonitor(Action? onOverlaysShown = null)
+        {
+            var overlays = GetOrCreateOverlays();
+            var frame = new DispatcherFrame();
+            Rectangle? selectedBounds = null;
+            var completed = false;
+
+            void Complete(MonitorSelectionOverlayForm? overlay)
+            {
+                if (completed)
+                {
+                    return;
+                }
+
+                completed = true;
+                selectedBounds = overlay?.captureBounds;
+
+                foreach (var item in overlays)
+                {
+                    item.EndSelectionSession();
+                }
+
+                frame.Continue = false;
+            }
+
+            foreach (var overlay in overlays)
+            {
+                overlay.BeginMonitorSelectionSession(Complete);
+                overlay.Show();
+                overlay.BringInputToFront();
+            }
+
+            Forms.Application.DoEvents();
+            Thread.Sleep(15);
+            Forms.Application.DoEvents();
+
+            onOverlaysShown?.Invoke();
+            Forms.Application.DoEvents();
+            Thread.Sleep(50);
+            Forms.Application.DoEvents();
+            CaptureMonitorPreviews(overlays);
+            Dispatcher.PushFrame(frame);
+            return selectedBounds;
+        }
+
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            ApplyLayeredAlpha();
+            SetOverlayAlpha(OverlayAlpha);
         }
 
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            ApplyLayeredAlpha();
+            SetOverlayAlpha(OverlayAlpha);
             BringInputToFront();
         }
 
@@ -163,16 +219,40 @@ namespace BetterScreenShot
         protected override void OnFormClosed(Forms.FormClosedEventArgs e)
         {
             base.OnFormClosed(e);
+            ResetMonitorPreview();
 
             if (!suppressComplete)
             {
                 completeSelection?.Invoke(null);
+                completeMonitorSelection?.Invoke(null);
             }
         }
 
         protected override void OnPaint(Forms.PaintEventArgs e)
         {
             base.OnPaint(e);
+
+            if (selectionMode == SelectionMode.Monitor)
+            {
+                if (isHoveringMonitor && monitorPreviewBitmap is not null)
+                {
+                    e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
+                    e.Graphics.DrawImage(monitorPreviewBitmap, ClientRectangle);
+                }
+
+                if (isHoveringMonitor)
+                {
+                    using var hoverPen = new Pen(Color.FromArgb(92, 220, 120), 3);
+                    var hoverRect = new Rectangle(1, 1, Math.Max(0, ClientSize.Width - 3), Math.Max(0, ClientSize.Height - 3));
+                    if (hoverRect.Width > 0 && hoverRect.Height > 0)
+                    {
+                        e.Graphics.DrawRectangle(hoverPen, hoverRect);
+                    }
+                }
+
+                return;
+            }
 
             var selection = GetSelectionRect();
             if (selection is null || selection.Value.Width < 2 || selection.Value.Height < 2)
@@ -193,23 +273,48 @@ namespace BetterScreenShot
         {
             if (keyData == Forms.Keys.Escape)
             {
-                Capture = false;
-                completeSelection?.Invoke(null);
+                CancelSelection();
                 return true;
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-        private void BeginSelectionSession(Action<SelectedCaptureResult?> completion)
+        private void BeginAreaSelectionSession(Action<SelectedCaptureResult?> completion)
         {
+            selectionMode = SelectionMode.Area;
+            Cursor = Forms.Cursors.Cross;
+            instructionLabel.Cursor = Forms.Cursors.Cross;
+            instructionLabel.Text = "Drag to select. Esc to cancel.";
             suppressComplete = false;
             completeSelection = completion;
+            completeMonitorSelection = null;
             dragStart = null;
             dragCurrent = null;
+            isHoveringMonitor = false;
             instructionLabel.Visible = true;
             Bounds = overlayBounds;
             ResetOverlayRegion();
+            SetOverlayAlpha(OverlayAlpha);
+            Invalidate();
+        }
+
+        private void BeginMonitorSelectionSession(Action<MonitorSelectionOverlayForm?> completion)
+        {
+            selectionMode = SelectionMode.Monitor;
+            Cursor = Forms.Cursors.Hand;
+            instructionLabel.Cursor = Forms.Cursors.Hand;
+            instructionLabel.Text = "Click a monitor to capture it. Esc to cancel.";
+            suppressComplete = false;
+            completeMonitorSelection = completion;
+            completeSelection = null;
+            dragStart = null;
+            dragCurrent = null;
+            isHoveringMonitor = false;
+            instructionLabel.Visible = true;
+            Bounds = overlayBounds;
+            ResetOverlayRegion();
+            SetOverlayAlpha(OverlayAlpha);
             Invalidate();
         }
 
@@ -219,14 +324,20 @@ namespace BetterScreenShot
             Capture = false;
             dragStart = null;
             dragCurrent = null;
+            ResetMonitorPreview();
+            isHoveringMonitor = false;
             completeSelection = null;
+            completeMonitorSelection = null;
+            selectionMode = SelectionMode.None;
+            Cursor = Forms.Cursors.Default;
             ResetOverlayRegion();
+            SetOverlayAlpha(OverlayAlpha);
             Hide();
         }
 
         private void OverlayMouseDown(object? sender, Forms.MouseEventArgs e)
         {
-            if (e.Button != Forms.MouseButtons.Left)
+            if (selectionMode != SelectionMode.Area || e.Button != Forms.MouseButtons.Left)
             {
                 return;
             }
@@ -240,7 +351,7 @@ namespace BetterScreenShot
 
         private void OverlayMouseMove(object? sender, Forms.MouseEventArgs e)
         {
-            if (dragStart is null || (Forms.Control.MouseButtons & Forms.MouseButtons.Left) == 0)
+            if (selectionMode != SelectionMode.Area || dragStart is null || (Forms.Control.MouseButtons & Forms.MouseButtons.Left) == 0)
             {
                 return;
             }
@@ -252,7 +363,18 @@ namespace BetterScreenShot
 
         private void OverlayMouseUp(object? sender, Forms.MouseEventArgs e)
         {
-            if (e.Button != Forms.MouseButtons.Left || dragStart is null)
+            if (e.Button != Forms.MouseButtons.Left)
+            {
+                return;
+            }
+
+            if (selectionMode == SelectionMode.Monitor)
+            {
+                completeMonitorSelection?.Invoke(this);
+                return;
+            }
+
+            if (dragStart is null)
             {
                 return;
             }
@@ -283,12 +405,31 @@ namespace BetterScreenShot
             completeSelection?.Invoke(new SelectedCaptureResult(croppedBitmap, screenRect));
         }
 
+        private void OverlayMouseEnter(object? sender, EventArgs e)
+        {
+            if (selectionMode != SelectionMode.Monitor)
+            {
+                return;
+            }
+
+            UpdateMonitorHoverState(true);
+        }
+
+        private void OverlayMouseLeave(object? sender, EventArgs e)
+        {
+            if (selectionMode != SelectionMode.Monitor)
+            {
+                return;
+            }
+
+            UpdateMonitorHoverState(false);
+        }
+
         private void OverlayKeyDown(object? sender, Forms.KeyEventArgs e)
         {
             if (e.KeyCode == Forms.Keys.Escape)
             {
-                Capture = false;
-                completeSelection?.Invoke(null);
+                CancelSelection();
             }
         }
 
@@ -314,6 +455,31 @@ namespace BetterScreenShot
             return Rectangle.FromLTRB(left, top, right, bottom);
         }
 
+        private void InstructionLabel_MouseDown(object? sender, Forms.MouseEventArgs e)
+        {
+            OverlayMouseDown(sender, TranslateLabelMouseEvent(e));
+        }
+
+        private void InstructionLabel_MouseMove(object? sender, Forms.MouseEventArgs e)
+        {
+            OverlayMouseMove(sender, TranslateLabelMouseEvent(e));
+        }
+
+        private void InstructionLabel_MouseUp(object? sender, Forms.MouseEventArgs e)
+        {
+            OverlayMouseUp(sender, TranslateLabelMouseEvent(e));
+        }
+
+        private void InstructionLabel_MouseEnter(object? sender, EventArgs e)
+        {
+            OverlayMouseEnter(sender, e);
+        }
+
+        private void InstructionLabel_MouseLeave(object? sender, EventArgs e)
+        {
+            OverlayMouseLeave(sender, e);
+        }
+
         private Rectangle ConvertOverlayRectToCaptureRect(Rectangle overlayRect)
         {
             var scaleX = captureBounds.Width / (double)Math.Max(1, ClientSize.Width);
@@ -325,6 +491,52 @@ namespace BetterScreenShot
             var bottom = Math.Clamp((int)Math.Round(overlayRect.Bottom * scaleY), top + 1, captureBounds.Height);
 
             return Rectangle.FromLTRB(left, top, right, bottom);
+        }
+
+        private Forms.MouseEventArgs TranslateLabelMouseEvent(Forms.MouseEventArgs e)
+        {
+            var screenPoint = instructionLabel.PointToScreen(e.Location);
+            var clientPoint = PointToClient(screenPoint);
+            return new Forms.MouseEventArgs(e.Button, e.Clicks, clientPoint.X, clientPoint.Y, e.Delta);
+        }
+
+        private void UpdateMonitorHoverState(bool isHovered)
+        {
+            if (selectionMode != SelectionMode.Monitor || isHoveringMonitor == isHovered)
+            {
+                return;
+            }
+
+            isHoveringMonitor = isHovered;
+            Invalidate();
+        }
+
+
+        private void CancelSelection()
+        {
+            Capture = false;
+            completeSelection?.Invoke(null);
+            completeMonitorSelection?.Invoke(null);
+        }
+
+        private void ResetMonitorPreview()
+        {
+            monitorPreviewBitmap?.Dispose();
+            monitorPreviewBitmap = null;
+        }
+
+        private void SetMonitorPreview(Bitmap bitmap)
+        {
+            ResetMonitorPreview();
+            monitorPreviewBitmap = bitmap;
+        }
+
+        private static void CaptureMonitorPreviews(IEnumerable<MonitorSelectionOverlayForm> overlays)
+        {
+            foreach (var overlay in overlays)
+            {
+                overlay.SetMonitorPreview(CaptureBitmap(overlay.captureBounds));
+            }
         }
 
         private static void HideAllOverlayForms()
@@ -376,11 +588,11 @@ namespace BetterScreenShot
             UpdateOverlayRegion(null);
         }
 
-        private void ApplyLayeredAlpha()
+        private void SetOverlayAlpha(byte alpha)
         {
             if (IsHandleCreated)
             {
-                SetLayeredWindowAttributes(Handle, 0, OverlayAlpha, LwaAlpha);
+                SetLayeredWindowAttributes(Handle, 0, alpha, LwaAlpha);
             }
         }
 
@@ -551,5 +763,15 @@ namespace BetterScreenShot
             public int dmPanningWidth;
             public int dmPanningHeight;
         }
+
+        private enum SelectionMode
+        {
+            None,
+            Area,
+            Monitor
+        }
     }
 }
+
+
+
