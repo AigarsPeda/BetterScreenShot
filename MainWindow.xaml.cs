@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 
 namespace BetterScreenShot
 {
@@ -14,6 +15,7 @@ namespace BetterScreenShot
         {
             InitializeComponent();
             Loaded += MainWindow_Loaded;
+            SetStatus(StatusTone.Neutral, "Ready to capture.");
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -25,6 +27,7 @@ namespace BetterScreenShot
         {
             try
             {
+                SetStatus(StatusTone.Info, "Choose a monitor to capture.");
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
 
                 var selectedMonitorBounds = SelectionOverlayWindow.SelectMonitor(() =>
@@ -37,7 +40,7 @@ namespace BetterScreenShot
 
                 if (selectedMonitorBounds is null)
                 {
-                    StatusText.Text = "Full screen capture cancelled.";
+                    SetStatus(StatusTone.Info, "Full screen capture cancelled.");
                     return;
                 }
 
@@ -53,7 +56,7 @@ namespace BetterScreenShot
                 }
 
                 Activate();
-                StatusText.Text = $"Error: {ex.Message}";
+                SetStatus(StatusTone.Error, $"Error: {ex.Message}");
             }
         }
 
@@ -61,6 +64,7 @@ namespace BetterScreenShot
         {
             try
             {
+                SetStatus(StatusTone.Info, "Drag to select the area you want.");
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
 
                 var selectedCapture = SelectionOverlayWindow.SelectArea(() =>
@@ -73,7 +77,7 @@ namespace BetterScreenShot
 
                 if (selectedCapture is null)
                 {
-                    StatusText.Text = "Selection cancelled.";
+                    SetStatus(StatusTone.Info, "Area selection cancelled.");
                     return;
                 }
 
@@ -86,7 +90,7 @@ namespace BetterScreenShot
                     ScreenshotToastWindow.ShowToast(filePath, selectedCapture.SourceScreenBounds);
                 }
 
-                StatusText.Text = "Screenshot captured. Use the popup to open, save, or discard it.";
+                SetStatus(StatusTone.Success, "Screenshot captured. Use the popup to save, copy, or discard it.");
             }
             catch (Exception ex)
             {
@@ -96,7 +100,7 @@ namespace BetterScreenShot
                 }
 
                 Activate();
-                StatusText.Text = $"Error: {ex.Message}";
+                SetStatus(StatusTone.Error, $"Error: {ex.Message}");
             }
         }
 
@@ -104,7 +108,46 @@ namespace BetterScreenShot
         {
             var filePath = ScreenshotCaptureService.CaptureToTemporaryFile(bounds);
             ScreenshotToastWindow.ShowToast(filePath, bounds);
-            StatusText.Text = "Screenshot captured. Use the popup to open, save, or discard it.";
+            SetStatus(StatusTone.Success, "Screenshot captured. Use the popup to save, copy, or discard it.");
+        }
+
+        private void SetStatus(StatusTone tone, string message)
+        {
+            StatusTextBlock.Text = message;
+
+            switch (tone)
+            {
+                case StatusTone.Success:
+                    ApplyStatusColors("StatusSuccessBrush", "StatusSuccessTextBrush");
+                    break;
+                case StatusTone.Info:
+                    ApplyStatusColors("StatusInfoBrush", "StatusInfoTextBrush");
+                    break;
+                case StatusTone.Error:
+                    ApplyStatusColors("StatusErrorBrush", "StatusErrorTextBrush");
+                    break;
+                default:
+                    ApplyStatusColors("StatusNeutralBrush", "StatusNeutralTextBrush");
+                    break;
+            }
+        }
+
+        private void ApplyStatusColors(string backgroundKey, string foregroundKey)
+        {
+            var background = (System.Windows.Media.Brush)FindResource(backgroundKey);
+            var foreground = (System.Windows.Media.Brush)FindResource(foregroundKey);
+            StatusBadge.Background = background;
+            StatusDot.Fill = foreground;
+            StatusTextBlock.Foreground = foreground;
+        }
+
+        private enum StatusTone
+        {
+            Neutral,
+            Info,
+            Success,
+            Error
         }
     }
 }
+

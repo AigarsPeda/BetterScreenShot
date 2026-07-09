@@ -1,33 +1,225 @@
 <Window x:Class="BetterScreenShot.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Better ScreenShot"
-        Height="260"
-        Width="420"
+        Title=""
+        Height="300"
+        Width="520"
+        MinHeight="260"
+        MinWidth="380"
+        Background="#F7F9FC"
         WindowStartupLocation="CenterScreen">
-    <Grid Margin="20">
-        <StackPanel VerticalAlignment="Center">
-            <TextBlock
-                Text="Better ScreenShot"
-                FontSize="24"
-                FontWeight="SemiBold"
-                Margin="0,0,0,16" />
-            <Button
-                Name="CaptureButton"
-                Content="Capture Full Screen"
-                Height="40"
-                Margin="0,0,0,12"
-                Click="CaptureButton_Click" />
-            <Button
-                Name="SelectAreaButton"
-                Content="Select Area"
-                Height="40"
-                Click="SelectAreaButton_Click" />
-            <TextBlock
-                Name="StatusText"
-                Margin="0,16,0,0"
-                Text="Ready"
-                TextWrapping="Wrap" />
-        </StackPanel>
+    <Window.Resources>
+        <SolidColorBrush x:Key="PageBackgroundBrush" Color="#F7F9FC" />
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#D8E1EC" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
+        <SolidColorBrush x:Key="AccentBlueBrush" Color="#2563EB" />
+        <SolidColorBrush x:Key="AccentBlueSoftBrush" Color="#E8F0FF" />
+        <SolidColorBrush x:Key="AccentGreenBrush" Color="#0F9F6E" />
+        <SolidColorBrush x:Key="AccentGreenSoftBrush" Color="#E7F8F1" />
+        <SolidColorBrush x:Key="StatusNeutralBrush" Color="#EEF2F7" />
+        <SolidColorBrush x:Key="StatusNeutralTextBrush" Color="#415063" />
+        <SolidColorBrush x:Key="StatusSuccessBrush" Color="#E7F8F1" />
+        <SolidColorBrush x:Key="StatusSuccessTextBrush" Color="#0D7A55" />
+        <SolidColorBrush x:Key="StatusInfoBrush" Color="#EAF2FF" />
+        <SolidColorBrush x:Key="StatusInfoTextBrush" Color="#2454B8" />
+        <SolidColorBrush x:Key="StatusErrorBrush" Color="#FDECEC" />
+        <SolidColorBrush x:Key="StatusErrorTextBrush" Color="#B42318" />
+
+        <Style x:Key="ActionCardButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Height" Value="64" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardBorder"
+                                Background="{StaticResource SurfaceBrush}"
+                                BorderBrush="{StaticResource SurfaceBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="18"
+                                Padding="10">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#C4D4E8" />
+                                <Setter TargetName="CardBorder" Property="Background" Value="#FBFDFF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="CardBorder" Property="Background" Value="#F5F9FD" />
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#B7CCE6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{StaticResource PageBackgroundBrush}">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Button Name="CaptureButton"
+                    Grid.Row="0"
+                    Style="{StaticResource ActionCardButtonStyle}"
+                    Click="CaptureButton_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Width="36"
+                            Height="36"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Left"
+                            Background="{StaticResource AccentBlueSoftBrush}"
+                            CornerRadius="10">
+                        <Viewbox Width="18" Height="18" Stretch="Uniform">
+                            <Canvas Width="40" Height="40">
+                                <Path Stroke="{StaticResource AccentBlueBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Data="M7 9 H33 A3 3 0 0 1 36 12 V26 A3 3 0 0 1 33 29 H7 A3 3 0 0 1 4 26 V12 A3 3 0 0 1 7 9 Z" />
+                                <Path Stroke="{StaticResource AccentBlueBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Data="M14 34 H26" />
+                                <Path Stroke="{StaticResource AccentBlueBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Data="M20 29 V34" />
+                            </Canvas>
+                        </Viewbox>
+                    </Border>
+
+                    <TextBlock Grid.Column="2"
+                               VerticalAlignment="Center"
+                               Text="Capture Full Screen"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource PrimaryTextBrush}" />
+
+                    <Path Grid.Column="3"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Right"
+                          Stroke="#97A6BA"
+                          StrokeThickness="2"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          Data="M0 0 L7 7 L0 14" />
+                </Grid>
+            </Button>
+
+            <Button Name="SelectAreaButton"
+                    Grid.Row="1"
+                    Style="{StaticResource ActionCardButtonStyle}"
+                    Margin="0"
+                    Click="SelectAreaButton_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Width="36"
+                            Height="36"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Left"
+                            Background="{StaticResource AccentGreenSoftBrush}"
+                            CornerRadius="10">
+                        <Viewbox Width="18" Height="18" Stretch="Uniform">
+                            <Canvas Width="40" Height="40">
+                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Data="M12 9 H8 A3 3 0 0 0 5 12 V16" />
+                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Data="M28 9 H32 A3 3 0 0 1 35 12 V16" />
+                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Data="M35 24 V28 A3 3 0 0 1 32 31 H28" />
+                                <Path Stroke="{StaticResource AccentGreenBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Data="M12 31 H8 A3 3 0 0 1 5 28 V24" />
+                            </Canvas>
+                        </Viewbox>
+                    </Border>
+
+                    <TextBlock Grid.Column="2"
+                               VerticalAlignment="Center"
+                               Text="Select Area"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource PrimaryTextBrush}" />
+
+                    <Path Grid.Column="3"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Right"
+                          Stroke="#97A6BA"
+                          StrokeThickness="2"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          Data="M0 0 L7 7 L0 14" />
+                </Grid>
+            </Button>
+
+            <Border x:Name="StatusBadge"
+                    Grid.Row="3"
+                    Margin="0,8,0,0"
+                    Padding="12,8"
+                    HorizontalAlignment="Stretch"
+                    Background="{StaticResource StatusNeutralBrush}"
+                    CornerRadius="14">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="StatusDot"
+                             Width="10"
+                             Height="10"
+                             VerticalAlignment="Center"
+                             Fill="{StaticResource StatusNeutralTextBrush}" />
+                    <TextBlock x:Name="StatusTextBlock"
+                               Margin="10,0,0,0"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource StatusNeutralTextBrush}"
+                               Text="Ready to capture." />
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
