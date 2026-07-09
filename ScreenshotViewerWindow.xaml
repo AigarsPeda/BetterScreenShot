@@ -7,6 +7,48 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
         Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}">
+    <Window.Resources>
+        <Style x:Key="ViewerLucideStrokeStyle" TargetType="Shape">
+            <Setter Property="Stroke" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}" />
+            <Setter Property="StrokeThickness" Value="2" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style x:Key="ViewerActionButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
     <DockPanel>
         <Border DockPanel.Dock="Top"
                 Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
@@ -30,17 +72,53 @@
                                TextWrapping="Wrap" />
                 </StackPanel>
                 <Button Grid.Column="1"
-                        Width="100"
-                        Height="36"
+                        Style="{StaticResource ViewerActionButtonStyle}"
                         VerticalAlignment="Top"
-                        Content="Save As"
-                        Click="SaveAsButton_Click" />
+                        Click="SaveAsButton_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <Viewbox Width="18"
+                                 Height="18"
+                                 Margin="0,0,8,0">
+                            <Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M7 3v4a1 1 0 0 0 1 1h7" />
+                            </Canvas>
+                        </Viewbox>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontWeight="SemiBold"
+                                   Text="Save As" />
+                    </StackPanel>
+                </Button>
                 <Button Grid.Column="3"
-                        Width="100"
-                        Height="36"
+                        Style="{StaticResource ViewerActionButtonStyle}"
                         VerticalAlignment="Top"
-                        Content="Delete"
-                        Click="DeleteButton_Click" />
+                        Click="DeleteButton_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <Viewbox Width="18"
+                                 Height="18"
+                                 Margin="0,0,8,0">
+                            <Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M10 11v6" />
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M14 11v6" />
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M3 6h18" />
+                                <Path Style="{StaticResource ViewerLucideStrokeStyle}"
+                                      Data="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </Canvas>
+                        </Viewbox>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontWeight="SemiBold"
+                                   Text="Delete" />
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
 

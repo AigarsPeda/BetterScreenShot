@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Screenshot Saved"
-        Width="400"
-        Height="230"
+        Width="300"
+        Height="170"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -11,6 +11,15 @@
         Background="Transparent"
         AllowsTransparency="True">
     <Window.Resources>
+        <Style x:Key="LucideStrokeStyle" TargetType="Shape">
+            <Setter Property="Stroke" Value="White" />
+            <Setter Property="StrokeThickness" Value="2" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
         <Style x:Key="CommandButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Background" Value="#D91B1B1B" />
@@ -132,11 +141,21 @@
                             Margin="0,0,12,0"
                             Click="CopyButton_Click">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                                       FontSize="15"
-                                       Margin="0,0,8,0"
-                                       Style="{StaticResource IconTextStyle}"
-                                       Text="&#xE8C8;" />
+                            <Viewbox Width="18"
+                                     Height="18"
+                                     Margin="0,0,8,0">
+                                <Canvas Width="24" Height="24">
+                                    <Rectangle Style="{StaticResource LucideStrokeStyle}"
+                                               Width="14"
+                                               Height="14"
+                                               RadiusX="2"
+                                               RadiusY="2"
+                                               Canvas.Left="8"
+                                               Canvas.Top="8" />
+                                    <Path Style="{StaticResource LucideStrokeStyle}"
+                                          Data="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </Canvas>
+                            </Viewbox>
                             <TextBlock FontSize="13"
                                        FontWeight="SemiBold"
                                        Style="{StaticResource IconTextStyle}"
@@ -146,11 +165,18 @@
                     <Button Style="{StaticResource CommandButtonStyle}"
                             Click="SaveButton_Click">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                                       FontSize="15"
-                                       Margin="0,0,8,0"
-                                       Style="{StaticResource IconTextStyle}"
-                                       Text="&#xE74E;" />
+                            <Viewbox Width="18"
+                                     Height="18"
+                                     Margin="0,0,8,0">
+                                <Canvas Width="24" Height="24">
+                                    <Path Style="{StaticResource LucideStrokeStyle}"
+                                          Data="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                                    <Path Style="{StaticResource LucideStrokeStyle}"
+                                          Data="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                                    <Path Style="{StaticResource LucideStrokeStyle}"
+                                          Data="M7 3v4a1 1 0 0 0 1 1h7" />
+                                </Canvas>
+                            </Viewbox>
                             <TextBlock FontSize="13"
                                        FontWeight="SemiBold"
                                        Style="{StaticResource IconTextStyle}"
@@ -167,11 +193,16 @@
                     Height="34"
                     Style="{StaticResource HoverCloseStyle}"
                     Click="CloseButton_Click">
-                <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                           FontSize="13"
-                           Foreground="White"
-                           Text="&#xE711;" />
+                <Viewbox Width="14" Height="14">
+                    <Canvas Width="24" Height="24">
+                        <Path Style="{StaticResource LucideStrokeStyle}"
+                              Data="M18 6 6 18" />
+                        <Path Style="{StaticResource LucideStrokeStyle}"
+                              Data="M6 6 18 18" />
+                    </Canvas>
+                </Viewbox>
             </Button>
         </Grid>
     </Border>
 </Window>
+
