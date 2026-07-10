@@ -2,7 +2,7 @@
 
 A Windows screenshot app built with C# and WPF.
 
-## Features test
+## Features
 
 - Full screen capture
 - Select area capture
