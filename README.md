@@ -11,7 +11,7 @@ A Windows screenshot app built with C# and WPF.
 - Bottom-right preview toast with `Open` and `Delete`
 - Screenshot viewer with `Save As`
 
-## Run locally
+## To run locally
 
 1. Open `BetterScreenShot.sln` in Visual Studio.
 2. Press `F5` to run the application.
