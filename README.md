@@ -20,6 +20,12 @@ Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreen
 
 You can also run `dotnet run --project BetterScreenShot.csproj`. Building requires the .NET 8 SDK or a newer compatible SDK on Windows.
 
+## Capture shortcuts
+
+Click **Shortcuts…** below the capture buttons. Click the shortcut field for Capture Full Screen or Select Area, press a key combination, and choose Save shortcuts. Each action can have its own shortcut; Clear disables it. Shortcuts start unassigned, work from other applications while BetterScreenShot is running, and are restored on the next launch. Settings are stored in `%LOCALAPPDATA%/BetterScreenShot/shortcuts.json`.
+
+The app reports duplicate shortcuts and combinations Windows cannot register, including shortcuts already used by another app. Cancelling the dialog keeps the previous configuration. A shortcut starts the same monitor or area selection as its launcher button; Esc cancels selection.
+
 ## Checks
 
 The regression runner uses the .NET runtime without third-party test packages. Run it on Windows with an interactive desktop:

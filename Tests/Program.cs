@@ -12,6 +12,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();
+        if (args.Contains("--shortcuts-preview")) return CaptureShortcutTests.Preview();
         if (args.Contains("--context-menu-preview")) return AnnotationContextMenuTests.Preview();
         if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
         if (args.Contains("--editor-qa")) return AnnotationTests.Demo(qa: true);
@@ -198,6 +200,7 @@ internal static class Program
             });
 
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            CaptureShortcutTests.Run(Check, directory);
             AnnotationTests.Run(Check, directory);
             OverlayPresentationTests.Run(Check);
             Check("Real area-selection cancellation releases all overlays", () =>

@@ -21,14 +21,18 @@ namespace BetterScreenShot
         private bool isClosed;
         private AppTheme? currentTheme;
 
-        public MainWindow()
+        public MainWindow() : this(CaptureShortcutSettingsStore.Default) { }
+
+        internal MainWindow(CaptureShortcutSettingsStore shortcutStore)
         {
+            this.shortcutStore = shortcutStore;
             InitializeComponent();
             Loaded += MainWindow_Loaded;
             SourceInitialized += MainWindow_SourceInitialized;
             Closed += MainWindow_Closed;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
             ApplyThemeFromSystem();
+            LoadCaptureShortcuts();
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -53,11 +57,13 @@ namespace BetterScreenShot
         private void MainWindow_SourceInitialized(object? sender, EventArgs e)
         {
             ApplyTitleBarTheme(currentTheme ?? AppTheme.Light);
+            InitializeCaptureShortcuts();
         }
 
         private void MainWindow_Closed(object? sender, EventArgs e)
         {
             isClosed = true;
+            globalShortcuts?.Dispose();
             MonitorSelectionOverlayForm.Shutdown();
             ScreenshotToastWindow.CloseCurrent();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
@@ -98,6 +104,7 @@ namespace BetterScreenShot
             isCapturing = true;
             CaptureButton.IsEnabled = false;
             SelectAreaButton.IsEnabled = false;
+            ShortcutsButton.IsEnabled = false;
             string? pendingFile = null;
 
             try
@@ -154,6 +161,7 @@ namespace BetterScreenShot
                 {
                     CaptureButton.IsEnabled = true;
                     SelectAreaButton.IsEnabled = true;
+                    ShortcutsButton.IsEnabled = true;
                     Show();
                     Activate();
                     ScreenshotToastWindow.RestoreCurrent();
