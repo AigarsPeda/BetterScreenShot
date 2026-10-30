@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Media.Imaging;
@@ -7,18 +6,7 @@ namespace BetterScreenShot
 {
     internal static class ScreenshotFileService
     {
-        public static BitmapImage LoadBitmap(string filePath)
-        {
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.UriSource = new Uri(filePath);
-            image.EndInit();
-            image.Freeze();
-            return image;
-        }
-
-        public static string? SaveCopyAs(string sourceFilePath, BitmapSource? image = null, System.Windows.Window? owner = null)
+        public static string? SaveCopyAs(string sourceFilePath, BitmapSource image, System.Windows.Window owner)
         {
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
@@ -30,7 +18,7 @@ namespace BetterScreenShot
                 OverwritePrompt = true
             };
 
-            if ((owner is null ? dialog.ShowDialog() : dialog.ShowDialog(owner)) != true)
+            if (dialog.ShowDialog(owner) != true)
             {
                 return null;
             }
@@ -38,7 +26,8 @@ namespace BetterScreenShot
             Export(sourceFilePath, dialog.FileName, image);
             return dialog.FileName;
         }
-        public static void Export(string sourceFilePath, string destinationPath, BitmapSource? image = null)
+
+        public static void Export(string sourceFilePath, string destinationPath, BitmapSource image)
         {
             if (string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
             {
@@ -64,7 +53,7 @@ namespace BetterScreenShot
                 }
                 else
                 {
-                    encoder.Frames.Add(BitmapFrame.Create(image ?? LoadBitmap(sourceFilePath)));
+                    encoder.Frames.Add(BitmapFrame.Create(image));
                     using var output = File.Create(stagingPath);
                     encoder.Save(output);
                 }

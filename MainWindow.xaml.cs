@@ -1,6 +1,4 @@
-using System;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -21,6 +19,7 @@ namespace BetterScreenShot
         private string _currentStatusMessage = "Ready to capture.";
         private bool isCapturing;
         private bool isClosed;
+        private AppTheme? currentTheme;
 
         public MainWindow()
         {
@@ -29,19 +28,19 @@ namespace BetterScreenShot
             SourceInitialized += MainWindow_SourceInitialized;
             Closed += MainWindow_Closed;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
-            SetStatus(StatusTone.Neutral, _currentStatusMessage);
             ApplyThemeFromSystem();
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            Loaded -= MainWindow_Loaded;
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 try
                 {
                     if (!isClosed && !isCapturing)
                     {
-                        SelectionOverlayWindow.WarmUp();
+                        MonitorSelectionOverlayForm.WarmUpOverlays();
                     }
                 }
                 catch (Exception ex)
@@ -53,13 +52,13 @@ namespace BetterScreenShot
 
         private void MainWindow_SourceInitialized(object? sender, EventArgs e)
         {
-            ApplyThemeFromSystem();
+            ApplyTitleBarTheme(currentTheme ?? AppTheme.Light);
         }
 
         private void MainWindow_Closed(object? sender, EventArgs e)
         {
             isClosed = true;
-            SelectionOverlayWindow.Shutdown();
+            MonitorSelectionOverlayForm.Shutdown();
             ScreenshotToastWindow.CloseCurrent();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             Loaded -= MainWindow_Loaded;
@@ -107,8 +106,8 @@ namespace BetterScreenShot
                 ScreenshotToastWindow.HideCurrent();
                 Hide();
                 var bounds = selectArea
-                    ? await SelectionOverlayWindow.SelectAreaAsync()
-                    : await SelectionOverlayWindow.SelectMonitorAsync();
+                    ? await MonitorSelectionOverlayForm.SelectAreaAsync()
+                    : await MonitorSelectionOverlayForm.SelectMonitorAsync();
 
                 if (isClosed)
                 {
@@ -123,8 +122,8 @@ namespace BetterScreenShot
 
                 // Wait for the compositor, rather than guessing with a fixed delay.
                 DesktopWindowService.FlushPendingUpdates();
-                pendingFile = await Task.Run(() => ScreenshotCaptureService.CaptureToTemporaryFile(bounds.Value));
-                var preview = await Task.Run(() => ScreenshotFileService.LoadBitmap(pendingFile));
+                var capture = await Task.Run(() => ScreenshotCaptureService.Capture(bounds.Value));
+                pendingFile = capture.FilePath;
                 if (isClosed)
                 {
                     return;
@@ -132,7 +131,7 @@ namespace BetterScreenShot
 
                 Show();
                 Activate();
-                ScreenshotToastWindow.ShowToast(pendingFile, bounds.Value, preview);
+                ScreenshotToastWindow.ShowToast(pendingFile, bounds.Value, capture.Preview);
                 pendingFile = null; // The toast now owns the temporary file.
                 SetStatus(StatusTone.Success, "Screenshot captured. Use the popup to save, copy, or discard it.");
             }
@@ -197,6 +196,11 @@ namespace BetterScreenShot
         private void ApplyThemeFromSystem()
         {
             var theme = ThemeIconService.DetectWindowsTheme();
+            if (currentTheme == theme)
+            {
+                return;
+            }
+            currentTheme = theme;
             ApplyTheme(theme);
             Icon = ThemeIconService.CreateScanIcon(theme);
             SetStatus(_currentStatusTone, _currentStatusMessage);

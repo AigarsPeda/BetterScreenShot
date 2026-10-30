@@ -14,6 +14,7 @@ namespace BetterScreenShot
 
     public partial class AppDialog : Window
     {
+        private AppTheme? currentTheme;
         internal AppDialog(Window owner, string title, string message, AppDialogKind kind, string? details = null)
         {
             InitializeComponent();
@@ -77,7 +78,15 @@ namespace BetterScreenShot
             new AppDialog(owner, title, message, AppDialogKind.Error, details).ShowDialog();
         }
 
-        private void ApplyThemeFromSystem() => ThemeIconService.ApplyViewerTheme(Resources, ThemeIconService.DetectWindowsTheme());
+        private void ApplyThemeFromSystem()
+        {
+            var theme = ThemeIconService.DetectWindowsTheme();
+            if (currentTheme != theme)
+            {
+                ThemeIconService.ApplyViewerTheme(Resources, theme);
+                currentTheme = theme;
+            }
+        }
 
         private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {

@@ -15,6 +15,8 @@ namespace BetterScreenShot
     {
         private const string PersonalizeRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
         private const string AppsUseLightThemeValueName = "AppsUseLightTheme";
+        private static ImageSource? lightScanIcon;
+        private static ImageSource? darkScanIcon;
 
         private static readonly (string Key, string Light, string Dark)[] ViewerPalette =
         [
@@ -47,6 +49,16 @@ namespace BetterScreenShot
         }
 
         public static ImageSource CreateScanIcon(AppTheme theme)
+        {
+            if (theme == AppTheme.Dark)
+            {
+                return darkScanIcon ??= RenderScanIcon(theme);
+            }
+
+            return lightScanIcon ??= RenderScanIcon(theme);
+        }
+
+        private static ImageSource RenderScanIcon(AppTheme theme)
         {
             var strokeColor = theme == AppTheme.Dark ? Colors.White : Colors.Black;
             var strokeBrush = new SolidColorBrush(strokeColor);

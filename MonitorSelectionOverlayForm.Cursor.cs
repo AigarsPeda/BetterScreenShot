@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -75,10 +74,11 @@ namespace BetterScreenShot
 
                 using var cursorBitmap = new Bitmap(stream);
                 var colorBitmapHandle = cursorBitmap.GetHbitmap(Color.FromArgb(0));
-                var maskBitmapHandle = cursorBitmap.GetHbitmap(Color.FromArgb(0));
+                var maskBitmapHandle = IntPtr.Zero;
 
                 try
                 {
+                    maskBitmapHandle = cursorBitmap.GetHbitmap(Color.FromArgb(0));
                     var iconInfo = new IconInfo
                     {
                         fIcon = false,
@@ -94,7 +94,10 @@ namespace BetterScreenShot
                 finally
                 {
                     DeleteObject(colorBitmapHandle);
-                    DeleteObject(maskBitmapHandle);
+                    if (maskBitmapHandle != IntPtr.Zero)
+                    {
+                        DeleteObject(maskBitmapHandle);
+                    }
                 }
             }
             catch

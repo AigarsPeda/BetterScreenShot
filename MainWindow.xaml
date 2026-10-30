@@ -209,13 +209,18 @@
                     HorizontalAlignment="Stretch"
                     Background="{DynamicResource StatusNeutralBrush}"
                     CornerRadius="14">
-                <StackPanel Orientation="Horizontal">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
                     <Ellipse x:Name="StatusDot"
                              Width="10"
                              Height="10"
                              VerticalAlignment="Center"
                              Fill="{DynamicResource StatusNeutralTextBrush}" />
                     <TextBlock x:Name="StatusTextBlock"
+                               Grid.Column="1"
                                Margin="10,0,0,0"
                                VerticalAlignment="Center"
                                FontSize="13"
@@ -223,7 +228,7 @@
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource StatusNeutralTextBrush}"
                                Text="Ready to capture." />
-                </StackPanel>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

@@ -1,4 +1,3 @@
-using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media;
@@ -17,12 +16,12 @@ namespace BetterScreenShot
         private bool allowImmediateClose;
         private bool preserveTemporaryFileForViewer;
 
-        public ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource? image = null)
+        internal ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image)
         {
             InitializeComponent();
 
             screenshot = new TemporaryScreenshot(filePath);
-            PreviewImage.Source = image ?? ScreenshotFileService.LoadBitmap(filePath);
+            PreviewImage.Source = image;
 
             Loaded += (_, _) => OnToastLoaded(captureBounds);
             Closing += ScreenshotToastWindow_Closing;
@@ -40,7 +39,7 @@ namespace BetterScreenShot
             };
         }
 
-        public static void ShowToast(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource? image = null)
+        public static void ShowToast(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image)
         {
             ScreenshotToastWindow? toast = null;
             try

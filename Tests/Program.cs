@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Windows.Media.Imaging;
@@ -26,10 +25,11 @@ internal static class Program
                 bitmap.Save(source, ImageFormat.Png);
             }
 
+            var fixtureImage = LoadBitmap(source);
             Check("PNG is copied without re-encoding", () =>
             {
                 var output = Path.Combine(directory, "copy.png");
-                ScreenshotFileService.Export(source, output);
+                ScreenshotFileService.Export(source, output, fixtureImage);
                 Assert(File.ReadAllBytes(source).SequenceEqual(File.ReadAllBytes(output)));
             });
             foreach (var extension in new[] { ".jpg", ".jpeg", ".bmp" })
@@ -37,7 +37,7 @@ internal static class Program
                 Check($"{extension} has the correct format and dimensions", () =>
                 {
                     var output = Path.Combine(directory, "converted" + extension);
-                    ScreenshotFileService.Export(source, output);
+                    ScreenshotFileService.Export(source, output, fixtureImage);
                     using var stream = File.OpenRead(output);
                     var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
                     Assert(extension == ".bmp" ? decoder is BmpBitmapDecoder : decoder is JpegBitmapDecoder);
@@ -49,13 +49,13 @@ internal static class Program
             {
                 var output = Path.Combine(directory, "existing.gif");
                 File.WriteAllText(output, "original");
-                Throws<ArgumentException>(() => ScreenshotFileService.Export(source, output));
+                Throws<ArgumentException>(() => ScreenshotFileService.Export(source, output, fixtureImage));
                 Assert(File.ReadAllText(output) == "original");
             });
             Check("Saving onto the temporary source is rejected", () =>
             {
-                Throws<IOException>(() => ScreenshotFileService.Export(source, source));
-                Assert(ScreenshotFileService.LoadBitmap(source).PixelWidth == 32);
+                Throws<IOException>(() => ScreenshotFileService.Export(source, source, fixtureImage));
+                Assert(LoadBitmap(source).PixelWidth == 32);
             });
             Check("Failed overwrite preserves the destination and removes staging files", () =>
             {
@@ -63,7 +63,7 @@ internal static class Program
                 File.WriteAllText(output, "original");
                 using (var locked = new FileStream(output, FileMode.Open, FileAccess.Read, FileShare.None))
                 {
-                    var error = Throws<Exception>(() => ScreenshotFileService.Export(source, output));
+                    var error = Throws<Exception>(() => ScreenshotFileService.Export(source, output, fixtureImage));
                     Assert(error is IOException or UnauthorizedAccessException);
                 }
                 Assert(File.ReadAllText(output) == "original");
@@ -73,7 +73,7 @@ internal static class Program
             {
                 var copy = Path.Combine(directory, "cached.png");
                 File.Copy(source, copy);
-                var image = ScreenshotFileService.LoadBitmap(copy);
+                var image = LoadBitmap(copy);
                 Assert(image.IsFrozen);
                 File.Delete(copy);
                 ScreenshotFileService.Export(copy, Path.Combine(directory, "cached.jpg"), image);
@@ -87,10 +87,36 @@ internal static class Program
                 screenshot.Dispose();
                 Assert(!File.Exists(copy));
             });
-            Check("Worker-thread decoding produces a frozen image usable on the UI thread", () =>
+            Check("Worker capture copies pixels and releases the source bitmap", () =>
             {
-                var image = Task.Run(() => ScreenshotFileService.LoadBitmap(source)).GetAwaiter().GetResult();
-                Assert(image.IsFrozen && image.PixelWidth == 32 && image.PixelHeight == 24);
+                var capture = Task.Run(() =>
+                {
+                    using var bitmap = new Bitmap(3, 2, PixelFormat.Format32bppRgb);
+                    bitmap.SetPixel(0, 0, Color.Red);
+                    bitmap.SetPixel(2, 1, Color.Blue);
+                    return ScreenshotCaptureService.SaveCapture(bitmap);
+                }).GetAwaiter().GetResult();
+                using var temporaryFile = new TemporaryScreenshot(capture.FilePath);
+                Assert(capture.Preview.IsFrozen && capture.Preview.PixelWidth == 3 && capture.Preview.PixelHeight == 2);
+                var pixels = new byte[24];
+                capture.Preview.CopyPixels(pixels, 12, 0);
+                Assert(pixels[0] == 0 && pixels[1] == 0 && pixels[2] == 255);
+                Assert(pixels[20] == 255 && pixels[21] == 0 && pixels[22] == 0);
+                var savedImage = LoadBitmap(capture.FilePath);
+                Assert(savedImage.PixelWidth == 3);
+                var savedPixels = new byte[24];
+                var converted = new FormatConvertedBitmap(savedImage, System.Windows.Media.PixelFormats.Bgr32, null, 0);
+                converted.CopyPixels(savedPixels, 12, 0);
+                Assert(pixels.Where((_, index) => index % 4 != 3).SequenceEqual(savedPixels.Where((_, index) => index % 4 != 3)));
+            });
+            Check("Scan icons are frozen and reused for each theme", () =>
+            {
+                foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
+                {
+                    var icon = ThemeIconService.CreateScanIcon(theme);
+                    Assert(icon.IsFrozen && ReferenceEquals(icon, ThemeIconService.CreateScanIcon(theme)));
+                }
+                Assert(!ReferenceEquals(ThemeIconService.CreateScanIcon(AppTheme.Light), ThemeIconService.CreateScanIcon(AppTheme.Dark)));
             });
             Check("Selection success cleans up before completing", () =>
             {
@@ -152,7 +178,7 @@ internal static class Program
             Check("Invalid geometry and captures are rejected", () =>
             {
                 Throws<ArgumentOutOfRangeException>(() => CaptureGeometry.ToScreenRectangle(new Rectangle(0, 0, 10, 10), Size.Empty, new Rectangle(0, 0, 100, 100)));
-                Throws<ArgumentOutOfRangeException>(() => ScreenshotCaptureService.CaptureToTemporaryFile(Rectangle.Empty));
+                Throws<ArgumentOutOfRangeException>(() => ScreenshotCaptureService.Capture(Rectangle.Empty));
             });
             Check("Toast positioning preserves physical monitor coordinates at mixed scales", () =>
             {
@@ -197,7 +223,7 @@ internal static class Program
             {
                 var copy = Path.Combine(directory, "closed-toast.png");
                 File.Copy(source, copy);
-                var toast = new ScreenshotToastWindow(copy, new Rectangle(0, 0, 32, 24));
+                var toast = new ScreenshotToastWindow(copy, new Rectangle(0, 0, 32, 24), fixtureImage);
                 toast.Close();
                 Assert(!File.Exists(copy));
             });
@@ -210,8 +236,8 @@ internal static class Program
                 var bounds = new Rectangle(0, 0, 32, 24);
                 try
                 {
-                    ScreenshotToastWindow.ShowToast(first, bounds);
-                    ScreenshotToastWindow.ShowToast(second, bounds);
+                    ScreenshotToastWindow.ShowToast(first, bounds, fixtureImage);
+                    ScreenshotToastWindow.ShowToast(second, bounds, fixtureImage);
                     Assert(!File.Exists(first) && File.Exists(second));
                 }
                 finally
@@ -224,7 +250,7 @@ internal static class Program
             {
                 var copy = Path.Combine(directory, "viewer-owned.png");
                 File.Copy(source, copy);
-                var image = ScreenshotFileService.LoadBitmap(copy);
+                var image = LoadBitmap(copy);
                 var toast = new ScreenshotToastWindow(copy, new Rectangle(0, 0, 32, 24), image);
                 var viewer = toast.OpenViewer();
                 try
@@ -239,6 +265,22 @@ internal static class Program
                 }
                 Assert(!File.Exists(copy));
             });
+            Check("Launcher status text wraps within a narrow window", () =>
+            {
+                var window = new MainWindow();
+                try
+                {
+                    var status = (System.Windows.Controls.TextBlock)window.FindName("StatusTextBlock");
+                    status.Text = "Screenshot captured. Use the popup to save, copy, or discard it.";
+                    var content = (System.Windows.FrameworkElement)window.Content;
+                    content.Measure(new System.Windows.Size(380, 300));
+                    content.Arrange(new System.Windows.Rect(0, 0, 380, 300));
+                    content.UpdateLayout();
+                    var badge = (System.Windows.Controls.Border)window.FindName("StatusBadge");
+                    Assert(status.ActualWidth > 0 && status.ActualWidth < badge.ActualWidth && status.ActualHeight > status.FontSize * 2);
+                }
+                finally { window.Close(); }
+            });
             application.Shutdown();
             MonitorSelectionOverlayForm.Shutdown();
 
@@ -246,6 +288,7 @@ internal static class Program
             if (args.Contains("--benchmark"))
             {
                 BenchmarkCapture();
+                BenchmarkPreview(directory);
             }
             return failed == 0 ? 0 : 1;
         }
@@ -260,6 +303,16 @@ internal static class Program
         }
     }
 
+    private static BitmapImage LoadBitmap(string filePath)
+    {
+        var image = new BitmapImage();
+        image.BeginInit();
+        image.CacheOption = BitmapCacheOption.OnLoad;
+        image.UriSource = new Uri(filePath);
+        image.EndInit();
+        image.Freeze();
+        return image;
+    }
     private static void BenchmarkCapture()
     {
         var monitor = System.Windows.Forms.Screen.PrimaryScreen!.Bounds;
@@ -293,6 +346,56 @@ internal static class Program
         Console.WriteLine($"Capture benchmark: monitor {monitor.Width}x{monitor.Height}, region {region.Width}x{region.Height}, {iterations} iterations.");
         Console.WriteLine($"Full monitor + crop: {oldTime.TotalMilliseconds / iterations:F2} ms; direct region: {newTime.TotalMilliseconds / iterations:F2} ms.");
         Console.WriteLine($"Pixel buffers: {(monitor.Width * (long)monitor.Height + region.Width * (long)region.Height) * 4:N0} bytes before; {region.Width * (long)region.Height * 4:N0} bytes after.");
+    }
+
+    private static void BenchmarkPreview(string directory)
+    {
+        using var bitmap = new Bitmap(1920, 1200, PixelFormat.Format32bppRgb);
+        using (var graphics = Graphics.FromImage(bitmap))
+        {
+            graphics.Clear(Color.FromArgb(15, 23, 42));
+            var random = new Random(42);
+            for (var i = 0; i < 1500; i++)
+            {
+                using var brush = new SolidBrush(Color.FromArgb(random.Next(256), random.Next(256), random.Next(256)));
+                graphics.FillRectangle(brush, random.Next(bitmap.Width), random.Next(bitmap.Height), random.Next(10, 140), random.Next(10, 100));
+            }
+        }
+
+        void SaveAndDecode()
+        {
+            var path = Path.Combine(directory, $"preview-{Guid.NewGuid():N}.png");
+            try
+            {
+                bitmap.Save(path, ImageFormat.Png);
+                _ = LoadBitmap(path);
+            }
+            finally { File.Delete(path); }
+        }
+        void CopyAndSave()
+        {
+            var capture = ScreenshotCaptureService.SaveCapture(bitmap);
+            using var temporaryFile = new TemporaryScreenshot(capture.FilePath);
+        }
+
+        const int iterations = 10;
+        SaveAndDecode();
+        CopyAndSave();
+        var oldTimes = new double[iterations];
+        var newTimes = new double[iterations];
+        for (var i = 0; i < iterations; i++)
+        {
+            var timer = Stopwatch.StartNew();
+            SaveAndDecode();
+            oldTimes[i] = timer.Elapsed.TotalMilliseconds;
+            timer.Restart();
+            CopyAndSave();
+            newTimes[i] = timer.Elapsed.TotalMilliseconds;
+        }
+        Array.Sort(oldTimes);
+        Array.Sort(newTimes);
+        Console.WriteLine($"Preview benchmark: synthetic {bitmap.Width}x{bitmap.Height} image, {iterations} iterations.");
+        Console.WriteLine($"Save + PNG decode median: {(oldTimes[4] + oldTimes[5]) / 2:F2} ms; copy pixels + save median: {(newTimes[4] + newTimes[5]) / 2:F2} ms.");
     }
 
     private static void Check(string name, Action test)

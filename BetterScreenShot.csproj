@@ -14,15 +14,10 @@
 
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs" />
-    <Resource Include="assets\scan.png" />
-
-    <None Update="assets\*.svg">
+    <None Update="assets\camera.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
 
-    <None Update="assets\render-icon.html">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

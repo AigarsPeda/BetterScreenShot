@@ -1,4 +1,3 @@
-using System;
 using System.Windows.Media.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -22,11 +21,7 @@ namespace BetterScreenShot
         private bool isDragging;
         private Point lastDragPoint;
         private double currentZoom = 1.0;
-
-        public ScreenshotViewerWindow(string filePath)
-            : this(new TemporaryScreenshot(filePath), ScreenshotFileService.LoadBitmap(filePath))
-        {
-        }
+        private AppTheme? currentTheme;
 
         internal ScreenshotViewerWindow(TemporaryScreenshot screenshot, BitmapSource image)
         {
@@ -39,20 +34,24 @@ namespace BetterScreenShot
             SourceInitialized += ScreenshotViewerWindow_SourceInitialized;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         }
+
         private void ScreenshotViewerWindow_SourceInitialized(object? sender, EventArgs e)
         {
-            ApplyThemeFromSystem();
+            ApplyTitleBarTheme(currentTheme ?? AppTheme.Light);
         }
 
         private void ApplyThemeFromSystem()
         {
             var theme = ThemeIconService.DetectWindowsTheme();
-            ApplyTheme(theme);
+            if (currentTheme == theme)
+            {
+                return;
+            }
+            currentTheme = theme;
+            ThemeIconService.ApplyViewerTheme(Resources, theme);
             Icon = ThemeIconService.CreateScanIcon(theme);
             ApplyTitleBarTheme(theme);
         }
-
-        private void ApplyTheme(AppTheme theme) => ThemeIconService.ApplyViewerTheme(Resources, theme);
 
         private void ApplyTitleBarTheme(AppTheme theme)
         {
@@ -212,6 +211,7 @@ namespace BetterScreenShot
             SourceInitialized -= ScreenshotViewerWindow_SourceInitialized;
             Closed -= ScreenshotViewerWindow_Closed;
         }
+
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
     }

@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Drawing;
 using System.Runtime.InteropServices;
 using Forms = System.Windows.Forms;
 
@@ -78,9 +76,7 @@ namespace BetterScreenShot
 
             private void InstallHooks()
             {
-                using var currentProcess = Process.GetCurrentProcess();
-                using var currentModule = currentProcess.MainModule;
-                var moduleHandle = GetModuleHandle(currentModule?.ModuleName);
+                var moduleHandle = GetModuleHandle(null);
 
                 keyboardHook = SetWindowsHookEx(WhKeyboardLl, keyboardProc, moduleHandle, 0);
                 if (keyboardHook == IntPtr.Zero)
@@ -116,18 +112,14 @@ namespace BetterScreenShot
 
         private sealed class MonitorSelectionInputForm : Forms.Form
         {
-            private readonly MonitorSelectionOverlayForm overlay;
             private readonly IReadOnlyList<MonitorSelectionOverlayForm> overlays;
-            private readonly Action<MonitorSelectionOverlayForm?> completeSelection;
 
             public MonitorSelectionInputForm(
                 MonitorSelectionOverlayForm overlay,
                 IReadOnlyList<MonitorSelectionOverlayForm> overlays,
                 Action<MonitorSelectionOverlayForm?> completeSelection)
             {
-                this.overlay = overlay;
                 this.overlays = overlays;
-                this.completeSelection = completeSelection;
 
                 FormBorderStyle = Forms.FormBorderStyle.None;
                 ShowInTaskbar = false;

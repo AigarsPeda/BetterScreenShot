@@ -1,5 +1,3 @@
-using System.Drawing;
-using System.Threading.Tasks;
 using Forms = System.Windows.Forms;
 
 namespace BetterScreenShot
