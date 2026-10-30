@@ -23,7 +23,7 @@ internal static class TextExtractionTests
 
     internal static int Smoke()
     {
-        var text = TextExtractionService.ExtractAsync(Fixture(), "eng+lav").GetAwaiter().GetResult();
+        var text = TextExtractionService.ExtractAsync(Fixture(), TextExtractionService.AutomaticLanguage).GetAwaiter().GetResult();
         Console.WriteLine(text);
         return text.Contains("Screenshot text 12345") ? 0 : 1;
     }
@@ -100,9 +100,32 @@ internal static class TextExtractionTests
                 Require(result.Words.Any(word => word.Text.Contains(expected, StringComparison.Ordinal)), "Words must retain Unicode text for image selection.");
             }
         });
+        check("Auto recognizes all seven languages and mixed Latin and Cyrillic text", () =>
+        {
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            var failures = new List<string>();
+            foreach (var (sample, expected) in new[]
+            {
+                ("Screenshot text 12345", "Screenshot"), ("Labdien! Rīga, Latvija.", "Rīga"),
+                ("Labas rytas! Lietuva.", "Lietuva"), ("Tere! Eesti.", "Eesti"),
+                ("Sverige är vackert.", "är"), ("Hyvää päivää! Suomi.", "Hyvää"),
+                ("Привет! Россия.", "Россия"), ("Hello! Rīga, Россия.", "Rīga")
+            })
+            {
+                var result = TextExtractionService.RecognizeAsync(Fixture(sample), TextExtractionService.AutomaticLanguage).GetAwaiter().GetResult();
+                if (!result.Text.Contains(expected, StringComparison.Ordinal)) failures.Add($"Auto: {sample} => {result.Text}");
+                if (sample.StartsWith("Hello", StringComparison.Ordinal))
+                    if (!result.Text.Contains("Hello") || !result.Text.Contains("Россия")) failures.Add("Auto should recognize both scripts in the same image. " + result.Text);
+                foreach (var word in result.Words)
+                    Require(result.Text.Substring(word.TextStart, word.Text.Length) == word.Text, "Auto must preserve word offsets for image highlighting.");
+            }
+            Console.WriteLine($"Auto recognition: eight synthetic samples completed in {elapsed.ElapsedMilliseconds} ms.");
+            Require(failures.Count == 0, string.Join(Environment.NewLine, failures));
+        });
         check("OCR returns no text for blank images and honors cancellation", () =>
         {
             Require(TextExtractionService.ExtractAsync(Fixture(""), "eng").GetAwaiter().GetResult() == "", "Blank image should have no text.");
+            Require(TextExtractionService.ExtractAsync(Fixture(""), TextExtractionService.AutomaticLanguage).GetAwaiter().GetResult() == "", "Auto should return no text for blank images.");
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
             try
@@ -197,6 +220,34 @@ internal static class TextExtractionTests
             }
             finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
+        check("Extract text toggles the panel during recognition and reopens cached results", () =>
+        {
+            var previousContext = SynchronizationContext.Current;
+            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "panel-toggle.png")), Fixture());
+            try
+            {
+                window.Show();
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(window.Dispatcher));
+                var button = (System.Windows.Controls.Button)window.FindName("ExtractTextButton");
+                var host = (FrameworkElement)window.FindName("ExtractedTextHost");
+                var textBox = (System.Windows.Controls.TextBox)window.FindName("ExtractedTextBox");
+                var pending = window.ToggleTextPanelAsync();
+                Require(button.IsEnabled && !pending.IsCompleted, "The toggle should remain clickable while Auto is recognizing text.");
+                button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Complete(pending);
+                Complete(Task.Delay(250));
+                Require(host.Visibility == Visibility.Collapsed && textBox.Text == "", "A second click must close the panel and ignore the pending result.");
+                Complete(window.ToggleTextPanelAsync());
+                Require(textBox.Text.Contains("Screenshot text"), "Opening the panel again should recognize the image.");
+                Complete(window.ToggleTextPanelAsync());
+                Complete(Task.Delay(250));
+                Require(host.Visibility == Visibility.Collapsed, "The toggle must close an already populated panel.");
+                Require(window.ToggleTextPanelAsync().IsCompletedSuccessfully, "Reopening should reuse cached Auto recognition.");
+                Complete(Task.Delay(250));
+                Require(host.Visibility == Visibility.Visible && textBox.Text.Contains("Screenshot text"), "The cached text should reappear when reopened.");
+            }
+            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+        });
         check("Text panel transitions settle correctly when opening and closing are interrupted", () =>
         {
             var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "panel-animation.png")), Fixture());
@@ -262,7 +313,8 @@ internal static class TextExtractionTests
                 var surface = (AnnotationSurface)window.FindName("Annotations");
                 surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.Text, Text = "ADDED MARKUP", FontSize = 36, Points = [new(20, 180)] });
                 var task = window.ExtractTextAsync();
-                Require(!((System.Windows.Controls.Button)window.FindName("ExtractTextButton")).IsEnabled, "OCR should show a busy state.");
+                Require(((System.Windows.Controls.Button)window.FindName("ExtractTextButton")).IsEnabled, "The panel toggle must remain available during recognition.");
+                Require(!((System.Windows.Controls.Button)window.FindName("CopyExtractedTextButton")).IsEnabled, "Copy all should wait for the recognition result.");
                 Require(window.ExtractTextAsync().IsCompletedSuccessfully, "Repeated shortcuts should not restart active recognition.");
                 Complete(task);
                 var textBox = (System.Windows.Controls.TextBox)window.FindName("ExtractedTextBox");
@@ -271,11 +323,20 @@ internal static class TextExtractionTests
                 Require(((System.Windows.Controls.Button)window.FindName("CopyButton")).IsEnabled, "Image copy should remain available.");
                 Require(window.ExtractTextAsync().IsCompletedSuccessfully, "Repeated extraction should use cached text.");
                 var languages = (System.Windows.Controls.ComboBox)window.FindName("OcrLanguagePicker");
-                Require(languages.Items.Count == 8, "The picker should offer all seven languages and English + Latvian.");
+                var advanced = (Expander)window.FindName("OcrAdvancedOptions");
+                Require(languages.Items.Count == 9, "The advanced picker should offer Auto, all seven languages and English + Latvian.");
+                Require((string)((ComboBoxItem)languages.SelectedItem).Tag == TextExtractionService.AutomaticLanguage, "A new editor must default to Auto.");
+                Require(!advanced.IsExpanded && !languages.IsVisible, "Language controls must be hidden until Advanced options is expanded.");
+                advanced.IsExpanded = true;
+                window.UpdateLayout();
+                Require(languages.IsVisible, "Advanced options should reveal the manual language picker.");
                 // Switch while hidden so the test can await the extraction directly.
                 window.SetTextPanelOpen(false);
                 languages.SelectedItem = languages.Items.OfType<ComboBoxItem>().Single(item => (string)item.Tag == "eng+lav");
                 Complete(window.ExtractTextAsync());
+                Require(textBox.Text.Contains("Screenshot text"), textBox.Text);
+                languages.SelectedItem = languages.Items.OfType<ComboBoxItem>().Single(item => (string)item.Tag == TextExtractionService.AutomaticLanguage);
+                Require(window.ExtractTextAsync().IsCompletedSuccessfully, "Returning to Auto should reuse its cached result.");
                 Require(textBox.Text.Contains("Screenshot text"), textBox.Text);
                 textBox.Focus();
                 textBox.Select(0, 10);

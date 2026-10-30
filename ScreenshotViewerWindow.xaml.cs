@@ -195,7 +195,6 @@ namespace BetterScreenShot
                         await Task.Delay(75);
                     }
                 }
-                ToolHint.Text = "Copied to clipboard. Paste into another app with Ctrl+V.";
             }
             finally
             {

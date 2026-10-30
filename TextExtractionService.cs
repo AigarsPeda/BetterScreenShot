@@ -1,16 +1,19 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Globalization;
+using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace BetterScreenShot;
 
-internal sealed record RecognizedWord(string Text, System.Windows.Rect Bounds, int TextStart);
-internal sealed record TextExtractionResult(string Text, IReadOnlyList<RecognizedWord> Words);
+internal sealed record RecognizedWord(string Text, System.Windows.Rect Bounds, int TextStart, float Confidence = 0, bool FromDictionary = false);
+internal sealed record TextExtractionResult(string Text, IReadOnlyList<RecognizedWord> Words, int Confidence = 0);
 
 internal static class TextExtractionService
 {
+    internal const string AutomaticLanguage = "auto";
     private static readonly Lazy<string> assetDirectory = new(PrepareAssets);
     internal static IReadOnlyDictionary<string, string> Languages { get; } = new Dictionary<string, string>
     {
@@ -24,7 +27,7 @@ internal static class TextExtractionService
     internal static Task<TextExtractionResult> RecognizeAsync(BitmapSource image, string language, CancellationToken cancellationToken = default)
     {
         if (!image.IsFrozen) throw new ArgumentException("OCR requires a frozen image.", nameof(image));
-        if (string.IsNullOrEmpty(language) || language.Split('+').Any(code => !Languages.ContainsKey(code)))
+        if (language != AutomaticLanguage && (string.IsNullOrEmpty(language) || language.Split('+').Any(code => !Languages.ContainsKey(code))))
             throw new ArgumentException("Unsupported OCR language.", nameof(language));
         return Task.Run(() => Extract(image, language, cancellationToken), cancellationToken);
     }
@@ -39,6 +42,20 @@ internal static class TextExtractionService
         converted.CopyPixels(pixels, stride, 0);
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (language != AutomaticLanguage)
+            return RecognizePixels(pixels, image.PixelWidth, image.PixelHeight, stride, directory, language, cancellationToken);
+        var candidates = new List<TextExtractionResult>();
+        foreach (var code in Languages.Keys)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            candidates.Add(RecognizePixels(pixels, image.PixelWidth, image.PixelHeight, stride, directory, code, cancellationToken));
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return MergeAutomaticResults(candidates);
+    }
+
+    private static TextExtractionResult RecognizePixels(byte[] pixels, int width, int height, int stride, string directory, string language, CancellationToken cancellationToken)
+    {
         var engine = Native.Create();
         if (engine == IntPtr.Zero) throw new InvalidOperationException("Could not create the text recognition engine.");
         try
@@ -50,7 +67,7 @@ internal static class TextExtractionService
             var pinnedPixels = GCHandle.Alloc(pixels, GCHandleType.Pinned);
             try
             {
-                Native.SetImage(engine, pinnedPixels.AddrOfPinnedObject(), image.PixelWidth, image.PixelHeight, 3, stride);
+                Native.SetImage(engine, pinnedPixels.AddrOfPinnedObject(), width, height, 3, stride);
                 Native.SetSourceResolution(engine, 96);
                 cancellationToken.ThrowIfCancellationRequested();
                 var text = Native.GetText(engine);
@@ -59,7 +76,7 @@ internal static class TextExtractionService
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var recognized = (Marshal.PtrToStringUTF8(text) ?? "").Replace("\r\n", "\n").Trim().Replace("\n", Environment.NewLine);
-                    return new TextExtractionResult(recognized, ReadWords(engine, recognized, cancellationToken));
+                    return new TextExtractionResult(recognized, ReadWords(engine, recognized, cancellationToken), Native.GetMeanConfidence(engine));
                 }
                 finally { Native.DeleteText(text); }
             }
@@ -67,6 +84,57 @@ internal static class TextExtractionService
         }
         finally { Native.Delete(engine); }
     }
+
+    private static TextExtractionResult MergeAutomaticResults(IReadOnlyList<TextExtractionResult> candidates)
+    {
+        var baseline = candidates.MaxBy(result => result.Confidence)!;
+        if (baseline.Words.Count == 0) return baseline;
+        // Match candidates by their image positions, independently of the recognized strings.
+        // Row buckets avoid comparing every word with every other word on large captures.
+        const int rowHeight = 64;
+        var rows = candidates.SelectMany(result => result.Words)
+            .ToLookup(word => (int)((word.Bounds.Top + word.Bounds.Height / 2) / rowHeight));
+        var text = new StringBuilder();
+        var words = new List<RecognizedWord>();
+        var offset = 0;
+        foreach (var original in baseline.Words)
+        {
+            var best = original;
+            var bestScore = WordScore(original);
+            var firstRow = (int)Math.Floor((original.Bounds.Top - original.Bounds.Height) / rowHeight);
+            var lastRow = (int)Math.Floor((original.Bounds.Bottom + original.Bounds.Height) / rowHeight);
+            for (var row = firstRow; row <= lastRow; row++)
+            foreach (var candidate in rows[row])
+            {
+                var overlap = System.Windows.Rect.Intersect(original.Bounds, candidate.Bounds);
+                if (overlap.IsEmpty) continue;
+                var unionArea = original.Bounds.Width * original.Bounds.Height + candidate.Bounds.Width * candidate.Bounds.Height - overlap.Width * overlap.Height;
+                if (overlap.Width * overlap.Height / unionArea < .6) continue;
+                var score = WordScore(candidate);
+                // Near-ties must not turn ordinary Latin letters into Cyrillic lookalikes.
+                var scriptMargin = HasCyrillic(best.Text) != HasCyrillic(candidate.Text) ? 3 : 0;
+                if (score <= bestScore + scriptMargin) continue;
+                best = candidate;
+                bestScore = score;
+            }
+            text.Append(baseline.Text, offset, original.TextStart - offset);
+            words.Add(best with { TextStart = text.Length });
+            text.Append(best.Text);
+            offset = original.TextStart + original.Text.Length;
+        }
+        text.Append(baseline.Text, offset, baseline.Text.Length - offset);
+        return new TextExtractionResult(text.ToString(), words.AsReadOnly(), baseline.Confidence);
+    }
+
+    private static float WordScore(RecognizedWord word)
+    {
+        // Dictionary evidence helps resolve model disagreements. A small accent tie-break
+        // preserves diacritics when an unaccented spelling has nearly identical confidence.
+        var accented = word.Text.Normalize(NormalizationForm.FormD).Any(character => CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark);
+        return word.Confidence + (word.FromDictionary ? 3 : 0) + (accented ? .5f : 0);
+    }
+
+    private static bool HasCyrillic(string text) => text.Any(character => character is >= '\u0400' and <= '\u052f');
 
     private static IReadOnlyList<RecognizedWord> ReadWords(IntPtr engine, string text, CancellationToken cancellationToken)
     {
@@ -90,7 +158,8 @@ internal static class TextExtractionService
                     || right <= left || bottom <= top) continue;
                 var start = text.IndexOf(word, offset, StringComparison.Ordinal);
                 if (start < 0) continue;
-                words.Add(new RecognizedWord(word, new System.Windows.Rect(left, top, right - left, bottom - top), start));
+                words.Add(new RecognizedWord(word, new System.Windows.Rect(left, top, right - left, bottom - top), start,
+                    Native.GetWordConfidence(iterator, wordLevel), Native.WordFromDictionary(iterator) != 0));
                 offset = start + word.Length;
             } while (Native.NextWord(iterator, wordLevel) != 0);
         }
@@ -159,12 +228,18 @@ internal static class TextExtractionService
         internal static extern void SetSourceResolution(IntPtr engine, int resolution);
         [DllImport(Library, EntryPoint = "TessBaseAPIGetUTF8Text", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr GetText(IntPtr engine);
+        [DllImport(Library, EntryPoint = "TessBaseAPIMeanTextConf", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int GetMeanConfidence(IntPtr engine);
         [DllImport(Library, EntryPoint = "TessBaseAPIGetIterator", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr GetIterator(IntPtr engine);
         [DllImport(Library, EntryPoint = "TessResultIteratorGetPageIterator", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr GetPageIterator(IntPtr iterator);
         [DllImport(Library, EntryPoint = "TessResultIteratorGetUTF8Text", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr GetWordText(IntPtr iterator, int level);
+        [DllImport(Library, EntryPoint = "TessResultIteratorConfidence", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern float GetWordConfidence(IntPtr iterator, int level);
+        [DllImport(Library, EntryPoint = "TessResultIteratorWordIsFromDictionary", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int WordFromDictionary(IntPtr iterator);
         [DllImport(Library, EntryPoint = "TessResultIteratorNext", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int NextWord(IntPtr iterator, int level);
         [DllImport(Library, EntryPoint = "TessPageIteratorBoundingBox", CallingConvention = CallingConvention.Cdecl)]

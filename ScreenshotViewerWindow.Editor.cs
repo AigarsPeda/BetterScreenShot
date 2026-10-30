@@ -30,6 +30,7 @@ public partial class ScreenshotViewerWindow
         ImageStage.Width = Annotations.Width = image.PixelWidth;
         ImageStage.Height = Annotations.Height = image.PixelHeight;
         ImageDetails.Text = $"{image.PixelWidth} × {image.PixelHeight} pixels";
+        OcrLanguagePicker.Items.Add(new ComboBoxItem { Content = "Auto", Tag = TextExtractionService.AutomaticLanguage });
         foreach (var language in TextExtractionService.Languages)
             OcrLanguagePicker.Items.Add(new ComboBoxItem { Content = language.Value, Tag = language.Key });
         OcrLanguagePicker.Items.Add(new ComboBoxItem { Content = "English + Latvian", Tag = "eng+lav" });
@@ -93,19 +94,8 @@ public partial class ScreenshotViewerWindow
         CommitText();
         Annotations.Tool = tool;
         foreach (var button in toolButtons) button.IsChecked = Equals(button.Tag, tool);
-        ToolHint.Text = ToolDescription(tool);
         SyncEditor();
     }
-
-    private static string ToolDescription(AnnotationTool tool) => tool switch
-        {
-            AnnotationTool.Select => "Double-click an image word to select and copy it. Click a mark to select; double-click a text annotation to edit.",
-            AnnotationTool.Hand => "Drag to pan. Scroll to zoom. Click the zoom percentage to fit.",
-            AnnotationTool.Text => "Click to add text. Enter to finish; Shift+Enter for a new line. Esc to cancel.",
-            AnnotationTool.Pen => "Draw freely. Strokes are smoothed; nearly straight strokes are tidied. Space to pan.",
-            AnnotationTool.Highlight => "Draw over an area to highlight it. Change the color or stroke width above.",
-            _ => "Drag to draw. Click a mark to edit. Shift constrains shapes; Space pans; Alt draws over a mark."
-        };
 
     private void ChooseColor(Color color)
     {
@@ -157,12 +147,6 @@ public partial class ScreenshotViewerWindow
         UndoButton.IsEnabled = Annotations.Document.CanUndo;
         RedoButton.IsEnabled = Annotations.Document.CanRedo;
         RemoveButton.IsEnabled = selected is not null;
-        if (selected?.CanBend == true)
-            ToolHint.Text = "Drag the purple middle point to bend. Drag an endpoint to reshape, or the stroke to move. Delete removes it.";
-        else if (selected is not null)
-            ToolHint.Text = "Drag to move; drag a corner to resize. Choose a color, or press Delete. Double-click text to edit.";
-        else ToolHint.Text = ToolDescription(Annotations.Tool);
-        AnnotationCount.Text = Annotations.Document.Items.Count switch { 0 => "Original image", 1 => "1 annotation", var count => $"{count} annotations" };
         syncingControls = false;
     }
 

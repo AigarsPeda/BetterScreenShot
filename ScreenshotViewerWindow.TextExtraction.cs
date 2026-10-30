@@ -20,8 +20,15 @@ public partial class ScreenshotViewerWindow
     private bool textPanelOpen;
     private int textPanelTransition;
 
-    private async void ExtractTextButton_Click(object sender, RoutedEventArgs e)
+    private async void ExtractTextButton_Click(object sender, RoutedEventArgs e) => await ToggleTextPanelAsync();
+
+    internal async Task ToggleTextPanelAsync()
     {
+        if (textPanelOpen)
+        {
+            CloseTextPanel();
+            return;
+        }
         pendingWordSelection = null;
         ChooseTool(AnnotationTool.Select);
         await ExtractTextAsync();
@@ -54,13 +61,11 @@ public partial class ScreenshotViewerWindow
         using var cancellation = new CancellationTokenSource();
         textExtractionCancellation = cancellation;
         extractingLanguage = language;
-        ExtractTextButton.IsEnabled = false;
-        ExtractTextButton.Content = "Extracting…";
         ExtractedTextBox.Clear();
         currentTextResult = null;
         OcrSelectionHighlight.Visibility = Visibility.Collapsed;
         CopyExtractedTextButton.IsEnabled = false;
-        OcrStatus.Text = "Recognizing text…";
+        SetOcrStatus(language == TextExtractionService.AutomaticLanguage ? "Recognizing text automatically…" : "Recognizing text…");
         try
         {
             var text = await TextExtractionService.RecognizeAsync((BitmapSource)ViewerImage.Source, language, cancellation.Token);
@@ -73,7 +78,7 @@ public partial class ScreenshotViewerWindow
         {
             if (isClosing || cancellation.IsCancellationRequested) return;
             pendingWordSelection = null;
-            OcrStatus.Text = "Could not extract text. " + error.Message;
+            SetOcrStatus("Could not extract text. " + error.Message);
         }
         finally
         {
@@ -81,8 +86,6 @@ public partial class ScreenshotViewerWindow
             {
                 textExtractionCancellation = null;
                 extractingLanguage = null;
-                ExtractTextButton.IsEnabled = true;
-                ExtractTextButton.Content = "Extract text";
             }
         }
     }
@@ -93,9 +96,9 @@ public partial class ScreenshotViewerWindow
         var text = result.Text;
         ExtractedTextBox.Text = text;
         CopyExtractedTextButton.IsEnabled = !string.IsNullOrWhiteSpace(text);
-        OcrStatus.Text = string.IsNullOrWhiteSpace(text)
-            ? "No text found. Try a closer capture or another language."
-            : "Double-click a word in the image or here, then press Ctrl+C. Use Copy all text for everything.";
+        SetOcrStatus(string.IsNullOrWhiteSpace(text)
+            ? "No text found. Try a closer capture or choose a language in Advanced options."
+            : null);
         if (pendingWordSelection is { } point)
         {
             pendingWordSelection = null;
@@ -134,7 +137,7 @@ public partial class ScreenshotViewerWindow
         {
             ExtractedTextBox.Select(0, 0);
             OcrSelectionHighlight.Visibility = Visibility.Collapsed;
-            OcrStatus.Text = "No word found here. Double-click inside a word, or select text in the panel.";
+            SetOcrStatus("No text recognized here.");
             return;
         }
         ExtractedTextBox.Focus();
@@ -142,7 +145,7 @@ public partial class ScreenshotViewerWindow
         ExtractedTextBox.UpdateLayout();
         var line = ExtractedTextBox.GetLineIndexFromCharacterIndex(word.TextStart);
         if (line >= 0) ExtractedTextBox.ScrollToLine(line);
-        OcrStatus.Text = $"Selected \"{word.Text}\". Press Ctrl+C to copy.";
+        SetOcrStatus(null);
     }
 
     private void ExtractedText_SelectionChanged(object sender, RoutedEventArgs e)
@@ -163,7 +166,7 @@ public partial class ScreenshotViewerWindow
         OcrSelectionHighlight.Visibility = geometry.Children.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (geometry.Children.Count > 0)
         {
-            OcrStatus.Text = "Selected text. Press Ctrl+C to copy.";
+            SetOcrStatus(null);
             RevealSelectedText();
         }
     }
@@ -187,10 +190,17 @@ public partial class ScreenshotViewerWindow
             : bounds.Bottom > ImageViewport.ActualHeight - margin ? ImageViewport.ActualHeight - margin - bounds.Bottom : 0;
     }
 
+    private void SetOcrStatus(string? message)
+    {
+        OcrStatus.Text = message ?? "";
+        OcrStatus.Visibility = string.IsNullOrEmpty(message) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     internal void SetTextPanelOpen(bool open)
     {
         if (textPanelOpen == open) return;
         textPanelOpen = open;
+        ExtractTextButton.ToolTip = open ? "Hide extracted text (Ctrl+Shift+T)" : "Extract text from the original screenshot (Ctrl+Shift+T)";
         var transition = ++textPanelTransition;
         var fromWidth = ExtractedTextHost.Width;
         var fromSlide = ExtractedTextSlide.X;
@@ -229,11 +239,11 @@ public partial class ScreenshotViewerWindow
         textExtractionCancellation?.Cancel();
         textExtractionCancellation = null;
         extractingLanguage = null;
-        ExtractTextButton.IsEnabled = true;
-        ExtractTextButton.Content = "Extract text";
     }
 
-    private void CloseExtractedText_Click(object sender, RoutedEventArgs e)
+    private void CloseExtractedText_Click(object sender, RoutedEventArgs e) => CloseTextPanel();
+
+    private void CloseTextPanel()
     {
         CancelTextExtraction();
         pendingWordSelection = null;
@@ -258,11 +268,11 @@ public partial class ScreenshotViewerWindow
                     await Task.Delay(75);
                 }
             }
-            OcrStatus.Text = "Text copied. Paste into another app with Ctrl+V.";
+            SetOcrStatus(null);
         }
         catch (Exception error)
         {
-            if (!isClosing) OcrStatus.Text = "Could not copy text. " + error.Message;
+            if (!isClosing) SetOcrStatus("Could not copy text. " + error.Message);
         }
         finally { copyingExtractedText = false; }
     }
