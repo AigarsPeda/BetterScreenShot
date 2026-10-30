@@ -9,7 +9,7 @@ if (!$packageRoot.StartsWith($artifactsRoot + [IO.Path]::DirectorySeparatorChar,
 if (Test-Path -LiteralPath $packageRoot) { Remove-Item -LiteralPath $packageRoot -Recurse -Force }
 $appRoot = Join-Path $packageRoot 'app'
 dotnet publish (Join-Path $projectRoot 'BetterScreenShot.csproj') -c Release -r $Runtime --self-contained true `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=embedded -o $appRoot
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=embedded -o $appRoot
 if ($LASTEXITCODE -ne 0) { throw 'Publishing the application failed.' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install.ps1') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Uninstall.ps1') -Destination $packageRoot

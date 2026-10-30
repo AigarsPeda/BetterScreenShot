@@ -203,11 +203,11 @@ internal static class AnnotationTests
         });
         check("Editor Copy includes annotations and pending text without saving a file", () =>
         {
-            var previousClipboard = System.Windows.Clipboard.GetDataObject();
+            BitmapSource? copied = null;
             var previousContext = SynchronizationContext.Current;
             var path = Path.Combine(directory, "unsaved-copy.png");
             var source = WhiteImage(240, 120);
-            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(path), source);
+            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(path), source, image => copied = image);
             try
             {
                 window.Show();
@@ -221,8 +221,7 @@ internal static class AnnotationTests
                 var text = (System.Windows.Controls.TextBox)window.FindName("InlineText");
                 text.Text = "Unsaved note";
                 Complete(window.CopyImageAsync(), window.Dispatcher);
-                var copied = System.Windows.Clipboard.GetImage()!;
-                Require(copied.PixelWidth == 240 && copied.PixelHeight == 120);
+                Require(copied!.PixelWidth == 240 && copied.PixelHeight == 120);
                 var pixel = Pixel(copied, 50, 20);
                 Require(pixel.R > 245 && pixel.G < 10 && pixel.B < 10);
                 Require(surface.Document.Items.Count == 2 && surface.Document.Items[1].Text == "Unsaved note");
@@ -237,23 +236,21 @@ internal static class AnnotationTests
                 surface.Document.Undo();
                 Require(surface.Document.Items.Count == 1);
                 Complete(window.CopyImageAsync(), window.Dispatcher);
-                Require(System.Windows.Clipboard.GetImage()!.PixelWidth == 240);
+                Require(copied.PixelWidth == 240);
                 window.Close();
-                Require(Pixel(System.Windows.Clipboard.GetImage()!, 50, 20).R > 245);
+                Require(Pixel(copied, 50, 20).R > 245);
             }
             finally
             {
                 window.Close();
                 SynchronizationContext.SetSynchronizationContext(previousContext);
-                if (previousClipboard is not null) System.Windows.Clipboard.SetDataObject(previousClipboard, true);
-                else System.Windows.Clipboard.Clear();
             }
         });
         check("Copy uses a snapshot, prevents overlapping copies and ignores a closed editor", () =>
         {
-            var previousClipboard = System.Windows.Clipboard.GetDataObject();
+            BitmapSource? copied = null;
             var previousContext = SynchronizationContext.Current;
-            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "copy-snapshot.png")), WhiteImage(100, 60));
+            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "copy-snapshot.png")), WhiteImage(100, 60), image => copied = image);
             try
             {
                 window.Show();
@@ -269,20 +266,51 @@ internal static class AnnotationTests
                 surface.Document.Replace(0, surface.Document.Items[0], edited);
                 Complete(first, window.Dispatcher);
                 Require(copyButton.IsEnabled && (string)copyButton.Content == "Copy");
-                Require(Pixel(System.Windows.Clipboard.GetImage()!, 50, 20).R > 245);
+                Require(Pixel(copied!, 50, 20).R > 245);
                 Require(surface.Document.Items[0].Color == Colors.Blue);
                 var closing = window.CopyImageAsync();
-                var beforeClose = Pixel(System.Windows.Clipboard.GetImage()!, 50, 20);
+                var beforeClose = copied;
                 window.Close();
                 Complete(closing, window.Dispatcher);
-                Require(Pixel(System.Windows.Clipboard.GetImage()!, 50, 20) == beforeClose);
+                Require(ReferenceEquals(copied, beforeClose));
             }
             finally
             {
                 window.Close();
                 SynchronizationContext.SetSynchronizationContext(previousContext);
-                if (previousClipboard is not null) System.Windows.Clipboard.SetDataObject(previousClipboard, true);
-                else System.Windows.Clipboard.Clear();
+            }
+        });
+        check("Copy retries temporary clipboard locks and recovers after a persistent lock", () =>
+        {
+            var previousContext = SynchronizationContext.Current;
+            var attempts = 0;
+            var failAll = false;
+            BitmapSource? copied = null;
+            var source = WhiteImage(100, 60);
+            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "copy-lock.png")), source, image =>
+            {
+                if (++attempts <= 2 || failAll)
+                    throw new System.Runtime.InteropServices.COMException("Clipboard is busy.", unchecked((int)0x800401D0));
+                copied = image;
+            });
+            try
+            {
+                window.Show();
+                SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(window.Dispatcher));
+                Complete(window.CopyImageAsync(), window.Dispatcher);
+                Require(attempts == 3 && ReferenceEquals(copied, source));
+                attempts = 0;
+                failAll = true;
+                var failed = false;
+                try { Complete(window.CopyImageAsync(), window.Dispatcher); }
+                catch (System.Runtime.InteropServices.COMException error) { failed = error.ErrorCode == unchecked((int)0x800401D0); }
+                var button = (System.Windows.Controls.Button)window.FindName("CopyButton");
+                Require(failed && attempts == 5 && button.IsEnabled && (string)button.Content == "Copy");
+            }
+            finally
+            {
+                window.Close();
+                SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
         check("Editor toolbar wraps at minimum width and inline text remains editable", () =>
@@ -295,7 +323,7 @@ internal static class AnnotationTests
             {
                 window.Show();
                 foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
-                foreach (var width in new[] { 620d, 1100d })
+                foreach (var width in new[] { 620d, 1100d, 1280d })
                 {
                     ThemeIconService.ApplyViewerTheme(window.Resources, theme);
                     window.Width = width;
@@ -312,6 +340,17 @@ internal static class AnnotationTests
                     var copy = (System.Windows.Controls.Button)window.FindName("CopyButton");
                     var copyPosition = copy.TranslatePoint(new Point(), window);
                     Require(copyPosition.X >= 0 && copyPosition.X + copy.ActualWidth < width);
+                    var toolbarControls = new[] { "UndoButton", "RedoButton", "StrokeWidthPicker", "FontSizePicker", "RemoveButton", "SketchToggle" }
+                        .Select(name => (System.Windows.Controls.Control)window.FindName(name))
+                        .Concat(((StackPanel)window.FindName("ToolsPanel")).Children.OfType<System.Windows.Controls.Control>())
+                        .Concat(((StackPanel)window.FindName("ColorsPanel")).Children.OfType<System.Windows.Controls.Control>());
+                    foreach (var control in toolbarControls)
+                    {
+                        if (Math.Abs(control.ActualHeight - 32) >= .01)
+                            throw new InvalidOperationException($"Toolbar control {control.Name} has height {control.ActualHeight} at window width {width}.");
+                        var controlPosition = control.TranslatePoint(new Point(), window);
+                        Require(controlPosition.X >= 0 && controlPosition.X + control.ActualWidth < width);
+                    }
                     Require(((FrameworkElement)window.FindName("ImageViewport")).ActualHeight > 300);
                 }
                 var beginText = typeof(ScreenshotViewerWindow).GetMethod("BeginText", BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -438,9 +477,60 @@ internal static class AnnotationTests
         return 0;
     }
 
+    public static int ToolbarPreview()
+    {
+        var app = new System.Windows.Application();
+        var directory = Path.Combine(Environment.CurrentDirectory, "obj", "editor-toolbar-preview");
+        Directory.CreateDirectory(directory);
+        foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
+        foreach (var width in new[] { 620, 1100, 1280 })
+        {
+            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "unused.png")), WhiteImage(1200, 740));
+            ThemeIconService.ApplyViewerTheme(window.Resources, theme);
+            var content = (FrameworkElement)window.Content;
+            content.Measure(new System.Windows.Size(width, 700));
+            content.Arrange(new Rect(0, 0, width, 700));
+            content.UpdateLayout();
+            var toolbar = (FrameworkElement)window.FindName("MarkupToolbar");
+            var height = (int)Math.Ceiling(toolbar.TranslatePoint(new Point(), content).Y + toolbar.ActualHeight + 12);
+            var visual = new DrawingVisual();
+            using (var drawing = visual.RenderOpen())
+            {
+                drawing.DrawRectangle((System.Windows.Media.Brush)window.FindResource("ViewerPageBackgroundBrush"), null, new Rect(0, 0, width, height));
+                drawing.DrawRectangle(new VisualBrush(content), null, new Rect(content.RenderSize));
+            }
+            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            var path = Path.Combine(directory, $"toolbar-{theme.ToString().ToLowerInvariant()}-{width}.png");
+            SavePng(path, bitmap);
+            Console.WriteLine(path);
+            window.Close();
+        }
+        app.Shutdown();
+        return 0;
+    }
+
     public static int Demo(bool qa = false)
     {
         var app = new System.Windows.Application();
+        var image = CreateDemoImage();
+        var path = Path.Combine(Path.GetTempPath(), $"BetterScreenShot-editor-demo-{Guid.NewGuid():N}.png");
+        SavePng(path, image);
+        var window = new ScreenshotViewerWindow(new TemporaryScreenshot(path), image);
+        if (qa)
+        {
+            window.Title = "Screenshot Editor - QA";
+            var surface = (AnnotationSurface)window.FindName("Annotations");
+            surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.Arrow, Width = 5,
+                Color = Colors.Red, Points = [new(980, 170), new(800, 270)] });
+            surface.Tool = AnnotationTool.Hand;
+        }
+        app.Run(window);
+        return 0;
+    }
+
+    internal static BitmapSource CreateDemoImage()
+    {
         var visual = new DrawingVisual();
         using (var context = visual.RenderOpen())
         {
@@ -462,19 +552,7 @@ internal static class AnnotationTests
         var image = new RenderTargetBitmap(1200, 740, 96, 96, PixelFormats.Pbgra32);
         image.Render(visual);
         image.Freeze();
-        var path = Path.Combine(Path.GetTempPath(), $"BetterScreenShot-editor-demo-{Guid.NewGuid():N}.png");
-        SavePng(path, image);
-        var window = new ScreenshotViewerWindow(new TemporaryScreenshot(path), image);
-        if (qa)
-        {
-            window.Title = "Screenshot Editor - QA";
-            var surface = (AnnotationSurface)window.FindName("Annotations");
-            surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.Arrow, Width = 5,
-                Color = Colors.Red, Points = [new(980, 170), new(800, 270)] });
-            surface.Tool = AnnotationTool.Hand;
-        }
-        app.Run(window);
-        return 0;
+        return image;
     }
 
     private static void Require(bool condition)

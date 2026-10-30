@@ -12,6 +12,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.FirstOrDefault(arg => arg.StartsWith("--readme-", StringComparison.Ordinal)) is { } readmeView)
+            return ReadmeScreenshots.Demo(readmeView);
         if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();
         if (args.Contains("--shortcut-recorder-demo")) return CaptureShortcutTests.RecorderDemo();
         if (args.Contains("--shortcuts-preview")) return CaptureShortcutTests.Preview();
@@ -19,6 +21,7 @@ internal static class Program
         if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
         if (args.Contains("--editor-qa")) return AnnotationTests.Demo(qa: true);
         if (args.Contains("--editor-benchmark")) return AnnotationTests.Benchmark();
+        if (args.Contains("--editor-toolbar-preview")) return AnnotationTests.ToolbarPreview();
         var fixturesRoot = Path.Combine(AppContext.BaseDirectory, "fixtures");
         var directory = Path.Combine(fixturesRoot, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -124,6 +127,14 @@ internal static class Program
                     Assert(icon.IsFrozen && ReferenceEquals(icon, ThemeIconService.CreateScanIcon(theme)));
                 }
                 Assert(!ReferenceEquals(ThemeIconService.CreateScanIcon(AppTheme.Light), ThemeIconService.CreateScanIcon(AppTheme.Dark)));
+            });
+            Check("Camera cursor loads from the embedded asset without companion files", () =>
+            {
+                var factory = typeof(MonitorSelectionOverlayForm).GetMethod("CreateMonitorSelectionCursor",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+                using var cursor = (System.Windows.Forms.Cursor)factory.Invoke(null, null)!;
+                Assert(cursor.Handle != System.Windows.Forms.Cursors.Hand.Handle);
+                Assert(cursor.Size == new System.Drawing.Size(32, 32));
             });
             Check("Selection success cleans up before completing", () =>
             {

@@ -4,6 +4,7 @@
         xmlns:local="clr-namespace:BetterScreenShot"
         Title="Screenshot Editor" Width="1100" Height="780" MinWidth="620" MinHeight="450"
         WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" FontSize="13"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="{DynamicResource ViewerPageBackgroundBrush}" Foreground="{DynamicResource ViewerPrimaryTextBrush}"
         PreviewKeyDown="Editor_KeyDown" PreviewKeyUp="Editor_KeyUp">
     <Window.Resources>
@@ -46,14 +47,18 @@
             </ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="32" /><Setter Property="Margin" Value="2" />
+            <Setter Property="FontSize" Value="12" /><Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" />
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
                 <Grid>
                     <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-                        <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="6" /></ControlTemplate></ToggleButton.Template>
+                        <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border x:Name="PickerChrome" Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="8" />
+                            <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="PickerChrome" Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" /></Trigger></ControlTemplate.Triggers>
+                        </ControlTemplate></ToggleButton.Template>
                     </ToggleButton>
-                    <ContentPresenter Margin="8,0,16,0" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" />
-                    <TextBlock Text="⌄" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,3" IsHitTestVisible="False" />
+                    <ContentPresenter Margin="10,0,23,0" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" />
+                    <Path Data="M0 0L4 4 8 0" Width="8" Height="4" Stroke="{DynamicResource ViewerSecondaryTextBrush}" StrokeThickness="1.3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" IsHitTestVisible="False" />
                     <Popup Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
                         <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" Padding="3" Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="7"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" /></Border>
                     </Popup>
@@ -83,12 +88,12 @@
             </Setter>
         </Style>
         <Style x:Key="ToolStyle" TargetType="ToggleButton">
-            <Setter Property="Width" Value="34" /><Setter Property="Height" Value="34" /><Setter Property="Margin" Value="1" />
+            <Setter Property="Width" Value="32" /><Setter Property="Height" Value="32" /><Setter Property="Margin" Value="2" />
             <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" /><Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Chrome" CornerRadius="7" Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
+                        <Border x:Name="Chrome" CornerRadius="8" Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -99,6 +104,13 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <Style x:Key="ToolbarActionStyle" TargetType="Button" BasedOn="{StaticResource ActionStyle}">
+            <Setter Property="Height" Value="32" /><Setter Property="Margin" Value="2" /><Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="ToolbarGroupStyle" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal" /><Setter Property="Height" Value="36" />
+            <Setter Property="VerticalAlignment" Value="Center" /><Setter Property="Margin" Value="0,2,8,2" />
         </Style>
     </Window.Resources>
     <Grid Margin="16,12,16,10">
@@ -120,29 +132,35 @@
                 </Button>
             </StackPanel>
         </Grid>
-        <Border Grid.Row="1" Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="7" Margin="0,0,0,12">
-            <WrapPanel VerticalAlignment="Center">
-                <StackPanel Name="ToolsPanel" Orientation="Horizontal" Margin="0,0,8,0" />
-                <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                    <Button Name="UndoButton" Style="{StaticResource ActionStyle}" Padding="0" Width="32" Content="↶" FontSize="22" Click="UndoButton_Click" ToolTip="Undo (Ctrl+Z)" AutomationProperties.Name="Undo" />
-                    <Button Name="RedoButton" Style="{StaticResource ActionStyle}" Padding="0" Width="32" Content="↷" FontSize="22" Click="RedoButton_Click" ToolTip="Redo (Ctrl+Shift+Z)" AutomationProperties.Name="Redo" />
+        <Border Name="MarkupToolbar" Grid.Row="1" Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="7" Margin="0,0,0,12">
+            <WrapPanel VerticalAlignment="Center" ItemHeight="40">
+                <StackPanel Name="ToolsPanel" Style="{StaticResource ToolbarGroupStyle}" />
+                <StackPanel Style="{StaticResource ToolbarGroupStyle}">
+                    <Button Name="UndoButton" Style="{StaticResource ToolbarActionStyle}" Padding="0" Width="32" Click="UndoButton_Click" ToolTip="Undo (Ctrl+Z)" AutomationProperties.Name="Undo">
+                        <Path Data="M8 5L3 10 8 15 M3 10H13C21 10 21 21 13 21" Width="20" Height="20" Stretch="Uniform" Stroke="{DynamicResource ViewerPrimaryTextBrush}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                    </Button>
+                    <Button Name="RedoButton" Style="{StaticResource ToolbarActionStyle}" Padding="0" Width="32" Click="RedoButton_Click" ToolTip="Redo (Ctrl+Shift+Z)" AutomationProperties.Name="Redo">
+                        <Path Data="M16 5L21 10 16 15 M21 10H11C3 10 3 21 11 21" Width="20" Height="20" Stretch="Uniform" Stroke="{DynamicResource ViewerPrimaryTextBrush}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                    </Button>
+                    <Button Name="RemoveButton" Style="{StaticResource ToolbarActionStyle}" Content="Delete" Click="RemoveButton_Click" ToolTip="Delete selected annotation (Delete)" />
                 </StackPanel>
-                <StackPanel Name="ColorsPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0" />
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,8,0">
-                    <TextBlock Text="Stroke" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
-                    <ComboBox Name="StrokeWidthPicker" Width="68" Height="28" SelectedIndex="1" SelectionChanged="StrokeWidth_Changed" ToolTip="Stroke width" AutomationProperties.Name="Stroke width">
+                <StackPanel Name="ColorsPanel" Style="{StaticResource ToolbarGroupStyle}" />
+                <StackPanel Style="{StaticResource ToolbarGroupStyle}">
+                    <TextBlock Text="Stroke" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+                    <ComboBox Name="StrokeWidthPicker" Width="80" SelectedIndex="1" SelectionChanged="StrokeWidth_Changed" ToolTip="Stroke width" AutomationProperties.Name="Stroke width">
                         <ComboBoxItem Content="Thin" Tag="2" /><ComboBoxItem Content="Medium" Tag="4" /><ComboBoxItem Content="Thick" Tag="7" />
                     </ComboBox>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,8,0">
-                    <TextBlock Text="Text" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
-                    <ComboBox Name="FontSizePicker" Width="54" Height="28" SelectedIndex="2" SelectionChanged="FontSize_Changed" ToolTip="Text size in image pixels" AutomationProperties.Name="Text size">
+                <StackPanel Style="{StaticResource ToolbarGroupStyle}">
+                    <TextBlock Text="Text" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+                    <ComboBox Name="FontSizePicker" Width="60" SelectedIndex="2" SelectionChanged="FontSize_Changed" ToolTip="Text size in image pixels" AutomationProperties.Name="Text size">
                         <ComboBoxItem Content="16" /><ComboBoxItem Content="24" /><ComboBoxItem Content="28" /><ComboBoxItem Content="40" /><ComboBoxItem Content="64" />
                     </ComboBox>
                 </StackPanel>
-                <Button Name="RemoveButton" Style="{StaticResource ActionStyle}" Content="Delete" Click="RemoveButton_Click" ToolTip="Delete selected annotation (Delete)" />
-                <ToggleButton x:Name="SketchToggle" IsChecked="True" Click="SketchToggle_Click" Width="72" Margin="5,1,1,1"
-                              Style="{StaticResource ToolStyle}" Content="Sketch" ToolTip="Hand-drawn outlines for all shapes. Turn off for precise lines." AutomationProperties.Name="Sketch style" />
+                <StackPanel Style="{StaticResource ToolbarGroupStyle}" Margin="0,2,0,2">
+                    <ToggleButton x:Name="SketchToggle" IsChecked="True" Click="SketchToggle_Click" Width="72"
+                                  Style="{StaticResource ToolStyle}" Content="Sketch" ToolTip="Hand-drawn outlines for all shapes. Turn off for precise lines." AutomationProperties.Name="Sketch style" />
+                </StackPanel>
             </WrapPanel>
         </Border>
         <Border Grid.Row="2" Background="{DynamicResource ViewerCanvasBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="12" ClipToBounds="True">

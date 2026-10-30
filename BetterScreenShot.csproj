@@ -15,9 +15,7 @@
 
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs" />
-    <None Update="assets\camera.svg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="assets\camera.svg" LogicalName="BetterScreenShot.assets.camera.svg" />
 
   </ItemGroup>
 

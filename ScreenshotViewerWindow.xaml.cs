@@ -18,16 +18,18 @@ namespace BetterScreenShot
         private const double ZoomStep = 0.2;
 
         private readonly TemporaryScreenshot screenshot;
+        private readonly Action<BitmapSource> setClipboardImage;
         private bool isDragging;
         private bool isClosing;
         private Point lastDragPoint;
         private double currentZoom = 1.0;
         private AppTheme? currentTheme;
 
-        internal ScreenshotViewerWindow(TemporaryScreenshot screenshot, BitmapSource image)
+        internal ScreenshotViewerWindow(TemporaryScreenshot screenshot, BitmapSource image, Action<BitmapSource>? setClipboardImage = null)
         {
             InitializeComponent();
             this.screenshot = screenshot;
+            this.setClipboardImage = setClipboardImage ?? System.Windows.Clipboard.SetImage;
             ViewerImage.Source = image;
             InitializeEditor(image);
             ApplyThemeFromSystem();
@@ -186,7 +188,7 @@ namespace BetterScreenShot
                 for (var attempt = 0; ; attempt++)
                 {
                     if (isClosing || !IsLoaded) return;
-                    try { System.Windows.Clipboard.SetImage(output); break; }
+                    try { setClipboardImage(output); break; }
                     catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x800401D0) && attempt < 4)
                     {
                         // Clipboard managers and the destination app can briefly hold the clipboard.

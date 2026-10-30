@@ -11,13 +11,14 @@ namespace BetterScreenShot
         {
             try
             {
-                var assetPath = Path.Combine(AppContext.BaseDirectory, "assets", "camera.svg");
-                if (!File.Exists(assetPath))
+                using var asset = typeof(MonitorSelectionOverlayForm).Assembly.GetManifestResourceStream("BetterScreenShot.assets.camera.svg");
+                if (asset is null)
                 {
                     return Forms.Cursors.Hand;
                 }
 
-                var svgContent = File.ReadAllText(assetPath);
+                using var reader = new StreamReader(asset);
+                var svgContent = reader.ReadToEnd();
                 var pathMatch = CameraPathRegex().Match(svgContent);
                 var circleMatch = CameraCircleRegex().Match(svgContent);
                 if (!pathMatch.Success || !circleMatch.Success)

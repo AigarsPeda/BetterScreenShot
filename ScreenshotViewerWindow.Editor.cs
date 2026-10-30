@@ -45,7 +45,7 @@ public partial class ScreenshotViewerWindow
         {
             var path = new System.Windows.Shapes.Path
             {
-                Data = Geometry.Parse(icon), Width = 19, Height = 19, Stretch = Stretch.Uniform,
+                Data = Geometry.Parse(icon), Width = 20, Height = 20, Stretch = Stretch.Uniform,
                 StrokeThickness = 1.7, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round
             };
             path.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "ViewerPrimaryTextBrush");
@@ -63,7 +63,7 @@ public partial class ScreenshotViewerWindow
             var color = (Color)ColorConverter.ConvertFromString(hex);
             var button = new ToggleButton
             {
-                Style = (Style)FindResource("ToolStyle"), Width = 25, Height = 30, Tag = color, ToolTip = name,
+                Style = (Style)FindResource("ToolStyle"), Width = 24, Margin = new Thickness(1, 2, 1, 2), Tag = color, ToolTip = name,
                 Content = new System.Windows.Shapes.Ellipse { Width = 16, Height = 16, Fill = new SolidColorBrush(color), Stroke = new SolidColorBrush(Colors.Gray), StrokeThickness = .5 }
             };
             AutomationProperties.SetName(button, name);
@@ -71,7 +71,7 @@ public partial class ScreenshotViewerWindow
             ColorsPanel.Children.Add(button);
             colorButtons.Add(button);
         }
-        var custom = new Button { Style = (Style)FindResource("ActionStyle"), Content = "+", Width = 28, Padding = new Thickness(0), ToolTip = "Custom color" };
+        var custom = new Button { Style = (Style)FindResource("ToolbarActionStyle"), Content = "+", Width = 32, FontSize = 18, Padding = new Thickness(0), ToolTip = "Custom color" };
         AutomationProperties.SetName(custom, "Custom color");
         custom.Click += (_, _) => ChooseCustomColor();
         ColorsPanel.Children.Add(custom);
