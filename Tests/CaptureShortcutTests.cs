@@ -17,6 +17,47 @@ internal static class CaptureShortcutTests
 
     public static void Run(Action<string, Action> check, string directory)
     {
+        check("Recording Ctrl+Win+S suppresses the chord, repeats and releases", () =>
+        {
+            var state = new ShortcutRecordingState();
+            Require(state.Process(Key.LeftCtrl, true, true, out var value) && value is null);
+            Require(state.Process(Key.LWin, true, true, out value) && value is null);
+            Require(state.Process(Key.S, true, true, out value));
+            Require(value == new CaptureShortcut(Key.S, ModifierKeys.Control | ModifierKeys.Windows));
+            Require(value!.DisplayText == "Ctrl+Win+S" && !state.Listening && !state.Finished);
+            Require(state.Process(Key.S, true, true, out value) && value is null);
+            Require(state.Process(Key.LeftCtrl, false, true, out value) && value is null);
+            Require(state.Process(Key.LWin, false, true, out value) && value is null);
+            Require(!state.Finished);
+            Require(state.Process(Key.S, false, true, out value) && value is null && state.Finished);
+            Require(!state.Process(Key.A, true, true, out _));
+        });
+        check("Recording permits retry after invalid keys and cancels with Escape or Tab", () =>
+        {
+            var state = new ShortcutRecordingState();
+            Require(state.Process(Key.A, true, true, out var value) && value!.ValidationError() is not null && state.Listening);
+            Require(state.Process(Key.A, false, true, out _));
+            Require(state.Process(Key.Escape, true, true, out value) && value!.Key == Key.Escape && !state.Listening);
+            Require(state.Process(Key.Escape, false, true, out _) && state.Finished);
+            var tab = new ShortcutRecordingState();
+            Require(!tab.Process(Key.Tab, true, true, out value) && value!.Key == Key.Tab && tab.Finished);
+            var clear = new ShortcutRecordingState();
+            Require(clear.Process(Key.Delete, true, true, out value) && value!.Key == Key.Delete && !clear.Listening);
+        });
+        check("Focus loss stops recording and drains only keys already intercepted", () =>
+        {
+            var state = new ShortcutRecordingState([Key.RightCtrl]);
+            Require(state.Process(Key.RWin, true, true, out _));
+            Require(!state.Process(Key.A, true, false, out var value) && value is null && !state.Listening);
+            Require(!state.Process(Key.RightCtrl, false, false, out _));
+            Require(state.Process(Key.RWin, false, false, out _) && state.Finished);
+            Require(!state.Process(Key.S, true, true, out _));
+            var stopped = new ShortcutRecordingState();
+            Require(stopped.Process(Key.LeftAlt, true, true, out _));
+            stopped.Stop();
+            Require(!stopped.Process(Key.S, true, true, out _) && !stopped.Finished);
+            Require(stopped.Process(Key.LeftAlt, false, false, out _) && stopped.Finished);
+        });
         check("Shortcut validation rejects duplicates, reserved keys and accidental typing shortcuts", () =>
         {
             Require(Example.ValidationError() is null && Example.FullScreen.DisplayText == "Ctrl+Shift+1");
@@ -125,6 +166,21 @@ internal static class CaptureShortcutTests
         var store = new CaptureShortcutSettingsStore(Path.Combine(folder, "shortcuts.json"));
         var window = new MainWindow(store) { Title = "Capture shortcuts - QA" };
         application.Run(window);
+        return 0;
+    }
+
+    public static int RecorderDemo()
+    {
+        var application = new System.Windows.Application();
+        GlobalCaptureShortcuts? shortcuts = null;
+        CaptureShortcutsWindow? dialog = null;
+        dialog = new CaptureShortcutsWindow(CaptureShortcutSettings.Disabled, settings =>
+        {
+            shortcuts ??= new GlobalCaptureShortcuts(HwndSource.FromHwnd(new WindowInteropHelper(dialog!).Handle), _ => { });
+            return shortcuts.TryApply(settings, out var error) ? null : error;
+        }) { Title = "Shortcut recorder - QA" };
+        try { dialog.ShowDialog(); }
+        finally { shortcuts?.Dispose(); application.Shutdown(); }
         return 0;
     }
 

@@ -26,7 +26,7 @@ public partial class MainWindow
             if (configuringShortcuts || isCapturing || isClosed) return;
             Dispatcher.BeginInvoke(new Action(async () =>
             {
-                if (!configuringShortcuts) await CaptureAsync(area);
+                if (!configuringShortcuts) await CaptureFromShortcutAsync(area);
             }));
         });
         if (!globalShortcuts.TryApply(shortcutSettings, out var error)) SetStatus(StatusTone.Error, error!);

@@ -13,6 +13,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();
+        if (args.Contains("--shortcut-recorder-demo")) return CaptureShortcutTests.RecorderDemo();
         if (args.Contains("--shortcuts-preview")) return CaptureShortcutTests.Preview();
         if (args.Contains("--context-menu-preview")) return AnnotationContextMenuTests.Preview();
         if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
@@ -274,6 +275,7 @@ internal static class Program
                 }
                 Assert(!File.Exists(copy));
             });
+            BackgroundCaptureTests.Run(Check, directory);
             Check("Launcher status text wraps within a narrow window", () =>
             {
                 var window = new MainWindow();

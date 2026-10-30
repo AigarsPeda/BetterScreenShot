@@ -28,7 +28,7 @@
     </Window.Resources>
     <StackPanel Margin="22">
         <TextBlock Text="Capture from any app" FontSize="19" FontWeight="SemiBold" />
-        <TextBlock Text="Click a shortcut, then press the keys you want to use." Margin="0,7,0,18" TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+        <TextBlock Text="Click a shortcut, then press the keys you want to use. While listening, the recorder keeps those keys from reaching other apps." Margin="0,7,0,18" TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
         <Border Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,10,10">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -47,7 +47,7 @@
                 <Button Grid.Column="2" Tag="Area" Style="{StaticResource ShortcutButtonStyle}" Content="Clear" Margin="8,0,0,0" Padding="8,0" Click="ClearShortcut_Click" AutomationProperties.Name="Clear area shortcut" />
             </Grid>
         </Border>
-        <TextBlock Text="Use Ctrl or Alt with a key, or a function key. Shortcuts work while BetterScreenShot is running. Clear disables a shortcut." TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" LineHeight="19" />
+        <TextBlock Text="Use Ctrl, Alt, or Win with a key, or a function key. Shortcuts work while BetterScreenShot is running. Clear disables a shortcut. Windows or another app may reserve a combination; saving will check availability." TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" LineHeight="19" />
         <TextBlock x:Name="ShortcutError" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{DynamicResource ShortcutErrorBrush}" AutomationProperties.LiveSetting="Polite" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
             <Button Style="{StaticResource ShortcutButtonStyle}" Content="Cancel" IsCancel="True" MinWidth="80" Margin="0,0,8,0" />

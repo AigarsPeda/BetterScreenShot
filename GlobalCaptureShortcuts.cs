@@ -53,7 +53,8 @@ internal sealed class GlobalCaptureShortcuts : IDisposable
             if (!shortcut.IsEnabled) continue;
             if (!register(id, shortcut))
             {
-                error = $"{label}: {shortcut.DisplayText} is already in use or unavailable. Choose another shortcut.";
+                error = $"{label}: {shortcut.DisplayText} is already in use or unavailable. Disable it in the other app or choose another shortcut."
+                    + (shortcut.Modifiers.HasFlag(ModifierKeys.Windows) ? " Windows reserves some Win-key combinations." : "");
                 return false;
             }
             active.Add(id, shortcut);

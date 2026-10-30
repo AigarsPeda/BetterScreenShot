@@ -13,6 +13,16 @@ A Windows screenshot app built with C# and WPF.
 
 Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. Replacing or closing a preview removes its file. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. Copies saved with Save As remain on disk. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
 
+## Install on Windows
+
+Build a self-contained package with `./scripts/Publish-Installer.ps1`. Extract `artifacts/BetterScreenShot-win-x64.zip` and run `Install.cmd`. The installer adds the application to your user profile, creates a Start menu shortcut, enables startup at sign-in, and starts it quietly in the tray. It does not require administrator access or a separately installed .NET runtime. Existing capture shortcuts are preserved.
+
+Closing the launcher keeps the application running. Use its tray menu to open the launcher, configure keyboard shortcuts, turn sign-in startup on or off, or Exit. Launching another copy opens the existing instance instead of competing for the same shortcuts.
+
+Keyboard shortcuts keep both existing selection modes: click a monitor for full-screen capture or drag an area. The launcher stays hidden before and after selection. The usual side preview appears with Copy, Save, Edit, and Discard, without taking keyboard focus.
+
+Uninstall through Windows Settings → Apps → Installed apps, or run `Uninstall.ps1` from `%LOCALAPPDATA%/Programs/BetterScreenShot`. Uninstalling removes the application and startup entry while retaining saved screenshots and shortcut preferences.
+
 ## To run locally
 
 1. Open `BetterScreenShot.sln` in Visual Studio.
@@ -25,6 +35,8 @@ You can also run `dotnet run --project BetterScreenShot.csproj`. Building requir
 Click **Shortcuts…** below the capture buttons. Click the shortcut field for Capture Full Screen or Select Area, press a key combination, and choose Save shortcuts. Each action can have its own shortcut; Clear disables it. Shortcuts start unassigned, work from other applications while BetterScreenShot is running, and are restored on the next launch. Settings are stored in `%LOCALAPPDATA%/BetterScreenShot/shortcuts.json`.
 
 The app reports duplicate shortcuts and combinations Windows cannot register, including shortcuts already used by another app. Cancelling the dialog keeps the previous configuration. A shortcut starts the same monitor or area selection as its launcher button; Esc cancels selection.
+
+While a shortcut field is listening, its recorder intercepts key presses and releases before they reach other applications. It stops listening on capture, Escape, Tab, or loss of focus. This temporary protection does not give saved shortcuts priority over another app or Windows. If Windows rejects a combination, disable that assignment in the other app or choose a different shortcut. Win-key combinations can be reserved by Windows.
 
 ## Checks
 

@@ -94,7 +94,7 @@ namespace BetterScreenShot
             await CaptureAsync(selectArea: true);
         }
 
-        private async Task CaptureAsync(bool selectArea)
+        private async Task CaptureAsync(bool selectArea, bool fromShortcut = false)
         {
             if (isCapturing || isClosed)
             {
@@ -136,8 +136,7 @@ namespace BetterScreenShot
                     return;
                 }
 
-                Show();
-                Activate();
+                if (!fromShortcut) ShowLauncher();
                 ScreenshotToastWindow.ShowToast(pendingFile, bounds.Value, capture.Preview);
                 pendingFile = null; // The toast now owns the temporary file.
                 SetStatus(StatusTone.Success, "Screenshot captured. Use the popup to save, copy, or discard it.");
@@ -162,8 +161,7 @@ namespace BetterScreenShot
                     CaptureButton.IsEnabled = true;
                     SelectAreaButton.IsEnabled = true;
                     ShortcutsButton.IsEnabled = true;
-                    Show();
-                    Activate();
+                    if (!fromShortcut) ShowLauncher();
                     ScreenshotToastWindow.RestoreCurrent();
                 }
             }

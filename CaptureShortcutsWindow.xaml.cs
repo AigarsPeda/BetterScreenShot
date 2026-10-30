@@ -11,6 +11,7 @@ public partial class CaptureShortcutsWindow : Window
 {
     private readonly Func<CaptureShortcutSettings, string?> save;
     private bool? recordingArea;
+    private ShortcutRecordingHook? recordingHook;
     internal CaptureShortcutSettings Draft { get; private set; }
 
     internal CaptureShortcutsWindow(CaptureShortcutSettings settings, Func<CaptureShortcutSettings, string?> save)
@@ -27,6 +28,8 @@ public partial class CaptureShortcutsWindow : Window
             var dark = theme == AppTheme.Dark ? 1 : 0;
             DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref dark, sizeof(int));
         };
+        Deactivated += (_, _) => StopRecording();
+        Closed += (_, _) => { recordingHook?.Dispose(); recordingHook = null; };
         UpdateLabels();
     }
 
@@ -38,41 +41,60 @@ public partial class CaptureShortcutsWindow : Window
 
     private void RecordShortcut_Click(object sender, RoutedEventArgs e)
     {
+        recordingHook?.Dispose();
         recordingArea = Equals(((Button)sender).Tag, "Area");
         ShowError(null);
+        try
+        {
+            recordingHook = new ShortcutRecordingHook(new WindowInteropHelper(this).Handle, Dispatcher,
+                shortcut => RecordKey(shortcut.Key, shortcut.Modifiers));
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            recordingArea = null;
+            recordingHook = null;
+            ShowError("Could not protect shortcut recording. Close this dialog and try again.");
+        }
         UpdateLabels();
     }
 
     internal void SetShortcut(bool area, CaptureShortcut shortcut)
     {
         Draft = area ? Draft with { Area = shortcut } : Draft with { FullScreen = shortcut };
-        recordingArea = null;
+        StopRecording();
         ShowError(null);
         UpdateLabels();
     }
 
     private void Shortcut_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (recordingArea is not { } area) return;
+        if (recordingArea is null) return;
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        var modifiers = Keyboard.Modifiers;
+        e.Handled = key != Key.Tab || Keyboard.Modifiers != ModifierKeys.None;
+        RecordKey(key, Keyboard.Modifiers);
+    }
+
+    private void RecordKey(Key key, ModifierKeys modifiers)
+    {
+        if (recordingArea is not { } area) return;
         if (key == Key.Escape || key == Key.Tab && modifiers == ModifierKeys.None)
         {
-            recordingArea = null;
-            UpdateLabels();
-            e.Handled = key == Key.Escape;
+            StopRecording();
             return;
         }
-        e.Handled = true;
-        if (CaptureShortcut.IsModifier(key)) return;
+        if (CaptureShortcut.IsModifier(key) || key == Key.None) return;
         var shortcut = key is Key.Delete or Key.Back && modifiers == ModifierKeys.None ? new CaptureShortcut() : new CaptureShortcut(key, modifiers);
         if (shortcut.ValidationError() is { } error) { ShowError(error); return; }
         SetShortcut(area, shortcut);
     }
 
     private void Shortcut_LostFocus(object sender, KeyboardFocusChangedEventArgs e)
+        => StopRecording();
+
+    private void StopRecording()
     {
         recordingArea = null;
+        recordingHook?.Stop();
         UpdateLabels();
     }
 
@@ -86,8 +108,7 @@ public partial class CaptureShortcutsWindow : Window
 
     private void SaveShortcuts_Click(object sender, RoutedEventArgs e)
     {
-        recordingArea = null;
-        UpdateLabels();
+        StopRecording();
         var error = Draft.ValidationError() ?? save(Draft);
         ShowError(error);
         if (error is null) DialogResult = true;
