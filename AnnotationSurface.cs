@@ -17,6 +17,7 @@ public sealed class AnnotationSurface : FrameworkElement
     private ImageAnnotation? original;
     private Point start;
     private int resizeCorner = -1;
+    private int activeLineHandle = -1;
     private double sampleDistance;
     private AnnotationTool tool;
     internal AnnotationDocument Document { get; } = new();
@@ -60,7 +61,7 @@ public sealed class AnnotationSurface : FrameworkElement
         foreach (var item in Document.Items)
         {
             var visual = new DrawingVisual();
-            using (var context = visual.RenderOpen()) item.Draw(context);
+            using (var context = visual.RenderOpen()) item.Draw(context, Document.SketchEnabled);
             visuals.Add(visual);
         }
         visuals.Add(preview);
@@ -89,13 +90,35 @@ public sealed class AnnotationSurface : FrameworkElement
         return -1;
     }
 
+    internal int LineHandleAt(Point point)
+    {
+        if (Selected is not { CanBend: true } selected) return -1;
+        Point[] handles = [selected.Points[0], selected.BendPoint, selected.Points[^1]];
+        var closest = -1;
+        var distance = Math.Pow(HandleSize * 1.5, 2);
+        for (var i = 0; i < handles.Length; i++)
+        {
+            var candidate = (handles[i] - point).LengthSquared;
+            if (candidate <= distance) { closest = i; distance = candidate; }
+        }
+        return closest;
+    }
+
     internal void DrawSelection()
     {
         using var context = selectionVisual.RenderOpen();
         if (Selected is not { } selected) return;
+        var pen = new Pen(System.Windows.Media.Brushes.DodgerBlue, 1 / Math.Max(.05, DisplayScale));
+        if (selected.CanBend)
+        {
+            var radius = HandleSize * .65;
+            context.DrawEllipse(System.Windows.Media.Brushes.White, pen, selected.Points[0], radius, radius);
+            context.DrawEllipse(System.Windows.Media.Brushes.White, pen, selected.Points[^1], radius, radius);
+            context.DrawEllipse(System.Windows.Media.Brushes.MediumPurple, pen, selected.BendPoint, radius, radius);
+            return;
+        }
         var bounds = selected.Bounds;
         bounds.Inflate(HandleSize / 2, HandleSize / 2);
-        var pen = new Pen(System.Windows.Media.Brushes.DodgerBlue, 1 / Math.Max(.05, DisplayScale));
         context.DrawRectangle(null, pen, bounds);
         foreach (var corner in Corners(selected.Bounds))
             context.DrawRoundedRectangle(System.Windows.Media.Brushes.White, pen,
@@ -108,16 +131,18 @@ public sealed class AnnotationSurface : FrameworkElement
         if (Keyboard.IsKeyDown(Key.Space)) return;
         var point = Clamp(e.GetPosition(this));
         var hit = Keyboard.Modifiers.HasFlag(ModifierKeys.Alt) ? -1 : AnnotationAt(point);
-        var corner = Selected is { } current && !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)
+        var lineHandle = Keyboard.Modifiers.HasFlag(ModifierKeys.Alt) ? -1 : LineHandleAt(point);
+        var corner = Selected is { CanBend: false } current && !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)
             ? Array.FindIndex(Corners(current.Bounds), p => (p - point).Length < HandleSize * 1.5) : -1;
-        if (Tool == AnnotationTool.Hand && hit < 0 && corner < 0) { Select(-1); return; }
+        if (Tool == AnnotationTool.Hand && hit < 0 && corner < 0 && lineHandle < 0) { Select(-1); return; }
         Focus();
         e.Handled = true;
         start = point;
-        if (Tool == AnnotationTool.Select || hit >= 0 || corner >= 0)
+        activeLineHandle = lineHandle;
+        if (Tool == AnnotationTool.Select || hit >= 0 || corner >= 0 || lineHandle >= 0)
         {
             resizeCorner = corner;
-            if (resizeCorner < 0)
+            if (resizeCorner < 0 && activeLineHandle < 0)
             {
                 Select(hit);
             }
@@ -150,6 +175,7 @@ public sealed class AnnotationSurface : FrameworkElement
         if (!IsMouseCaptured)
         {
             Cursor = Keyboard.IsKeyDown(Key.Space) ? Cursors.Hand
+                : LineHandleAt(e.GetPosition(this)) >= 0 ? Cursors.Cross
                 : AnnotationAt(e.GetPosition(this)) >= 0 ? Cursors.SizeAll
                 : Tool switch { AnnotationTool.Select => Cursors.Arrow, AnnotationTool.Hand => Cursors.Hand, AnnotationTool.Text => Cursors.IBeam, _ => Cursors.Cross };
             return;
@@ -163,7 +189,22 @@ public sealed class AnnotationSurface : FrameworkElement
         if (original is not null && Selected is { } selected)
         {
             var oldBounds = original.Bounds;
-            if (resizeCorner >= 0 && original.Tool is AnnotationTool.Line or AnnotationTool.Arrow)
+            if (activeLineHandle >= 0)
+            {
+                var delta = point - start;
+                selected.Points = [.. original.Points];
+                if (activeLineHandle == 1)
+                {
+                    if (delta.Length > .5 / Math.Max(.05, DisplayScale))
+                        selected.SetBendPoint(Clamp(original.BendPoint + delta));
+                }
+                else
+                {
+                    var endpoint = activeLineHandle == 0 ? 0 : original.Points.Count - 1;
+                    selected.Points[endpoint] = Clamp(original.Points[endpoint] + delta);
+                }
+            }
+            else if (resizeCorner >= 0 && original.Tool is AnnotationTool.Line or AnnotationTool.Arrow)
             {
                 var handle = Corners(oldBounds)[resizeCorner];
                 var endpoint = (original.Points[0] - handle).Length < (original.Points[^1] - handle).Length ? 0 : original.Points.Count - 1;
@@ -186,7 +227,7 @@ public sealed class AnnotationSurface : FrameworkElement
                 delta.Y = Math.Clamp(delta.Y, -oldBounds.Top, Math.Max(-oldBounds.Top, Height - oldBounds.Bottom));
                 selected.Points = original.Points.Select(p => p + delta).ToList();
             }
-            using (var context = ((DrawingVisual)visuals[SelectedIndex]).RenderOpen()) selected.Draw(context);
+            using (var context = ((DrawingVisual)visuals[SelectedIndex]).RenderOpen()) selected.Draw(context, Document.SketchEnabled);
             DrawSelection();
         }
         else if (draft is not null)
@@ -215,7 +256,7 @@ public sealed class AnnotationSurface : FrameworkElement
                 draft.Points[^1] = Clamp(point);
             }
             using var context = preview.RenderOpen();
-            draft.Draw(context);
+            draft.Draw(context, Document.SketchEnabled);
         }
     }
 
@@ -242,6 +283,7 @@ public sealed class AnnotationSurface : FrameworkElement
                 Document.Replace(SelectedIndex, before, after);
         }
         original = null;
+        activeLineHandle = -1;
         ReleaseMouseCapture();
         e.Handled = true;
     }
@@ -256,6 +298,7 @@ public sealed class AnnotationSurface : FrameworkElement
             after.FontSize = before.FontSize;
         }
         original = null;
+        activeLineHandle = -1;
         if (IsMouseCaptured) ReleaseMouseCapture();
         Rebuild();
     }

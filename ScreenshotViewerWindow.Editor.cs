@@ -114,6 +114,13 @@ public partial class ScreenshotViewerWindow
         foreach (var button in colorButtons) button.IsChecked = Equals(button.Tag, color);
     }
 
+    private void SketchToggle_Click(object sender, RoutedEventArgs e)
+    {
+        CommitText();
+        Annotations.CancelGesture();
+        Annotations.Document.SketchEnabled = SketchToggle.IsChecked == true;
+    }
+
     private void SyncEditor()
     {
         syncingControls = true;
@@ -130,7 +137,9 @@ public partial class ScreenshotViewerWindow
         UndoButton.IsEnabled = Annotations.Document.CanUndo;
         RedoButton.IsEnabled = Annotations.Document.CanRedo;
         RemoveButton.IsEnabled = selected is not null;
-        if (selected is not null)
+        if (selected?.CanBend == true)
+            ToolHint.Text = "Drag the purple middle point to bend. Drag an endpoint to reshape, or the stroke to move. Delete removes it.";
+        else if (selected is not null)
             ToolHint.Text = "Drag to move; drag a corner to resize. Choose a color, or press Delete. Double-click text to edit.";
         else ToolHint.Text = ToolDescription(Annotations.Tool);
         AnnotationCount.Text = Annotations.Document.Items.Count switch { 0 => "Original image", 1 => "1 annotation", var count => $"{count} annotations" };

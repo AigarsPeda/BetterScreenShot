@@ -18,10 +18,15 @@ internal sealed class ImageAnnotation
     public double Width { get; set; } = 4;
     public double FontSize { get; set; } = 28;
     public string Text { get; set; } = "Text";
+    public int SketchSeed { get; init; } = Random.Shared.Next();
+    public bool CanBend => Tool is AnnotationTool.Line or AnnotationTool.Arrow && Points.Count >= 2;
+    public Point BendPoint => Points.Count == 3 ? Points[1] : new Point((Points[0].X + Points[^1].X) / 2, (Points[0].Y + Points[^1].Y) / 2);
+    private Point CurveControl => new(2 * BendPoint.X - (Points[0].X + Points[^1].X) / 2,
+        2 * BendPoint.Y - (Points[0].Y + Points[^1].Y) / 2);
 
     public ImageAnnotation Clone() => new()
     {
-        Tool = Tool, Points = [.. Points], Color = Color, Width = Width, FontSize = FontSize, Text = Text
+        Tool = Tool, Points = [.. Points], Color = Color, Width = Width, FontSize = FontSize, Text = Text, SketchSeed = SketchSeed
     };
 
     public FormattedText FormatText() => new(Text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight,
@@ -37,6 +42,7 @@ internal sealed class ImageAnnotation
                 var text = FormatText();
                 return new Rect(Points[0], new System.Windows.Size(Math.Max(8, text.WidthIncludingTrailingWhitespace), text.Height));
             }
+            if (CanBend && Points.Count == 3) return Geometry().Bounds;
             var bounds = new Rect(Points[0], Points[^1]);
             foreach (var point in Points) bounds.Union(point);
             return bounds;
@@ -52,7 +58,12 @@ internal sealed class ImageAnnotation
         {
             if (Points.Count == 0) return geometry;
             path.BeginFigure(Points[0], false, false);
-            if (Tool is AnnotationTool.Pen or AnnotationTool.Highlight && Points.Count > 2)
+            if (CanBend && Points.Count == 3)
+            {
+                // The curve passes through the handle, rather than merely aiming toward it.
+                path.QuadraticBezierTo(CurveControl, Points[^1], true, true);
+            }
+            else if (Tool is AnnotationTool.Pen or AnnotationTool.Highlight && Points.Count > 2)
             {
                 for (var i = 1; i < Points.Count - 1; i++)
                 {
@@ -65,7 +76,8 @@ internal sealed class ImageAnnotation
 
             if (Tool == AnnotationTool.Arrow && Points.Count >= 2)
             {
-                var direction = Points[^1] - Points[0];
+                var direction = Points[^1] - (Points.Count == 3 ? CurveControl : Points[0]);
+                if (direction.Length < .001) direction = Points[^1] - Points[0];
                 if (direction.Length > 0)
                 {
                     var length = Math.Min(direction.Length * .45, Math.Max(14, Width * 4));
@@ -81,15 +93,32 @@ internal sealed class ImageAnnotation
         return geometry;
     }
 
-    public void Draw(DrawingContext context)
+    public void Draw(DrawingContext context, bool sketchEnabled = true)
     {
         if (Points.Count == 0) return;
         if (Tool == AnnotationTool.Text) { context.DrawText(FormatText(), Points[0]); return; }
         var brush = new SolidColorBrush(Color);
         var pen = new Pen(brush, Width) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
         if (Tool == AnnotationTool.Highlight) context.PushOpacity(.32);
-        context.DrawGeometry(null, pen, Geometry());
+        var geometry = Geometry();
+        if (sketchEnabled && Tool is AnnotationTool.Line or AnnotationTool.Arrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse)
+        {
+            pen.Thickness = Width * .8;
+            context.DrawGeometry(null, pen, SketchGeometry.Create(geometry, SketchSeed, Width));
+            pen = pen.Clone();
+            pen.Thickness = Width * .45;
+            // Brush opacity avoids a full offscreen compositing layer for every outline.
+            pen.Brush = new SolidColorBrush(Color) { Opacity = .55 };
+            context.DrawGeometry(null, pen, SketchGeometry.Create(geometry, SketchSeed ^ 0x59A7, Width));
+        }
+        else context.DrawGeometry(null, pen, geometry);
         if (Tool == AnnotationTool.Highlight) context.Pop();
+    }
+
+    public void SetBendPoint(Point point)
+    {
+        if (!CanBend) return;
+        Points = [Points[0], point, Points[^1]];
     }
 
     public bool HitTest(Point point, double tolerance)
@@ -131,6 +160,17 @@ internal sealed class AnnotationDocument
     private readonly List<ImageAnnotation> items = [];
     private readonly Stack<Edit> undo = new();
     private readonly Stack<Edit> redo = new();
+    private bool sketchEnabled = true;
+    public bool SketchEnabled
+    {
+        get => sketchEnabled;
+        set
+        {
+            if (sketchEnabled == value) return;
+            sketchEnabled = value;
+            Changed?.Invoke();
+        }
+    }
     public IReadOnlyList<ImageAnnotation> Items => items;
     public bool CanUndo => undo.Count > 0;
     public bool CanRedo => redo.Count > 0;
@@ -178,7 +218,7 @@ internal sealed class AnnotationDocument
         {
             context.DrawImage(source, new Rect(0, 0, source.PixelWidth, source.PixelHeight));
             context.PushClip(new RectangleGeometry(new Rect(0, 0, source.PixelWidth, source.PixelHeight)));
-            foreach (var item in items) item.Draw(context);
+            foreach (var item in items) item.Draw(context, SketchEnabled);
             context.Pop();
         }
         var bitmap = new RenderTargetBitmap(source.PixelWidth, source.PixelHeight, 96, 96, PixelFormats.Pbgra32);
@@ -191,12 +231,13 @@ internal sealed class AnnotationDocument
     {
         // Capture an independent version so editing can continue during export.
         var snapshot = items.Select(item => item.Clone()).ToArray();
+        var sketch = SketchEnabled;
         var completion = new TaskCompletionSource<BitmapSource>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
             try
             {
-                var document = new AnnotationDocument();
+                var document = new AnnotationDocument { SketchEnabled = sketch };
                 document.items.AddRange(snapshot);
                 completion.SetResult(document.Render(source));
             }

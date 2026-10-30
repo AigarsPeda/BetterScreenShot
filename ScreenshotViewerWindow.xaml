@@ -118,6 +118,8 @@
                     </ComboBox>
                 </StackPanel>
                 <Button Name="RemoveButton" Style="{StaticResource ActionStyle}" Content="Delete" Click="RemoveButton_Click" ToolTip="Delete selected annotation (Delete)" />
+                <ToggleButton x:Name="SketchToggle" IsChecked="True" Click="SketchToggle_Click" Width="72" Margin="5,1,1,1"
+                              Style="{StaticResource ToolStyle}" Content="Sketch" ToolTip="Hand-drawn outlines for all shapes. Turn off for precise lines." AutomationProperties.Name="Sketch style" />
             </WrapPanel>
         </Border>
         <Border Grid.Row="2" Background="{DynamicResource ViewerCanvasBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="12" ClipToBounds="True">

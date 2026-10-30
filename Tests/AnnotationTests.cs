@@ -14,6 +14,79 @@ internal static class AnnotationTests
 {
     public static void Run(Action<string, Action> check, string directory)
     {
+        check("Line and arrow curves pass through the midpoint handle and keep their endpoints", () =>
+        {
+            foreach (var tool in new[] { AnnotationTool.Line, AnnotationTool.Arrow })
+            {
+                var item = new ImageAnnotation { Tool = tool, Points = [new(20, 80), new(180, 80)] };
+                Require(item.BendPoint == new Point(100, 80));
+                item.SetBendPoint(new Point(100, 20));
+                Require(item.Points[0] == new Point(20, 80) && item.Points[^1] == new Point(180, 80));
+                Require(item.HitTest(new Point(100, 20), 1) && !item.HitTest(new Point(100, 80), 1));
+                Require(item.Geometry().Bounds.Contains(item.BendPoint) && item.Clone().BendPoint == item.BendPoint);
+            }
+        });
+        check("Bending can be cancelled, undone and redone at different zoom levels", () =>
+        {
+            var surface = new AnnotationSurface { Width = 300, Height = 200 };
+            surface.Document.Add(Line());
+            surface.Select(0);
+            var before = surface.Selected!.Clone();
+            foreach (var scale in new[] { .25, 1, 3 })
+            {
+                surface.DisplayScale = scale;
+                Require(surface.LineHandleAt(new Point(50, 20)) == 1);
+                Require(surface.LineHandleAt(new Point(50, 20 + 12 / scale)) == -1);
+            }
+            typeof(AnnotationSurface).GetField("original", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(surface, before);
+            typeof(AnnotationSurface).GetField("activeLineHandle", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(surface, 1);
+            surface.UpdateGesture(new Point(0, 50));
+            Require(surface.Selected.BendPoint == new Point(50, 70));
+            surface.CancelGesture();
+            Require(surface.Selected.Points.Count == 2);
+            var bent = before.Clone();
+            bent.SetBendPoint(new Point(50, 50));
+            surface.Document.Replace(0, before, bent);
+            surface.Document.Undo();
+            Require(surface.Document.Items[0].Points.Count == 2);
+            surface.Document.Redo();
+            Require(surface.Document.Items[0].BendPoint == new Point(50, 50));
+        });
+        check("Sketch geometry is deterministic and the toggle changes rendered exports", () =>
+        {
+            var document = new AnnotationDocument();
+            Require(document.SketchEnabled);
+            var line = Line();
+            var roughGeometry = SketchGeometry.Create(line.Geometry(), line.SketchSeed, line.Width);
+            if (!roughGeometry.StrokeContains(new System.Windows.Media.Pen(Brushes.Red, 8), new Point(50, 20)))
+                throw new InvalidOperationException($"Sketch stroke is missing. Bounds {roughGeometry.Bounds}; source figures {PathGeometry.CreateFromGeometry(line.Geometry()).Figures.Count}.");
+            Require(line.SketchSeed == line.Clone().SketchSeed);
+            document.Add(line);
+            var source = WhiteImage(100, 60);
+            byte[] Pixels(BitmapSource image)
+            {
+                var pixels = new byte[100 * 60 * 4];
+                image.CopyPixels(pixels, 400, 0);
+                return pixels;
+            }
+            var rough = Pixels(document.Render(source));
+            Require(rough.Where((_, index) => index % 4 == 1).Any(value => value < 100));
+            document.SketchEnabled = false;
+            var clean = Pixels(document.Render(source));
+            Require(!rough.SequenceEqual(clean));
+            var background = document.RenderAsync(source);
+            document.SketchEnabled = true;
+            Require(Pixels(background.GetAwaiter().GetResult()).SequenceEqual(clean));
+            Require(Pixels(document.Render(source)).SequenceEqual(rough));
+            foreach (var tool in new[] { AnnotationTool.Arrow, AnnotationTool.Rectangle, AnnotationTool.Ellipse })
+            {
+                var shapes = new AnnotationDocument();
+                var item = new ImageAnnotation { Tool = tool, Points = [new(10, 20), new(90, 50)], Color = Colors.Red, Width = 4 };
+                if (tool == AnnotationTool.Arrow) item.SetBendPoint(new Point(50, 10));
+                shapes.Add(item);
+                Require(Pixels(shapes.Render(source)).Where((_, index) => index % 4 == 1).Any(value => value < 100));
+            }
+        });
         check("Annotation history preserves add, edit, delete and redo snapshots", () =>
         {
             var document = new AnnotationDocument();
@@ -70,7 +143,7 @@ internal static class AnnotationTests
         });
         check("Edited PNG, JPEG and BMP exports include annotation pixels", () =>
         {
-            var document = new AnnotationDocument();
+            var document = new AnnotationDocument { SketchEnabled = false };
             document.Add(Line());
             var source = WhiteImage(100, 60);
             var sourcePath = Path.Combine(directory, "annotation-source.png");
@@ -91,7 +164,7 @@ internal static class AnnotationTests
         });
         check("Background export uses a frozen snapshot while the document remains editable", () =>
         {
-            var document = new AnnotationDocument();
+            var document = new AnnotationDocument { SketchEnabled = false };
             document.Add(Line());
             var rendering = document.RenderAsync(WhiteImage(100, 60));
             var edited = document.Items[0].Clone();
@@ -145,6 +218,9 @@ internal static class AnnotationTests
                     window.UpdateLayout();
                     var surface = (AnnotationSurface)window.FindName("Annotations");
                     Require(surface.DisplayScale > 0);
+                    var sketch = (System.Windows.Controls.Primitives.ToggleButton)window.FindName("SketchToggle");
+                    var sketchPosition = sketch.TranslatePoint(new Point(), window);
+                    Require(sketch.IsChecked == true && sketchPosition.X + sketch.ActualWidth < width);
                     var remove = (System.Windows.Controls.Button)window.FindName("RemoveButton");
                     var position = remove.TranslatePoint(new Point(), window);
                     Require(position.X >= 0 && position.X + remove.ActualWidth < width);
@@ -169,7 +245,7 @@ internal static class AnnotationTests
         });
     }
 
-    private static ImageAnnotation Line() => new() { Tool = AnnotationTool.Line, Color = Colors.Red, Width = 6, Points = [new(10, 20), new(90, 20)] };
+    private static ImageAnnotation Line() => new() { Tool = AnnotationTool.Line, Color = Colors.Red, Width = 6, SketchSeed = 42, Points = [new(10, 20), new(90, 20)] };
 
     private static BitmapSource WhiteImage(int width, int height)
     {
@@ -239,6 +315,24 @@ internal static class AnnotationTests
         }
         encodeTimes.Sort();
         Console.WriteLine($"4K PNG encode, 5 runs: median {encodeTimes[2]:F2} ms, performed off the UI thread by Save As.");
+        surface.CancelGesture();
+        surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.Arrow, Points = [new(500, 900), new(2500, 900)] });
+        surface.Select(surface.Document.Items.Count - 1);
+        typeof(AnnotationSurface).GetField("original", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(surface, surface.Selected!.Clone());
+        typeof(AnnotationSurface).GetField("activeLineHandle", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(surface, 1);
+        foreach (var sketch in new[] { true, false })
+        {
+            surface.Document.SketchEnabled = sketch;
+            var bendTimes = new double[1000];
+            for (var i = 0; i < bendTimes.Length; i++)
+            {
+                var timer = Stopwatch.StartNew();
+                surface.UpdateGesture(new Point(0, Math.Sin(i * .02) * 300));
+                bendTimes[i] = timer.Elapsed.TotalMilliseconds;
+            }
+            Array.Sort(bendTimes);
+            Console.WriteLine($"Arrow midpoint updates, sketch {sketch}, 302 annotations: median {bendTimes[500]:F3} ms, p95 {bendTimes[950]:F3} ms.");
+        }
         app.Shutdown();
         return 0;
     }
