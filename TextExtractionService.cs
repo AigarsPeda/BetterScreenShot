@@ -36,22 +36,41 @@ internal static class TextExtractionService
     {
         cancellationToken.ThrowIfCancellationRequested();
         var directory = assetDirectory.Value;
-        var converted = new FormatConvertedBitmap(image, PixelFormats.Rgb24, null, 0);
-        var stride = checked(image.PixelWidth * 3);
-        var pixels = new byte[checked(stride * image.PixelHeight)];
-        converted.CopyPixels(pixels, stride, 0);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (language != AutomaticLanguage)
-            return RecognizePixels(pixels, image.PixelWidth, image.PixelHeight, stride, directory, language, cancellationToken);
         var candidates = new List<TextExtractionResult>();
-        foreach (var code in Languages.Keys)
+        RecognizeImage(image, 1);
+        var initial = MergeResults(candidates);
+        // Small UI text and folder icons can confuse document segmentation. A larger
+        // working image recovers those regions; keep selections in source coordinates.
+        // Bound the extra pixel buffer to 48 MB, even for very large captures.
+        var heights = initial.Words.Select(word => word.Bounds.Height).Order().ToArray();
+        if ((heights.Length == 0 || heights[heights.Length / 2] < 20)
+            && (long)image.PixelWidth * image.PixelHeight <= 4_000_000)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            candidates.Add(RecognizePixels(pixels, image.PixelWidth, image.PixelHeight, stride, directory, code, cancellationToken));
+            var enlarged = new TransformedBitmap(image, new ScaleTransform(2, 2));
+            RecognizeImage(enlarged, 2);
         }
         cancellationToken.ThrowIfCancellationRequested();
-        return MergeAutomaticResults(candidates);
+        return MergeResults(candidates);
+
+        void RecognizeImage(BitmapSource source, int scale)
+        {
+            var converted = new FormatConvertedBitmap(source, PixelFormats.Rgb24, null, 0);
+            var stride = checked(source.PixelWidth * 3);
+            var pixels = new byte[checked(stride * source.PixelHeight)];
+            converted.CopyPixels(pixels, stride, 0);
+            foreach (var code in language == AutomaticLanguage ? Languages.Keys : new[] { language })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = RecognizePixels(pixels, source.PixelWidth, source.PixelHeight, stride, directory, code, cancellationToken);
+                if (scale != 1)
+                    result = result with { Words = result.Words.Select(word => word with
+                    {
+                        Bounds = new System.Windows.Rect(word.Bounds.X / scale, word.Bounds.Y / scale,
+                            word.Bounds.Width / scale, word.Bounds.Height / scale)
+                    }).ToArray() };
+                candidates.Add(result);
+            }
+        }
     }
 
     private static TextExtractionResult RecognizePixels(byte[] pixels, int width, int height, int stride, string directory, string language, CancellationToken cancellationToken)
@@ -85,9 +104,12 @@ internal static class TextExtractionService
         finally { Native.Delete(engine); }
     }
 
-    private static TextExtractionResult MergeAutomaticResults(IReadOnlyList<TextExtractionResult> candidates)
+    internal static TextExtractionResult MergeResults(IReadOnlyList<TextExtractionResult> candidates)
     {
-        var baseline = candidates.MaxBy(result => result.Confidence)!;
+        // Mean confidence alone favors partial results containing only easy dates or
+        // headings. Count confidently recognized characters so missing regions matter.
+        var baseline = candidates.MaxBy(result => result.Words.Sum(word =>
+            word.Text.Count(char.IsLetterOrDigit) * Math.Max(0, word.Confidence - 30)))!;
         if (baseline.Words.Count == 0) return baseline;
         // Match candidates by their image positions, independently of the recognized strings.
         // Row buckets avoid comparing every word with every other word on large captures.

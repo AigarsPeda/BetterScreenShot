@@ -77,6 +77,7 @@ internal static class TextExtractionTests
     {
         OcrAssetTests.Run(check, directory);
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) return;
+        OcrLayoutTests.Run(check, directory);
         TextSelectionTests.Run(check, directory);
         check("Tesseract recognizes English, dark backgrounds and Latvian diacritics from memory", () =>
         {

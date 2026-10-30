@@ -13,6 +13,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         if (args.Contains("--ocr-smoke")) return TextExtractionTests.Smoke();
+        if (args.Contains("--ocr-file-list-demo")) return OcrLayoutTests.Demo();
         if (args.Contains("--ocr-demo")) return TextExtractionTests.Demo();
         if (args.Contains("--ocr-selection-demo")) return TextExtractionTests.Demo(selectionHandles: true);
         if (args.Contains("--ocr-panel-demo")) return TextExtractionTests.Demo(longText: true);
