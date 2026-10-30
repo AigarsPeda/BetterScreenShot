@@ -154,6 +154,8 @@ internal sealed class ImageAnnotation
     }
 }
 
+internal enum AnnotationChange { Add, Remove, Replace, Style }
+
 internal sealed class AnnotationDocument
 {
     private sealed record Edit(int Index, ImageAnnotation? Before, ImageAnnotation? After);
@@ -168,13 +170,13 @@ internal sealed class AnnotationDocument
         {
             if (sketchEnabled == value) return;
             sketchEnabled = value;
-            Changed?.Invoke();
+            Changed?.Invoke(AnnotationChange.Style, -1);
         }
     }
     public IReadOnlyList<ImageAnnotation> Items => items;
     public bool CanUndo => undo.Count > 0;
     public bool CanRedo => redo.Count > 0;
-    public event Action? Changed;
+    public event Action<AnnotationChange, int>? Changed;
 
     public void Add(ImageAnnotation item) => Apply(new Edit(items.Count, null, item.Clone()));
     public void Remove(int index) => Apply(new Edit(index, items[index].Clone(), null));
@@ -182,33 +184,42 @@ internal sealed class AnnotationDocument
 
     private void Apply(Edit edit)
     {
-        Set(edit.Index, edit.Before, edit.After);
+        var change = Set(edit.Index, edit.Before, edit.After);
         undo.Push(edit);
         redo.Clear();
-        Changed?.Invoke();
+        Changed?.Invoke(change, edit.Index);
     }
 
-    private void Set(int index, ImageAnnotation? before, ImageAnnotation? after)
+    private AnnotationChange Set(int index, ImageAnnotation? before, ImageAnnotation? after)
     {
-        if (after is null) items.RemoveAt(index);
-        else if (before is null) items.Insert(index, after.Clone());
-        else items[index] = after.Clone();
+        if (after is null)
+        {
+            items.RemoveAt(index);
+            return AnnotationChange.Remove;
+        }
+        if (before is null)
+        {
+            items.Insert(index, after.Clone());
+            return AnnotationChange.Add;
+        }
+        items[index] = after.Clone();
+        return AnnotationChange.Replace;
     }
 
     public void Undo()
     {
         if (!undo.TryPop(out var edit)) return;
-        Set(edit.Index, edit.After, edit.Before);
+        var change = Set(edit.Index, edit.After, edit.Before);
         redo.Push(edit);
-        Changed?.Invoke();
+        Changed?.Invoke(change, edit.Index);
     }
 
     public void Redo()
     {
         if (!redo.TryPop(out var edit)) return;
-        Set(edit.Index, edit.Before, edit.After);
+        var change = Set(edit.Index, edit.Before, edit.After);
         undo.Push(edit);
-        Changed?.Invoke();
+        Changed?.Invoke(change, edit.Index);
     }
 
     public BitmapSource Render(BitmapSource source)

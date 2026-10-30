@@ -39,16 +39,16 @@ public sealed class AnnotationSurface : FrameworkElement
             CancelGesture();
             tool = value;
             Select(-1);
-            Cursor = value switch { AnnotationTool.Select => Cursors.Arrow, AnnotationTool.Hand => Cursors.Hand, AnnotationTool.Text => Cursors.IBeam, _ => Cursors.Cross };
+            Cursor = ToolCursor;
         }
     }
 
     public AnnotationSurface()
     {
-        visuals = new VisualCollection(this);
+        visuals = new VisualCollection(this) { preview, selectionVisual };
         Focusable = true;
         ClipToBounds = true;
-        Document.Changed += Rebuild;
+        Document.Changed += UpdateDocumentVisuals;
         LostMouseCapture += (_, _) => CancelGesture();
     }
 
@@ -56,20 +56,50 @@ public sealed class AnnotationSurface : FrameworkElement
     protected override Visual GetVisualChild(int index) => visuals[index];
     protected override void OnRender(DrawingContext context) => context.DrawRectangle(System.Windows.Media.Brushes.Transparent, null, new Rect(RenderSize));
 
-    private void Rebuild()
+    private void UpdateDocumentVisuals(AnnotationChange change, int index)
     {
-        visuals.Clear();
-        foreach (var item in Document.Items)
+        // Annotation visuals follow document order; preview and selection stay on top.
+        switch (change)
         {
-            var visual = new DrawingVisual();
-            using (var context = visual.RenderOpen()) item.Draw(context, Document.SketchEnabled);
-            visuals.Add(visual);
+            case AnnotationChange.Add:
+                visuals.Insert(index, new DrawingVisual());
+                RedrawAnnotation(index);
+                break;
+            case AnnotationChange.Remove:
+                visuals.RemoveAt(index);
+                break;
+            case AnnotationChange.Replace:
+                RedrawAnnotation(index);
+                break;
+            case AnnotationChange.Style:
+                for (var i = 0; i < Document.Items.Count; i++) RedrawAnnotation(i);
+                break;
         }
-        visuals.Add(preview);
-        visuals.Add(selectionVisual);
         if (SelectedIndex >= Document.Items.Count) SelectedIndex = -1;
         DrawSelection();
         SelectionChanged?.Invoke();
+    }
+
+    private void RedrawAnnotation(int index)
+    {
+        using var context = ((DrawingVisual)visuals[index]).RenderOpen();
+        Document.Items[index].Draw(context, Document.SketchEnabled);
+    }
+
+    private System.Windows.Input.Cursor ToolCursor => Tool switch
+    {
+        AnnotationTool.Select => Cursors.Arrow,
+        AnnotationTool.Hand => Cursors.Hand,
+        AnnotationTool.Text => Cursors.IBeam,
+        _ => Cursors.Cross
+    };
+
+    private System.Windows.Input.Cursor HoverCursor(Point point)
+    {
+        if (Keyboard.IsKeyDown(Key.Space)) return Cursors.Hand;
+        if (LineHandleAt(point) >= 0) return Cursors.Cross;
+        if (AnnotationAt(point) >= 0) return Cursors.SizeAll;
+        return ToolCursor;
     }
 
     internal void Select(int index)
@@ -190,10 +220,7 @@ public sealed class AnnotationSurface : FrameworkElement
         base.OnMouseMove(e);
         if (!IsMouseCaptured)
         {
-            Cursor = Keyboard.IsKeyDown(Key.Space) ? Cursors.Hand
-                : LineHandleAt(e.GetPosition(this)) >= 0 ? Cursors.Cross
-                : AnnotationAt(e.GetPosition(this)) >= 0 ? Cursors.SizeAll
-                : Tool switch { AnnotationTool.Select => Cursors.Arrow, AnnotationTool.Hand => Cursors.Hand, AnnotationTool.Text => Cursors.IBeam, _ => Cursors.Cross };
+            Cursor = HoverCursor(e.GetPosition(this));
             return;
         }
         UpdateGesture(Clamp(e.GetPosition(this)));
@@ -243,7 +270,7 @@ public sealed class AnnotationSurface : FrameworkElement
                 delta.Y = Math.Clamp(delta.Y, -oldBounds.Top, Math.Max(-oldBounds.Top, Height - oldBounds.Bottom));
                 selected.Points = original.Points.Select(p => p + delta).ToList();
             }
-            using (var context = ((DrawingVisual)visuals[SelectedIndex]).RenderOpen()) selected.Draw(context, Document.SketchEnabled);
+            RedrawAnnotation(SelectedIndex);
             DrawSelection();
         }
         else if (draft is not null)
@@ -312,11 +339,13 @@ public sealed class AnnotationSurface : FrameworkElement
         {
             after.Points = before.Points;
             after.FontSize = before.FontSize;
+            RedrawAnnotation(SelectedIndex);
         }
         original = null;
         activeLineHandle = -1;
         if (IsMouseCaptured) ReleaseMouseCapture();
-        Rebuild();
+        DrawSelection();
+        SelectionChanged?.Invoke();
     }
 
     internal void ChangeSelected(Action<ImageAnnotation> change)

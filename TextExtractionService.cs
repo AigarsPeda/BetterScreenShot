@@ -181,22 +181,8 @@ internal static class TextExtractionService
         {
             using var resource = assembly.GetManifestResourceStream("BetterScreenShot.ocr." + name)
                 ?? throw new InvalidOperationException($"Missing text recognition resource: {name}");
-            using var buffer = new MemoryStream();
-            resource.CopyTo(buffer);
-            var bytes = buffer.ToArray();
             var path = Path.Combine(directory, name);
-            if (File.Exists(path))
-            {
-                using var existing = File.OpenRead(path);
-                if (SHA256.HashData(existing).AsSpan().SequenceEqual(SHA256.HashData(bytes))) continue;
-            }
-            var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
-                File.WriteAllBytes(temporary, bytes);
-                File.Move(temporary, path, overwrite: true);
-            }
-            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            ExtractAsset(resource, path);
         }
 
         try
@@ -211,6 +197,25 @@ internal static class TextExtractionService
             throw new InvalidOperationException("Text extraction needs the Microsoft Visual C++ 2015–2022 Redistributable (x64). Install it and restart BetterScreenShot.", error);
         }
         return directory;
+    }
+
+    internal static void ExtractAsset(Stream resource, string path)
+    {
+        // Embedded resource streams are seekable. Hash and copy them directly to
+        // avoid holding both a growing MemoryStream and a second full-size array.
+        if (File.Exists(path))
+        {
+            using var existing = File.OpenRead(path);
+            if (existing.Length == resource.Length && SHA256.HashData(existing).AsSpan().SequenceEqual(SHA256.HashData(resource))) return;
+            resource.Position = 0;
+        }
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var output = File.Create(temporary)) resource.CopyTo(output);
+            File.Move(temporary, path, overwrite: true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
     private static class Native

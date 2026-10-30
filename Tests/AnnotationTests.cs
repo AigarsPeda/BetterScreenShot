@@ -15,6 +15,7 @@ internal static class AnnotationTests
     public static void Run(Action<string, Action> check, string directory)
     {
         AnnotationContextMenuTests.Run(check, directory);
+        AnnotationRenderingTests.Run(check);
         check("Line and arrow curves pass through the midpoint handle and keep their endpoints", () =>
         {
             foreach (var tool in new[] { AnnotationTool.Line, AnnotationTool.Arrow })
@@ -423,6 +424,11 @@ internal static class AnnotationTests
         var surface = new AnnotationSurface { Width = 3840, Height = 2160 };
         for (var i = 0; i < 300; i++)
             surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.Rectangle, Points = [new(i * 7 % 3500, i * 11 % 1900), new(i * 7 % 3500 + 200, i * 11 % 1900 + 100)] });
+        MeasureEditorAction("Cancel idle gesture", surface.CancelGesture);
+        surface.Select(150);
+        MeasureEditorAction("Change one annotation", () => surface.ChangeSelected(item => item.Color = Colors.Blue));
+        MeasureEditorAction("Undo and redo one annotation", () => { surface.Document.Undo(); surface.Document.Redo(); });
+        surface.Select(-1);
         var draft = new ImageAnnotation { Tool = AnnotationTool.Pen, Points = [new(10, 10), new(10, 10)] };
         typeof(AnnotationSurface).GetField("draft", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(surface, draft);
         var timings = new double[1500];
@@ -480,6 +486,18 @@ internal static class AnnotationTests
         }
         app.Shutdown();
         return 0;
+    }
+
+    private static void MeasureEditorAction(string name, Action action)
+    {
+        action();
+        const int iterations = 30;
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        var timer = Stopwatch.StartNew();
+        for (var i = 0; i < iterations; i++) action();
+        timer.Stop();
+        allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+        Console.WriteLine($"{name}, 300 annotations: {timer.Elapsed.TotalMilliseconds / iterations:F3} ms/action; {allocated / iterations / 1024d:F1} KiB/action.");
     }
 
     public static int ToolbarPreview()

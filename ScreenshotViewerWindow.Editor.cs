@@ -84,7 +84,6 @@ public partial class ScreenshotViewerWindow
         Annotations.SelectionChanged += SyncEditor;
         Annotations.TextRequested += BeginText;
         Annotations.ContextRequested += ShowAnnotationMenu;
-        Annotations.Document.Changed += SyncEditor;
         ChooseColor((Color)ColorConverter.ConvertFromString("#FF453A"));
         ChooseTool(AnnotationTool.Select);
     }
