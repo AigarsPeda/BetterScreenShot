@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\BetterScreenShot.ico</ApplicationIcon>
     <!-- WPF owns startup, so DPI awareness must be set in the manifest before HWND creation. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>

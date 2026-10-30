@@ -236,6 +236,7 @@ public partial class ScreenshotViewerWindow
                 case Key.Z: UndoButton_Click(sender, e); break;
                 case Key.Y: RedoButton_Click(sender, e); break;
                 case Key.D: CommitText(); Annotations.CancelGesture(); Annotations.DuplicateSelected(); break;
+                case Key.C: CopyButton_Click(sender, e); break;
                 case Key.S: SaveAsButton_Click(sender, e); break;
                 case Key.D0: FitButton_Click(sender, e); break;
                 case Key.Add: case Key.OemPlus: ChangeZoom(ZoomStep); break;

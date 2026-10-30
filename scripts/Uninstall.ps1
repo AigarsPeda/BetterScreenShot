@@ -1,4 +1,9 @@
 $ErrorActionPreference = 'Stop'
+trap {
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show($_.Exception.Message, 'Could not uninstall BetterScreenShot', 'OK', 'Error') | Out-Null
+    exit 1
+}
 $programsRoot = [IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs'))
 $installRoot = [IO.Path]::GetFullPath((Join-Path $programsRoot 'BetterScreenShot'))
 if (!$installRoot.StartsWith($programsRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) `

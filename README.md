@@ -17,6 +17,8 @@ Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreen
 
 Build a self-contained package with `./scripts/Publish-Installer.ps1`. Extract `artifacts/BetterScreenShot-win-x64.zip` and run `Install.cmd`. The installer adds the application to your user profile, creates a Start menu shortcut, enables startup at sign-in, and starts it quietly in the tray. It does not require administrator access or a separately installed .NET runtime. Existing capture shortcuts are preserved.
 
+Run `Install.cmd` from File Explorer in your normal Windows desktop. An isolated terminal can redirect registry writes, making an installation entry visible to that terminal while absent from Windows Settings. The normal installation records the version, installation date, size, and an uninstall command that starts the app's dedicated uninstall mode.
+
 Closing the launcher keeps the application running. Use its tray menu to open the launcher, configure keyboard shortcuts, turn sign-in startup on or off, or Exit. Launching another copy opens the existing instance instead of competing for the same shortcuts.
 
 Keyboard shortcuts keep both existing selection modes: click a monitor for full-screen capture or drag an area. The launcher stays hidden before and after selection. The usual side preview appears with Copy, Save, Edit, and Discard, without taking keyboard focus.
@@ -71,6 +73,8 @@ Selected arrows and lines have circular endpoint handles and a purple midpoint. 
 
 Right-click an annotation for Delete, Duplicate, and Change Color. Bent lines and arrows also offer Straighten, and text offers Edit Text. Right-click selects the annotation under the pointer. Ctrl+D duplicates the selection; these editing actions support undo/redo.
 
+Click Copy or press Ctrl+C with the canvas focused to copy the image with all current annotations at its original pixel dimensions. Paste it into another application with Ctrl+V without saving a file first. Copy finishes any text being entered and keeps the editor open for further changes. While editing text, Ctrl+C copies the selected text as usual.
+
 Save As exports the image and annotations together at the original pixel dimensions to PNG, JPEG, or BMP. The open editor keeps its editable objects after exporting. Compositing and encoding run off the UI thread using an independent snapshot, so editing can continue during export. Closing the editor discards its temporary image and editing session.
 
 Run the synthetic 4K annotation benchmark with:
@@ -83,7 +87,7 @@ The benchmark measures stroke geometry updates with 300 existing annotations, fu
 
 ## Runtime assets
 
-The app draws its window icons and interface icons in code or XAML. Only `assets/camera.svg`, used for the capture cursor, is copied to the application output. The other SVGs, `scan.png`, and `render-icon.html` are design references retained in the repository.
+The app draws its window icons and interface icons in code or XAML. `assets/BetterScreenShot.ico` supplies the embedded executable icon used by Windows for shortcuts and Installed apps. It includes sizes from 16 to 256 pixels and can be regenerated with `./scripts/Generate-AppIcon.ps1`. Only `assets/camera.svg`, used for the capture cursor, is copied to the application output. The other SVGs, `scan.png`, and `render-icon.html` are design references retained in the repository.
 
 ## Manual display checks
 

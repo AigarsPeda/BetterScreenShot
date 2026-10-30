@@ -35,15 +35,18 @@ $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Bette
 New-Item -Path $uninstallKey -Force | Out-Null
 $properties = @{
     DisplayName = 'BetterScreenShot'
-    DisplayVersion = (Get-Item -LiteralPath $executable).VersionInfo.ProductVersion
+    DisplayVersion = (Get-Item -LiteralPath $executable).VersionInfo.FileVersion
+    InstallDate = [DateTime]::Now.ToString('yyyyMMdd', [Globalization.CultureInfo]::InvariantCulture)
     Publisher = 'BetterScreenShot'
     InstallLocation = $installRoot
     DisplayIcon = "$executable,0"
-    UninstallString = ('powershell.exe -NoProfile -File "{0}"' -f (Join-Path $installRoot 'Uninstall.ps1'))
+    UninstallString = ('"{0}" --uninstall' -f $executable)
 }
 foreach ($name in $properties.Keys) { New-ItemProperty -Path $uninstallKey -Name $name -Value $properties[$name] -PropertyType String -Force | Out-Null }
 New-ItemProperty -Path $uninstallKey -Name NoModify -Value 1 -PropertyType DWord -Force | Out-Null
 New-ItemProperty -Path $uninstallKey -Name NoRepair -Value 1 -PropertyType DWord -Force | Out-Null
+$installedBytes = (Get-ChildItem -LiteralPath $installRoot -Recurse -File | Measure-Object -Property Length -Sum).Sum
+New-ItemProperty -Path $uninstallKey -Name EstimatedSize -Value ([int][Math]::Ceiling($installedBytes / 1KB)) -PropertyType DWord -Force | Out-Null
 Write-Output "Installed: $executable"
 Write-Output 'Startup at sign-in is enabled. Your existing capture shortcuts are preserved.'
 if (!$NoStart) { Start-Process -FilePath $executable -ArgumentList '--background' -WindowStyle Hidden }

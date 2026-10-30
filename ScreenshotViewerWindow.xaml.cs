@@ -19,6 +19,7 @@ namespace BetterScreenShot
 
         private readonly TemporaryScreenshot screenshot;
         private bool isDragging;
+        private bool isClosing;
         private Point lastDragPoint;
         private double currentZoom = 1.0;
         private AppTheme? currentTheme;
@@ -161,6 +162,46 @@ namespace BetterScreenShot
             Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
         }
 
+        private async void CopyButton_Click(object sender, RoutedEventArgs e)
+        {
+            try { await CopyImageAsync(); }
+            catch (Exception ex)
+            {
+                if (!IsLoaded) return;
+                AppDialog.ShowError(this, "Could not copy screenshot", "Try copying the screenshot again.", ex.Message);
+            }
+        }
+
+        internal async Task CopyImageAsync()
+        {
+            if (!CopyButton.IsEnabled) return;
+            CopyButton.IsEnabled = false;
+            CopyButton.Content = "Copying…";
+            try
+            {
+                CommitText();
+                Annotations.CancelGesture();
+                var source = (BitmapSource)ViewerImage.Source;
+                var output = Annotations.Document.Items.Count > 0 ? await Annotations.Document.RenderAsync(source) : source;
+                for (var attempt = 0; ; attempt++)
+                {
+                    if (isClosing || !IsLoaded) return;
+                    try { System.Windows.Clipboard.SetImage(output); break; }
+                    catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x800401D0) && attempt < 4)
+                    {
+                        // Clipboard managers and the destination app can briefly hold the clipboard.
+                        await Task.Delay(75);
+                    }
+                }
+                ToolHint.Text = "Copied to clipboard. Paste into another app with Ctrl+V.";
+            }
+            finally
+            {
+                CopyButton.IsEnabled = true;
+                CopyButton.Content = "Copy";
+            }
+        }
+
         private async void SaveAsButton_Click(object sender, RoutedEventArgs e)
         {
             if (!SaveButton.IsEnabled) return;
@@ -221,6 +262,13 @@ namespace BetterScreenShot
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             SourceInitialized -= ScreenshotViewerWindow_SourceInitialized;
             Closed -= ScreenshotViewerWindow_Closed;
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            isClosing = true;
+            base.OnClosing(e);
+            if (e.Cancel) isClosing = false;
         }
 
         [DllImport("dwmapi.dll")]

@@ -113,7 +113,8 @@
                 <Button Style="{StaticResource ActionStyle}" Content="−" FontSize="20" Width="34" Padding="0" Click="ZoomOutButton_Click" ToolTip="Zoom out (Ctrl+−)" AutomationProperties.Name="Zoom out" />
                 <Button Name="FitButton" Style="{StaticResource ActionStyle}" Content="Fit" MinWidth="54" Click="FitButton_Click" ToolTip="Fit image (Ctrl+0)" />
                 <Button Style="{StaticResource ActionStyle}" Content="+" FontSize="20" Width="34" Padding="0" Click="ZoomInButton_Click" ToolTip="Zoom in (Ctrl++)" AutomationProperties.Name="Zoom in" />
-                <Button Name="SaveButton" Style="{StaticResource ActionStyle}" Content="Save As…" FontWeight="SemiBold" Margin="12,2,2,2" Click="SaveAsButton_Click" ToolTip="Save a copy with annotations (Ctrl+Shift+S)" />
+                <Button Name="CopyButton" Style="{StaticResource ActionStyle}" Content="Copy" FontWeight="SemiBold" MinWidth="78" Margin="12,2,2,2" Click="CopyButton_Click" ToolTip="Copy image with annotations (Ctrl+C)" AutomationProperties.Name="Copy image" />
+                <Button Name="SaveButton" Style="{StaticResource ActionStyle}" Content="Save As…" FontWeight="SemiBold" Click="SaveAsButton_Click" ToolTip="Save a copy with annotations (Ctrl+Shift+S)" />
                 <Button Style="{StaticResource ActionStyle}" Content="⋯" FontSize="20" Width="34" Padding="0" Click="MoreButton_Click" AutomationProperties.Name="More actions" ToolTip="More actions">
                     <Button.ContextMenu><ContextMenu><MenuItem Header="Discard screenshot…" Click="DeleteButton_Click" /></ContextMenu></Button.ContextMenu>
                 </Button>
@@ -163,7 +164,7 @@
         </Border>
         <Grid Grid.Row="3" Margin="3,9,3,0">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <TextBlock Name="ToolHint" Text="Choose a tool to mark up your screenshot. Space to pan." FontSize="11" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+            <TextBlock Name="ToolHint" Text="Choose a tool to mark up your screenshot. Space to pan." FontSize="11" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ViewerSecondaryTextBrush}" AutomationProperties.LiveSetting="Polite" />
             <TextBlock Name="AnnotationCount" Grid.Column="1" FontSize="11" Margin="12,0,0,0" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
         </Grid>
     </Grid>
