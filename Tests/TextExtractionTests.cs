@@ -139,6 +139,55 @@ internal static class TextExtractionTests
             }
             catch (OperationCanceledException) { }
         });
+        check("Auto preserves small multilingual text after choosing a working image size", () =>
+        {
+            foreach (var (sample, expected) in new[]
+            {
+                ("Labdien! Rīga, Latvija.", "Rīga"), ("Labas rytas! Lietuva.", "Lietuva"),
+                ("Tere! Eesti.", "Eesti"), ("Sverige är vackert.", "är"),
+                ("Hyvää päivää! Suomi.", "Hyvää"), ("Привет! Россия.", "Россия"),
+                ("Hello! Rīga, Россия.", "Россия")
+            })
+            {
+                var result = TextExtractionService.RecognizeAsync(Fixture(sample, fontSize: 16), TextExtractionService.AutomaticLanguage).GetAwaiter().GetResult();
+                Require(result.Text.Contains(expected, StringComparison.Ordinal), $"{sample} => {result.Text}");
+                if (sample.StartsWith("Hello", StringComparison.Ordinal))
+                    Require(result.Text.Contains("Hello") && result.Text.Contains("Rīga"), "Mixed scripts and accents must survive the size probe: " + result.Text);
+                foreach (var word in result.Words)
+                    Require(result.Text.Substring(word.TextStart, word.Text.Length) == word.Text && word.Bounds.Height < 20,
+                        "Small-text offsets and bounds must remain in original image coordinates.");
+            }
+        });
+        check("Cancelled queued OCR requests do not start native work or disturb the active request", () =>
+        {
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var image = Fixture();
+            var active = TextExtractionService.RecognizeAsync(image, "eng", reportTiming: timing =>
+            {
+                if (timing.Stage != "assets") return;
+                entered.Set();
+                Require(release.Wait(TimeSpan.FromSeconds(10)), "Active OCR test was not released.");
+            });
+            try
+            {
+                Require(entered.Wait(TimeSpan.FromSeconds(10)), "Active OCR did not start.");
+                using var cancellation = new CancellationTokenSource();
+                var queuedCallbacks = 0;
+                var queued = TextExtractionService.RecognizeAsync(image, "eng", cancellation.Token,
+                    _ => Interlocked.Increment(ref queuedCallbacks));
+                cancellation.Cancel();
+                try
+                {
+                    queued.GetAwaiter().GetResult();
+                    throw new InvalidOperationException("Queued OCR must honor cancellation.");
+                }
+                catch (OperationCanceledException) { }
+                Require(queuedCallbacks == 0, "Cancelled queued OCR must not prepare assets or start an engine.");
+            }
+            finally { release.Set(); }
+            Require(active.GetAwaiter().GetResult().Text.Contains("Screenshot text"), "The active request must finish normally.");
+        });
         check("OCR word bounds and UTF-16 offsets identify repeated words and Latvian punctuation", () =>
         {
             foreach (var (text, language) in new[] { ("Screenshot word word 12345", "eng"), ("Labdien! Rīga, Latvija.", "lav") })
@@ -366,14 +415,14 @@ internal static class TextExtractionTests
         });
     }
 
-    internal static BitmapSource Fixture(string text = "Screenshot text 12345", bool dark = false, int height = 260)
+    internal static BitmapSource Fixture(string text = "Screenshot text 12345", bool dark = false, int height = 260, double fontSize = 42)
     {
         var visual = new DrawingVisual();
         using (var drawing = visual.RenderOpen())
         {
             drawing.DrawRectangle(dark ? Brushes.Black : Brushes.White, null, new Rect(0, 0, 850, height));
             drawing.DrawText(new FormattedText(text, CultureInfo.InvariantCulture, System.Windows.FlowDirection.LeftToRight,
-                new Typeface("Segoe UI"), 42, dark ? Brushes.White : Brushes.Black, 1), new System.Windows.Point(30, 40));
+                new Typeface("Segoe UI"), fontSize, dark ? Brushes.White : Brushes.Black, 1), new System.Windows.Point(30, 40));
         }
         var image = new RenderTargetBitmap(850, height, 96, 96, PixelFormats.Pbgra32);
         image.Render(visual);

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Globalization;
@@ -10,11 +11,13 @@ namespace BetterScreenShot;
 
 internal sealed record RecognizedWord(string Text, System.Windows.Rect Bounds, int TextStart, float Confidence = 0, bool FromDictionary = false);
 internal sealed record TextExtractionResult(string Text, IReadOnlyList<RecognizedWord> Words, int Confidence = 0);
+internal readonly record struct OcrTiming(string Stage, string Language, int Width, int Height, double Milliseconds);
 
 internal static class TextExtractionService
 {
     internal const string AutomaticLanguage = "auto";
     private static readonly Lazy<string> assetDirectory = new(PrepareAssets);
+    private static readonly SemaphoreSlim recognitionGate = new(1, 1);
     internal static IReadOnlyDictionary<string, string> Languages { get; } = new Dictionary<string, string>
     {
         ["eng"] = "English", ["lav"] = "Latvian", ["lit"] = "Lithuanian", ["est"] = "Estonian",
@@ -24,63 +27,102 @@ internal static class TextExtractionService
     internal static async Task<string> ExtractAsync(BitmapSource image, string language, CancellationToken cancellationToken = default)
         => (await RecognizeAsync(image, language, cancellationToken).ConfigureAwait(false)).Text;
 
-    internal static Task<TextExtractionResult> RecognizeAsync(BitmapSource image, string language, CancellationToken cancellationToken = default)
+    internal static Task<TextExtractionResult> RecognizeAsync(BitmapSource image, string language, CancellationToken cancellationToken = default, Action<OcrTiming>? reportTiming = null)
     {
         if (!image.IsFrozen) throw new ArgumentException("OCR requires a frozen image.", nameof(image));
         if (language != AutomaticLanguage && (string.IsNullOrEmpty(language) || language.Split('+').Any(code => !Languages.ContainsKey(code))))
             throw new ArgumentException("Unsupported OCR language.", nameof(language));
-        return Task.Run(() => Extract(image, language, cancellationToken), cancellationToken);
+        return RunRecognitionAsync(image, language, cancellationToken, reportTiming);
     }
 
-    private static TextExtractionResult Extract(BitmapSource image, string language, CancellationToken cancellationToken)
+    private static async Task<TextExtractionResult> RunRecognitionAsync(BitmapSource image, string language, CancellationToken cancellationToken, Action<OcrTiming>? reportTiming)
+    {
+        var started = Stopwatch.GetTimestamp();
+        await recognitionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            Report("queue", language, image.PixelWidth, image.PixelHeight, started, reportTiming);
+            return await Task.Run(() => Extract(image, language, cancellationToken, reportTiming), cancellationToken).ConfigureAwait(false);
+        }
+        finally { recognitionGate.Release(); }
+    }
+
+    private static TextExtractionResult Extract(BitmapSource image, string language, CancellationToken cancellationToken, Action<OcrTiming>? reportTiming)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var started = Stopwatch.GetTimestamp();
         var directory = assetDirectory.Value;
+        Report("assets", language, image.PixelWidth, image.PixelHeight, started, reportTiming);
+        var codes = language == AutomaticLanguage ? Languages.Keys.ToArray() : new[] { language };
         var candidates = new List<TextExtractionResult>();
-        RecognizeImage(image, 1);
-        var initial = MergeResults(candidates);
+        BitmapSource source = image;
+        var (pixels, stride) = CopyPixels();
+        var initial = RecognizeCode(codes[0], 1);
+        candidates.Add(initial);
         // Small UI text and folder icons can confuse document segmentation. A larger
         // working image recovers those regions; keep selections in source coordinates.
         // Bound the extra pixel buffer to 48 MB, even for very large captures.
         var heights = initial.Words.Select(word => word.Bounds.Height).Order().ToArray();
+        var scale = 1;
+        var remainingCodes = codes.Skip(1).ToArray();
         if ((heights.Length == 0 || heights[heights.Length / 2] < 20)
             && (long)image.PixelWidth * image.PixelHeight <= 4_000_000)
         {
-            var enlarged = new TransformedBitmap(image, new ScaleTransform(2, 2));
-            RecognizeImage(enlarged, 2);
+            source = new TransformedBitmap(image, new ScaleTransform(2, 2));
+            source.Freeze();
+            (pixels, stride) = CopyPixels();
+            scale = 2;
+            remainingCodes = codes;
         }
+        // Independent engines can share the immutable pixels. Keep at most two active
+        // and serialize requests so rapid toggles cannot accumulate CPU-heavy jobs.
+        var results = new TextExtractionResult[remainingCodes.Length];
+        // Short snippets are mostly model-loading work and gain little from parallelism.
+        var parallel = Environment.ProcessorCount >= 4 && (scale == 2 || initial.Words.Count >= 12);
+        var options = new ParallelOptions { CancellationToken = cancellationToken, MaxDegreeOfParallelism = parallel ? 2 : 1 };
+        Parallel.For(0, remainingCodes.Length, options, index => results[index] = RecognizeCode(remainingCodes[index], scale));
+        candidates.AddRange(results);
         cancellationToken.ThrowIfCancellationRequested();
-        return MergeResults(candidates);
+        started = Stopwatch.GetTimestamp();
+        var merged = MergeResults(candidates);
+        Report("merge", language, image.PixelWidth, image.PixelHeight, started, reportTiming);
+        return merged;
 
-        void RecognizeImage(BitmapSource source, int scale)
+        (byte[] Pixels, int Stride) CopyPixels()
         {
+            var copyStarted = Stopwatch.GetTimestamp();
             var converted = new FormatConvertedBitmap(source, PixelFormats.Rgb24, null, 0);
             var stride = checked(source.PixelWidth * 3);
             var pixels = new byte[checked(stride * source.PixelHeight)];
             converted.CopyPixels(pixels, stride, 0);
-            foreach (var code in language == AutomaticLanguage ? Languages.Keys : new[] { language })
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var result = RecognizePixels(pixels, source.PixelWidth, source.PixelHeight, stride, directory, code, cancellationToken);
-                if (scale != 1)
-                    result = result with { Words = result.Words.Select(word => word with
-                    {
-                        Bounds = new System.Windows.Rect(word.Bounds.X / scale, word.Bounds.Y / scale,
-                            word.Bounds.Width / scale, word.Bounds.Height / scale)
-                    }).ToArray() };
-                candidates.Add(result);
-            }
+            Report("pixels", language, source.PixelWidth, source.PixelHeight, copyStarted, reportTiming);
+            return (pixels, stride);
+        }
+
+        TextExtractionResult RecognizeCode(string code, int recognitionScale)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = RecognizePixels(pixels, source.PixelWidth, source.PixelHeight, stride, directory, code, cancellationToken, reportTiming);
+            if (recognitionScale != 1)
+                result = result with { Words = result.Words.Select(word => word with
+                {
+                    Bounds = new System.Windows.Rect(word.Bounds.X / recognitionScale, word.Bounds.Y / recognitionScale,
+                        word.Bounds.Width / recognitionScale, word.Bounds.Height / recognitionScale)
+                }).ToArray() };
+            return result;
         }
     }
 
-    private static TextExtractionResult RecognizePixels(byte[] pixels, int width, int height, int stride, string directory, string language, CancellationToken cancellationToken)
+    private static TextExtractionResult RecognizePixels(byte[] pixels, int width, int height, int stride, string directory, string language, CancellationToken cancellationToken, Action<OcrTiming>? reportTiming)
     {
         var engine = Native.Create();
         if (engine == IntPtr.Zero) throw new InvalidOperationException("Could not create the text recognition engine.");
         try
         {
+            var started = Stopwatch.GetTimestamp();
             if (Native.Init(engine, directory, language) != 0)
                 throw new InvalidOperationException("Could not load the text recognition language data.");
+            Report("init", language, width, height, started, reportTiming);
             // Automatic layout preserves paragraphs. No orientation model is required for screenshots.
             Native.SetPageSegMode(engine, 3);
             var pinnedPixels = GCHandle.Alloc(pixels, GCHandleType.Pinned);
@@ -89,13 +131,18 @@ internal static class TextExtractionService
                 Native.SetImage(engine, pinnedPixels.AddrOfPinnedObject(), width, height, 3, stride);
                 Native.SetSourceResolution(engine, 96);
                 cancellationToken.ThrowIfCancellationRequested();
+                started = Stopwatch.GetTimestamp();
                 var text = Native.GetText(engine);
+                Report("recognize", language, width, height, started, reportTiming);
                 if (text == IntPtr.Zero) throw new InvalidOperationException("Text recognition did not complete.");
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var recognized = (Marshal.PtrToStringUTF8(text) ?? "").Replace("\r\n", "\n").Trim().Replace("\n", Environment.NewLine);
-                    return new TextExtractionResult(recognized, ReadWords(engine, recognized, cancellationToken), Native.GetMeanConfidence(engine));
+                    started = Stopwatch.GetTimestamp();
+                    var words = ReadWords(engine, recognized, cancellationToken);
+                    Report("words", language, width, height, started, reportTiming);
+                    return new TextExtractionResult(recognized, words, Native.GetMeanConfidence(engine));
                 }
                 finally { Native.DeleteText(text); }
             }
@@ -103,6 +150,9 @@ internal static class TextExtractionService
         }
         finally { Native.Delete(engine); }
     }
+
+    private static void Report(string stage, string language, int width, int height, long started, Action<OcrTiming>? reportTiming)
+        => reportTiming?.Invoke(new OcrTiming(stage, language, width, height, Stopwatch.GetElapsedTime(started).TotalMilliseconds));
 
     internal static TextExtractionResult MergeResults(IReadOnlyList<TextExtractionResult> candidates)
     {

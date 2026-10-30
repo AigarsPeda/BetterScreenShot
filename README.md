@@ -128,17 +128,38 @@ The editor omits the persistent selection instructions, processing caption, bott
 
 Recognition uses the full-resolution original image without annotations. It runs on a worker thread, caches text and word bounds for Auto and each manual language while the editor is open, and sends no image or text to a server. Closing the panel or editor cancels the pending result; native recognition already in progress may finish in the background. Check recognized text for errors, especially small fonts and complex layouts.
 
-Auto compares recognition passes for all seven bundled languages, chooses a layout by confidence-weighted text coverage, and matches word candidates by their image bounds. This prevents an easy dates-only result from outranking a more complete file list. It uses word confidence and dictionary hints to resolve disagreements, with safeguards for diacritics and Latin/Cyrillic lookalikes. Both Auto and manual recognition retry small text at twice the image size for captures up to four million pixels. Word bounds are mapped back to the original image for selection. This is a heuristic, so a manual language can still give a better result. Auto and small-text retries can take longer. The regression fixtures include small dark file lists, all seven languages, and mixed Latin/Cyrillic text.
+Auto compares recognition passes for all seven bundled languages, chooses a layout by confidence-weighted text coverage, and matches word candidates by their image bounds. This prevents an easy dates-only result from outranking a more complete file list. It uses word confidence and dictionary hints to resolve disagreements, with safeguards for diacritics and Latin/Cyrillic lookalikes. One English pass chooses the working image size before the other Auto passes start. Both Auto and manual recognition retry small text at twice the image size for captures up to four million pixels. Auto needs eight passes for that retry instead of fourteen, retaining the original English result and running all seven models at the chosen size. Word bounds are mapped back to the original image for selection. This is a heuristic, so a manual language can still give a better result. Auto and small-text retries can take longer. The regression fixtures include small dark file lists, all seven languages, and mixed Latin/Cyrillic text.
 
 The first version supports Windows **x64** processes and needs the [Microsoft Visual C++ 2015–2022 Redistributable for x64](https://aka.ms/vs/17/release/vc_redist.x64.exe). If it is missing, the text panel explains how to resolve it. The ARM64 application still builds and runs, but OCR shows an availability message. The x64 application can be used through Windows x64 emulation on supported ARM64 PCs; this has not been tested on ARM hardware here.
 
 The native Tesseract libraries and all seven language models are embedded in the application, including portable single-EXE builds. First use extracts them into `%TEMP%/BetterScreenShot/ocr/<build-id>` and checks cached resources against the embedded SHA256 hashes. Verification and extraction stream resources directly to avoid full-resource memory buffers. Valid cached files are reused, corrupt files are repaired, and failed replacements preserve the original file and remove staging data. Extracted engine files may remain until Windows or the user clears temporary files. Recognized text is kept only in memory, unless copied to the clipboard. Upstream versions and licenses are listed in [third-party notices](THIRD-PARTY-NOTICES.md).
 
-The five additional models total 22.4 MiB before compression: Lithuanian 3.01 MiB, Estonian 4.25 MiB, Swedish 3.97 MiB, Finnish 7.50 MiB, and Russian 3.68 MiB. Manual recognition loads the chosen language. Auto processes the seven models sequentially and reuses one image pixel buffer.
+The five additional models total 22.4 MiB before compression: Lithuanian 3.01 MiB, Estonian 4.25 MiB, Swedish 3.97 MiB, Finnish 7.50 MiB, and Russian 3.68 MiB. Manual recognition loads the chosen language. Auto shares one immutable pixel buffer per working size across its language passes. On machines with at least four logical processors, enlarged images and results with at least twelve words use at most two independent engines at once. Short snippets and smaller machines process languages sequentially. A shared request gate prevents multiple editors or rapid panel toggles from accumulating active recognition jobs; waiting requests honor cancellation before starting native work. Active native passes may still finish before cancellation takes effect.
 
 The compressed self-contained x64 EXE grew from 74.41 MiB with English and Latvian to 85.14 MiB with all seven languages, an increase of 10.73 MiB or 14.4% in the measured build.
 
 The regression suite includes real recognition checks for all seven languages, Unicode word offsets, dark backgrounds, blank images, cancellation, original-image extraction, language changes, caching, and closing the editor during extraction. It also checks multiline highlighting, revealing zoomed selections, interrupted panel animations, and scrollbar paging/dragging in both themes. Render light/dark panels at narrow and normal widths with `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --ocr-preview`; images are written under `obj/ocr-preview`. Use `--ocr-smoke` for a recognition-only probe, including a relocated single-file regression build.
+
+### OCR performance measurements
+
+Run `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --ocr-benchmark` to measure wall time, process CPU time, model initialization, native recognition, pixel conversion, word extraction, merging, and queue waits. Per-pass measurements and dimensions are written to `obj/ocr-benchmark.json`. Each fixture and language uses three fresh recognition calls, bypassing the editor's text cache. The console reports medians. Timing callbacks are optional; the normal application does not write a diagnostic log.
+
+The following before/after medians were measured on the development PC with 16 logical processors. These are synthetic fixtures, not guarantees for arbitrary captures. The first call may include asset verification/extraction; subsequent calls reuse the native asset cache.
+
+| Fixture | Mode | Before | After | Native passes before/after |
+| --- | --- | ---: | ---: | ---: |
+| Three large words, 850 × 260 | Auto | 358 ms | 408 ms | 7 / 7 |
+| Three large words, 850 × 260 | English | 55 ms | 59 ms | 1 / 1 |
+| Small dark file list, 1000 × 360 | Auto | 6386 ms | 2209 ms | 14 / 8 |
+| Small dark file list, 1000 × 360 | English | 640 ms | 616 ms | 2 / 2 |
+| Sixteen text lines, 1920 × 1080 | Auto | 13371 ms | 4877 ms | 14 / 8 |
+| Sixteen text lines, 1920 × 1080 | English | 1530 ms | 1595 ms | 2 / 2 |
+| Blank, 850 × 260 | Auto | 605 ms | 288 ms | 14 / 8 |
+| Blank, 850 × 260 | English | 93 ms | 93 ms | 2 / 2 |
+
+Auto's file-list and 1080p wall times fell by 65% and 64%. Process CPU time also fell from 5984 to 3969 ms and from 12625 to 8859 ms, respectively. Short snippets and manual recognition showed little benefit and some run-to-run variation. Parallel phase durations are summed work across engines and can exceed elapsed wall time. All fixtures retained their recognized word counts, and the regression suite checks filenames, all supported languages, accents, mixed scripts, and selection bounds.
+
+Run the separate `--ocr-ui-benchmark` mode to measure the editor's dispatcher heartbeat during a 1080p Auto extraction and its cached reopening dispatch. A development run processed 152 heartbeat ticks, with a maximum gap of 57 ms, while OCR took 3878 ms. Cached reopening dispatched in 0.8 ms; the panel's 200 ms animation is separate. The raw results are written to `obj/ocr-ui-benchmark.json`.
 
 ## Runtime assets
 
