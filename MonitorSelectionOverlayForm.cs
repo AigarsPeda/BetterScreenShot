@@ -7,7 +7,6 @@ namespace BetterScreenShot
     {
         private const byte OverlayAlpha = 115;
         private const byte MonitorInputAlpha = 1;
-        private const int LwaAlpha = 0x2;
         private const int WhKeyboardLl = 13;
         private const uint WmKeyDown = 0x0100;
         private const uint WmSysKeyDown = 0x0104;
@@ -44,6 +43,7 @@ namespace BetterScreenShot
             KeyPreview = true;
             AutoScaleMode = Forms.AutoScaleMode.None;
             BackColor = Color.Black;
+            Opacity = 0;
             DoubleBuffered = true;
             SetStyle(
                 Forms.ControlStyles.UserPaint |
@@ -84,11 +84,10 @@ namespace BetterScreenShot
         {
             get
             {
-                const int WS_EX_LAYERED = 0x00080000;
                 const int WS_EX_TOOLWINDOW = 0x00000080;
 
                 var cp = base.CreateParams;
-                cp.ExStyle |= WS_EX_LAYERED | WS_EX_TOOLWINDOW;
+                cp.ExStyle |= WS_EX_TOOLWINDOW;
                 return cp;
             }
         }
@@ -101,17 +100,19 @@ namespace BetterScreenShot
             }
         }
 
-        protected override void OnHandleCreated(EventArgs e)
+        protected override void SetVisibleCore(bool value)
         {
-            base.OnHandleCreated(e);
-            SetOverlayAlpha(OverlayAlpha);
-        }
+            if (!value || Visible)
+            {
+                base.SetVisibleCore(value);
+                return;
+            }
 
-        protected override void OnShown(EventArgs e)
-        {
-            base.OnShown(e);
-            SetOverlayAlpha(OverlayAlpha);
-            BringInputToFront();
+            // Paint the full surface before the compositor can display its initial contents.
+            Opacity = 0;
+            base.SetVisibleCore(true);
+            Refresh();
+            Opacity = OverlayAlpha / 255d;
         }
 
         protected override void OnActivated(EventArgs e)
@@ -196,7 +197,6 @@ namespace BetterScreenShot
             instructionLabel.Visible = true;
             Bounds = overlayBounds;
             ResetOverlayRegion();
-            SetOverlayAlpha(OverlayAlpha);
             Invalidate();
             if (!isArea)
             {
@@ -215,7 +215,6 @@ namespace BetterScreenShot
             selectionMode = SelectionMode.None;
             Cursor = Forms.Cursors.Default;
             ResetOverlayRegion();
-            SetOverlayAlpha(OverlayAlpha);
             RestoreDefaultCursor();
             Hide();
         }
@@ -450,14 +449,6 @@ namespace BetterScreenShot
         private void ResetOverlayRegion()
         {
             UpdateOverlayRegion(null);
-        }
-
-        private void SetOverlayAlpha(byte alpha)
-        {
-            if (IsHandleCreated)
-            {
-                SetLayeredWindowAttributes(Handle, 0, alpha, LwaAlpha);
-            }
         }
 
         private static List<MonitorSelectionOverlayForm> GetOrCreateOverlays()

@@ -194,6 +194,7 @@ internal static class Program
             });
 
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            OverlayPresentationTests.Run(Check);
             Check("Real area-selection cancellation releases all overlays", () =>
             {
                 var selection = MonitorSelectionOverlayForm.SelectAreaAsync();

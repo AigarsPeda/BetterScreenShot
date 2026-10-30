@@ -8,10 +8,6 @@ namespace BetterScreenShot
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr GetModuleHandle(string? lpModuleName);
 
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
-
         [DllImport("user32.dll", EntryPoint = "SetWindowsHookExW")]
         private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hmod, uint dwThreadId);
 
@@ -127,6 +123,7 @@ namespace BetterScreenShot
                 TopMost = true;
                 Bounds = overlay.overlayBounds;
                 BackColor = Color.Black;
+                Opacity = 0;
                 Cursor = MonitorSelectionCursor;
 
                 MouseEnter += (_, _) => RefreshCursorAndHover();
@@ -153,26 +150,33 @@ namespace BetterScreenShot
             {
                 get
                 {
-                    const int WS_EX_LAYERED = 0x00080000;
                     const int WS_EX_TOOLWINDOW = 0x00000080;
                     const int WS_EX_NOACTIVATE = 0x08000000;
 
                     var cp = base.CreateParams;
-                    cp.ExStyle |= WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+                    cp.ExStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
                     return cp;
                 }
             }
 
-            protected override void OnHandleCreated(EventArgs e)
+            protected override void SetVisibleCore(bool value)
             {
-                base.OnHandleCreated(e);
-                SetLayeredWindowAttributes(Handle, 0, MonitorInputAlpha, LwaAlpha);
+                if (!value || Visible)
+                {
+                    base.SetVisibleCore(value);
+                    return;
+                }
+
+                // This input window covers a monitor too, so prepare it while invisible.
+                Opacity = 0;
+                base.SetVisibleCore(true);
+                Refresh();
+                Opacity = MonitorInputAlpha / 255d;
             }
 
             protected override void OnShown(EventArgs e)
             {
                 base.OnShown(e);
-                SetLayeredWindowAttributes(Handle, 0, MonitorInputAlpha, LwaAlpha);
                 RefreshCursorAndHover();
             }
 
