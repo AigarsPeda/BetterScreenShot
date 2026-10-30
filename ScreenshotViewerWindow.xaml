@@ -17,6 +17,31 @@
         <SolidColorBrush x:Key="ViewerPrimaryTextBrush" Color="#111827" />
         <SolidColorBrush x:Key="ViewerSecondaryTextBrush" Color="#415063" />
         <SolidColorBrush x:Key="ViewerCanvasBrush" Color="#EDEFF4" />
+        <Style x:Key="OcrSelectionHandleStyle" TargetType="Thumb">
+            <Setter Property="Width" Value="20" /><Setter Property="Focusable" Value="False" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="Transparent">
+                            <Grid>
+                                <Rectangle Name="Caret" Width="2" Fill="#409CFF" HorizontalAlignment="Center" Margin="0,6,0,2" />
+                                <Ellipse Name="Grip" Width="8" Height="8" Fill="#409CFF" Stroke="White" StrokeThickness="1"
+                                         HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Tag" Value="End">
+                                <Setter TargetName="Caret" Property="Margin" Value="0,2,0,6" />
+                                <Setter TargetName="Grip" Property="VerticalAlignment" Value="Bottom" />
+                                <Setter TargetName="Grip" Property="Margin" Value="0,0,0,2" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Fill" Value="#70B7FF" /></Trigger>
+                            <Trigger Property="IsDragging" Value="True"><Setter TargetName="Grip" Property="Fill" Value="#70B7FF" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="OcrScrollBarStyle" TargetType="ScrollBar">
             <Setter Property="Width" Value="8" />
             <Setter Property="Background" Value="Transparent" />
@@ -227,7 +252,8 @@
                   MouseMove="ImageViewport_MouseMove" MouseLeftButtonUp="ImageViewport_MouseLeftButtonUp" LostMouseCapture="Viewport_LostMouseCapture">
                 <Viewbox Name="ImageFit" Margin="20" Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
                     <Viewbox.RenderTransform><TransformGroup><ScaleTransform x:Name="ImageScaleTransform" /><TranslateTransform x:Name="ImageTranslateTransform" /></TransformGroup></Viewbox.RenderTransform>
-                    <Grid Name="ImageStage" ClipToBounds="True" PreviewMouseLeftButtonDown="ImageStage_PreviewMouseLeftButtonDown">
+                    <Grid Name="ImageStage" PreviewMouseLeftButtonDown="ImageStage_PreviewMouseLeftButtonDown">
+                        <Grid ClipToBounds="True">
                         <Image Name="ViewerImage" Stretch="Fill" IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality" />
                         <local:AnnotationSurface x:Name="Annotations" />
                         <Canvas IsHitTestVisible="False">
@@ -236,6 +262,13 @@
                         <Canvas Name="TextLayer">
                             <TextBox Name="InlineText" Visibility="Collapsed" AcceptsReturn="True" TextWrapping="NoWrap" MinWidth="80" Padding="3" BorderBrush="#409CFF" BorderThickness="1"
                                      Foreground="Black" Background="#F2FFFFFF" LostKeyboardFocus="InlineText_LostFocus" PreviewKeyDown="InlineText_KeyDown" AutomationProperties.Name="Annotation text" />
+                        </Canvas>
+                        </Grid>
+                        <Canvas>
+                            <Thumb Name="OcrSelectionStartHandle" Style="{StaticResource OcrSelectionHandleStyle}" Visibility="Collapsed" Tag="Start"
+                                   AutomationProperties.Name="Start of text selection" DragStarted="OcrSelectionHandle_DragStarted" DragDelta="OcrSelectionHandle_DragDelta" DragCompleted="OcrSelectionHandle_DragCompleted" />
+                            <Thumb Name="OcrSelectionEndHandle" Style="{StaticResource OcrSelectionHandleStyle}" Visibility="Collapsed" Tag="End"
+                                   AutomationProperties.Name="End of text selection" DragStarted="OcrSelectionHandle_DragStarted" DragDelta="OcrSelectionHandle_DragDelta" DragCompleted="OcrSelectionHandle_DragCompleted" />
                         </Canvas>
                     </Grid>
                 </Viewbox>

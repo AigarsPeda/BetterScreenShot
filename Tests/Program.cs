@@ -14,6 +14,7 @@ internal static class Program
     {
         if (args.Contains("--ocr-smoke")) return TextExtractionTests.Smoke();
         if (args.Contains("--ocr-demo")) return TextExtractionTests.Demo();
+        if (args.Contains("--ocr-selection-demo")) return TextExtractionTests.Demo(selectionHandles: true);
         if (args.Contains("--ocr-panel-demo")) return TextExtractionTests.Demo(longText: true);
         if (args.Contains("--ocr-preview")) return TextExtractionTests.Preview();
         if (args.FirstOrDefault(arg => arg.StartsWith("--readme-", StringComparison.Ordinal)) is { } readmeView)

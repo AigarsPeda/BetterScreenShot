@@ -52,6 +52,7 @@ public partial class ScreenshotViewerWindow
         var language = (string)((ComboBoxItem)OcrLanguagePicker.SelectedItem).Tag;
         if (textExtractionCancellation is not null && extractingLanguage == language) return;
         CancelTextExtraction();
+        CancelOcrSelectionDrag();
         if (extractedText.TryGetValue(language, out var cached))
         {
             ShowExtractedText(cached);
@@ -63,6 +64,8 @@ public partial class ScreenshotViewerWindow
         extractingLanguage = language;
         ExtractedTextBox.Clear();
         currentTextResult = null;
+        firstSelectedOcrWord = lastSelectedOcrWord = -1;
+        UpdateOcrSelectionHandles();
         OcrSelectionHighlight.Visibility = Visibility.Collapsed;
         CopyExtractedTextButton.IsEnabled = false;
         SetOcrStatus(language == TextExtractionService.AutomaticLanguage ? "Recognizing text automatically…" : "Recognizing text…");
@@ -95,6 +98,7 @@ public partial class ScreenshotViewerWindow
         currentTextResult = result;
         var text = result.Text;
         ExtractedTextBox.Text = text;
+        UpdateOcrTextSelection();
         CopyExtractedTextButton.IsEnabled = !string.IsNullOrWhiteSpace(text);
         SetOcrStatus(string.IsNullOrWhiteSpace(text)
             ? "No text found. Try a closer capture or choose a language in Advanced options."
@@ -108,6 +112,7 @@ public partial class ScreenshotViewerWindow
 
     private async void ImageStage_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (OcrSelectionStartHandle.IsMouseOver || OcrSelectionEndHandle.IsMouseOver) return;
         if (Annotations.Tool != AnnotationTool.Select || Keyboard.IsKeyDown(Key.Space) || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)
             || e.OriginalSource is System.Windows.Controls.TextBox) return;
         var point = e.GetPosition(ImageStage);
@@ -148,26 +153,37 @@ public partial class ScreenshotViewerWindow
         SetOcrStatus(null);
     }
 
-    private void ExtractedText_SelectionChanged(object sender, RoutedEventArgs e)
+    private void ExtractedText_SelectionChanged(object sender, RoutedEventArgs e) => UpdateOcrTextSelection();
+
+    private void UpdateOcrTextSelection()
     {
         if (OcrSelectionHighlight is null) return;
         var start = ExtractedTextBox.SelectionStart;
         var end = start + ExtractedTextBox.SelectionLength;
         var geometry = new GeometryGroup { FillRule = FillRule.Nonzero };
+        firstSelectedOcrWord = lastSelectedOcrWord = -1;
         if (end > start && currentTextResult is { } result)
         {
-            foreach (var word in result.Words)
+            for (var index = 0; index < result.Words.Count; index++)
+            {
+                var word = result.Words[index];
                 if (word.TextStart < end && word.TextStart + word.Text.Length > start)
+                {
+                    if (firstSelectedOcrWord < 0) firstSelectedOcrWord = index;
+                    lastSelectedOcrWord = index;
                     geometry.Children.Add(new RectangleGeometry(word.Bounds));
+                }
+            }
         }
         geometry.Freeze();
         OcrSelectionHighlight.Data = geometry;
         OcrSelectionHighlight.StrokeThickness = 1.5 / Math.Max(.01, Annotations.DisplayScale);
         OcrSelectionHighlight.Visibility = geometry.Children.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        UpdateOcrSelectionHandles();
         if (geometry.Children.Count > 0)
         {
             SetOcrStatus(null);
-            RevealSelectedText();
+            if (ocrDragAnchor < 0) RevealSelectedText();
         }
     }
 
@@ -245,6 +261,7 @@ public partial class ScreenshotViewerWindow
 
     private void CloseTextPanel()
     {
+        CancelOcrSelectionDrag();
         CancelTextExtraction();
         pendingWordSelection = null;
         ExtractedTextBox.Select(0, 0);

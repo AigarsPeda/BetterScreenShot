@@ -270,7 +270,11 @@ namespace BetterScreenShot
             isClosing = true;
             base.OnClosing(e);
             if (e.Cancel) isClosing = false;
-            else CancelTextExtraction();
+            else
+            {
+                CancelTextExtraction();
+                CancelOcrSelectionDrag();
+            }
         }
 
         [DllImport("dwmapi.dll")]

@@ -92,6 +92,8 @@ public partial class ScreenshotViewerWindow
     private void ChooseTool(AnnotationTool tool)
     {
         CommitText();
+        CancelOcrSelectionDrag();
+        ExtractedTextBox.Select(0, 0);
         Annotations.Tool = tool;
         foreach (var button in toolButtons) button.IsChecked = Equals(button.Tag, tool);
         SyncEditor();
@@ -230,11 +232,18 @@ public partial class ScreenshotViewerWindow
             Math.Max(1, ImageViewport.ActualHeight - 40) / ImageStage.Height) * currentZoom);
         Annotations.DrawSelection();
         OcrSelectionHighlight.StrokeThickness = 1.5 / Annotations.DisplayScale;
+        UpdateOcrSelectionHandles();
         FitButton.Content = $"{Annotations.DisplayScale * 100:0}%";
     }
 
     private void Editor_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && ocrDragAnchor >= 0)
+        {
+            CancelOcrSelectionDrag();
+            e.Handled = true;
+            return;
+        }
         if (Keyboard.FocusedElement is TextBox || Keyboard.FocusedElement is ComboBox) return;
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         if (ctrl)

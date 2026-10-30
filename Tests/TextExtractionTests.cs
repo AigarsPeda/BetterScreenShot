@@ -11,12 +11,13 @@ using Brushes = System.Windows.Media.Brushes;
 
 internal static class TextExtractionTests
 {
-    internal static int Demo(bool longText = false)
+    internal static int Demo(bool longText = false, bool selectionHandles = false)
     {
         var app = new System.Windows.Application();
-        var image = longText ? Fixture(string.Join(Environment.NewLine, Enumerable.Range(1, 22).Select(line => $"Line {line:D2} Select these words.")), height: 1400) : Fixture();
+        var image = selectionHandles ? Fixture("Select words on this line\nand continue on the next line.")
+            : longText ? Fixture(string.Join(Environment.NewLine, Enumerable.Range(1, 22).Select(line => $"Line {line:D2} Select these words.")), height: 1400) : Fixture();
         var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(Path.GetTempPath(), "BetterScreenShot-ocr-demo-unused.png")), image)
-            { Title = "Text selection test" };
+            { Title = selectionHandles ? "Text selection handles" : "Text selection test" };
         app.Run(window);
         return 0;
     }
@@ -75,6 +76,7 @@ internal static class TextExtractionTests
     internal static void Run(Action<string, Action> check, string directory)
     {
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) return;
+        TextSelectionTests.Run(check, directory);
         check("Tesseract recognizes English, dark backgrounds and Latvian diacritics from memory", () =>
         {
             foreach (var dark in new[] { false, true })
@@ -387,7 +389,7 @@ internal static class TextExtractionTests
         }
     }
 
-    private static void Complete(Task task)
+    internal static void Complete(Task task)
     {
         var frame = new DispatcherFrame();
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(10) };
