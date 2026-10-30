@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <Authors>A. Peda</Authors>
+    <Company>A. Peda</Company>
+    <Copyright>Copyright © 2026 A. Peda</Copyright>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,7 +19,13 @@
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs" />
     <EmbeddedResource Include="assets\camera.svg" LogicalName="BetterScreenShot.assets.camera.svg" />
-
+    <EmbeddedResource Include="assets\ocr\*.traineddata" LogicalName="BetterScreenShot.ocr.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="assets\ocr\LICENSE" LogicalName="BetterScreenShot.ocr.LICENSE" />
+    <EmbeddedResource Include="THIRD-PARTY-NOTICES.md" LogicalName="BetterScreenShot.ocr.NOTICES" />
+    <!-- Only the native engine is used, through Tesseract's stable C API. -->
+    <PackageDownload Include="TesseractOCR" Version="[5.5.2]" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)tesseractocr\5.5.2\x64\leptonica-1.85.0.dll" LogicalName="BetterScreenShot.ocr.leptonica-1.85.0.dll" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)tesseractocr\5.5.2\x64\tesseract55.dll" LogicalName="BetterScreenShot.ocr.tesseract55.dll" />
   </ItemGroup>
 
 </Project>

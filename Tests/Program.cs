@@ -12,6 +12,10 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Contains("--ocr-smoke")) return TextExtractionTests.Smoke();
+        if (args.Contains("--ocr-demo")) return TextExtractionTests.Demo();
+        if (args.Contains("--ocr-panel-demo")) return TextExtractionTests.Demo(longText: true);
+        if (args.Contains("--ocr-preview")) return TextExtractionTests.Preview();
         if (args.FirstOrDefault(arg => arg.StartsWith("--readme-", StringComparison.Ordinal)) is { } readmeView)
             return ReadmeScreenshots.Demo(readmeView);
         if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();
@@ -214,6 +218,7 @@ internal static class Program
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
             CaptureShortcutTests.Run(Check, directory);
             AnnotationTests.Run(Check, directory);
+            TextExtractionTests.Run(Check, directory);
             OverlayPresentationTests.Run(Check);
             Check("Real area-selection cancellation releases all overlays", () =>
             {

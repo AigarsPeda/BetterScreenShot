@@ -1,6 +1,8 @@
 # BetterScreenShot
 
-A Windows screenshot app built with C# and WPF.
+A Windows screenshot app built with C# and WPF. Created by A. Peda.
+
+For the code structure, release checks, and development pitfalls, see the [project handoff](HANDOFF.md).
 
 ## Features
 
@@ -10,6 +12,7 @@ A Windows screenshot app built with C# and WPF.
 - Save actual PNG, JPEG, or BMP images.
 - Screenshot editor with smoothed pen strokes, translucent highlights, underlines, arrows, rectangles, circles, and text.
 - Click annotations to move, resize, recolor, or delete them. Double-click text to edit it; undo and redo work across edits.
+- Extract English, Latvian, Lithuanian, Estonian, Swedish, Finnish, and Russian text locally with Tesseract, then select a passage or copy all text.
 
 ## Screenshots
 
@@ -87,7 +90,7 @@ Capture uses a compositor flush instead of fixed sleeps, then copies the capture
 
 Use the markup toolbar or the shortcuts V (select), H (pan), P (pen), M (highlight), L (underline/line), A (arrow), R (rectangle), O (circle/oval), and T (text). Click any annotation to select it, including while another tool is active. Drag it to move it, drag a corner to resize, choose a color or stroke width, or press Delete. Double-click text to edit it. Enter commits text; Shift+Enter adds a line; Esc cancels the current operation.
 
-Toolbar controls share a 32-pixel height, centered icons and swatches, and consistent spacing. Undo, redo, and delete sit together. Groups wrap at narrower window widths while keeping the controls the same height. Light and dark toolbar previews can be rendered with `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --editor-toolbar-preview`; images are written under `obj/editor-toolbar-preview`.
+Toolbar controls share a 32-pixel height and consistent spacing. Click **Color** to open the color menu, including custom colors. The button shows the active color; selecting an annotation updates it to that annotation's color. Undo, redo, and delete sit together. Groups wrap at narrower window widths while keeping the controls the same height. Light and dark toolbar previews can be rendered with `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --editor-toolbar-preview`; images are written under `obj/editor-toolbar-preview`.
 
 Hold Shift while drawing for squares, circles, or 45-degree lines. Hold Space to pan or Alt to draw over an existing annotation. Ctrl+Z undoes an operation; Ctrl+Shift+Z or Ctrl+Y redoes it. Scroll to zoom and click the zoom percentage to fit the image.
 
@@ -106,6 +109,26 @@ dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release --
 ```
 
 The benchmark measures stroke geometry updates with 300 existing annotations, full-resolution compositing, and PNG encoding separately. It measures CPU work, not display frame rate, and results vary with hardware.
+
+## Text extraction
+
+Open a capture in the editor, use the **Select** tool, and **double-click a word directly on the image**. Recognition starts automatically, the word is highlighted, and the same word is selected in the text panel. Press **Ctrl+C** to copy just that word. Word highlights follow zoom and pan and are excluded from copied or saved images. Double-clicking an editable text annotation still edits that annotation.
+
+You can also click **Extract text**, or press **Ctrl+Shift+T** with the canvas focused. Choose English, Latvian, Lithuanian, Estonian, Swedish, Finnish, or Russian in the results panel. English + Latvian is also available for mixed-language captures. Double-click a word in the panel or drag to select a passage and use Ctrl+C, or click **Copy all text**. The editor's existing Copy button still copies the image with annotations.
+
+Selecting a passage in the panel highlights every matching word in the image, including selections across lines. The viewer brings off-screen selections into view when zoomed. The panel slides open and closed over 200 ms, respecting the Windows animation setting. Its narrow scrollbar follows the application theme and supports dragging, page clicks, and the mouse wheel.
+
+Recognition uses the full-resolution original image without annotations. It runs on a worker thread, caches text and word bounds for each language while the editor is open, and sends no image or text to a server. Closing the panel or editor cancels the pending result; native recognition already in progress may finish in the background. Check recognized text for errors, especially small fonts and complex layouts.
+
+The first version supports Windows **x64** processes and needs the [Microsoft Visual C++ 2015–2022 Redistributable for x64](https://aka.ms/vs/17/release/vc_redist.x64.exe). If it is missing, the text panel explains how to resolve it. The ARM64 application still builds and runs, but OCR shows an availability message. The x64 application can be used through Windows x64 emulation on supported ARM64 PCs; this has not been tested on ARM hardware here.
+
+The native Tesseract libraries and all seven language models are embedded in the application, including portable single-EXE builds. First use extracts them into `%TEMP%/BetterScreenShot/ocr/<build-id>` and checks cached resources against the embedded SHA256 hashes. Extracted engine files may remain until Windows or the user clears temporary files. Recognized text is kept only in memory, unless copied to the clipboard. Upstream versions and licenses are listed in [third-party notices](THIRD-PARTY-NOTICES.md).
+
+The five additional models total 22.4 MiB before compression: Lithuanian 3.01 MiB, Estonian 4.25 MiB, Swedish 3.97 MiB, Finnish 7.50 MiB, and Russian 3.68 MiB. Recognition loads the chosen language, so unused models affect download and cache size rather than being loaded into every OCR engine.
+
+The compressed self-contained x64 EXE grew from 74.41 MiB with English and Latvian to 85.14 MiB with all seven languages, an increase of 10.73 MiB or 14.4% in the measured build.
+
+The regression suite includes real recognition checks for all seven languages, Unicode word offsets, dark backgrounds, blank images, cancellation, original-image extraction, language changes, caching, and closing the editor during extraction. It also checks multiline highlighting, revealing zoomed selections, interrupted panel animations, and scrollbar paging/dragging in both themes. Render light/dark panels at narrow and normal widths with `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --ocr-preview`; images are written under `obj/ocr-preview`. Use `--ocr-smoke` for a recognition-only probe, including a relocated single-file regression build.
 
 ## Runtime assets
 

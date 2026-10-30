@@ -340,10 +340,9 @@ internal static class AnnotationTests
                     var copy = (System.Windows.Controls.Button)window.FindName("CopyButton");
                     var copyPosition = copy.TranslatePoint(new Point(), window);
                     Require(copyPosition.X >= 0 && copyPosition.X + copy.ActualWidth < width);
-                    var toolbarControls = new[] { "UndoButton", "RedoButton", "StrokeWidthPicker", "FontSizePicker", "RemoveButton", "SketchToggle" }
+                    var toolbarControls = new[] { "UndoButton", "RedoButton", "StrokeWidthPicker", "FontSizePicker", "RemoveButton", "SketchToggle", "ColorPickerButton" }
                         .Select(name => (System.Windows.Controls.Control)window.FindName(name))
-                        .Concat(((StackPanel)window.FindName("ToolsPanel")).Children.OfType<System.Windows.Controls.Control>())
-                        .Concat(((StackPanel)window.FindName("ColorsPanel")).Children.OfType<System.Windows.Controls.Control>());
+                        .Concat(((StackPanel)window.FindName("ToolsPanel")).Children.OfType<System.Windows.Controls.Control>());
                     foreach (var control in toolbarControls)
                     {
                         if (Math.Abs(control.ActualHeight - 32) >= .01)
@@ -353,6 +352,12 @@ internal static class AnnotationTests
                     }
                     Require(((FrameworkElement)window.FindName("ImageViewport")).ActualHeight > 300);
                 }
+                var palette = ((System.Windows.Controls.Button)window.FindName("ColorPickerButton")).ContextMenu;
+                Require(palette.Items.Count == 9 && !palette.IsOpen);
+                var blue = palette.Items.OfType<System.Windows.Controls.MenuItem>().Single(item => System.Windows.Automation.AutomationProperties.GetName(item) == "Blue");
+                blue.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                Require(((AnnotationSurface)window.FindName("Annotations")).InkColor == (Color)blue.Tag && blue.IsChecked);
+                Require(((SolidColorBrush)((System.Windows.Shapes.Ellipse)window.FindName("CurrentColorSwatch")).Fill).Color == (Color)blue.Tag);
                 var beginText = typeof(ScreenshotViewerWindow).GetMethod("BeginText", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 var commit = typeof(ScreenshotViewerWindow).GetMethod("CommitText", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 beginText.Invoke(window, [new Point(30, 50)]);

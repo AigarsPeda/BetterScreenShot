@@ -1,0 +1,94 @@
+# Project handoff
+
+Last reviewed: 2026-10-30. Source baseline: `d21d66c`.
+
+This is the starting point for another developer or coding agent. Keep it in the repository and update it when architecture, release procedures, or known limitations change. Check `git status` and recent commits before relying on the status recorded here.
+
+## Start here
+
+- [README](README.md) covers installation, portable builds, local development, shortcuts, editing, and test commands.
+- [Style guide](STYLEGUIDE.md) describes the desktop UI direction. Use the current XAML as the reference for implemented dimensions and behavior.
+- [Screenshot guide](docs/screenshots/README.md) explains how to refresh the public screenshots using demo content.
+
+## Development workflow
+
+The app targets .NET 8 on Windows and uses both WPF and Windows Forms. Build with a compatible .NET SDK on Windows. The regression runner needs an interactive desktop because some checks create native windows and selection overlays.
+
+Use the commands in [local development](README.md#to-run-locally) and [checks](README.md#checks). There are no third-party test packages.
+
+Exit the resident installed app from its tray menu before testing a different development or portable build. A second normal launch opens the existing instance; a second background launch exits quietly. Otherwise, it is easy to mistake the installed version for the version just built.
+
+Demo windows run through the regression executable with isolated sample data. Close them before rebuilding. A lingering regression process can lock `Tests/bin/.../BetterScreenShot.dll`; identify the specific test process rather than stopping all screenshot app processes.
+
+## Code map
+
+| Area | Main files and responsibilities |
+| --- | --- |
+| App lifetime | [App.xaml.cs](App.xaml.cs) handles startup and command-line modes. [BackgroundInstance.cs](BackgroundInstance.cs) coordinates one instance per Windows user through a named mutex and show/exit events. |
+| Background operation | [MainWindow.Background.cs](MainWindow.Background.cs), [TrayController.cs](TrayController.cs), and [StartupRegistration.cs](StartupRegistration.cs) manage the hidden launcher, tray menu, and sign-in startup. |
+| Capture flow | [MainWindow.xaml.cs](MainWindow.xaml.cs) orchestrates selection, capture, and preview. [ScreenshotCaptureService.cs](ScreenshotCaptureService.cs) copies pixels and creates the frozen preview image. |
+| Selection overlays | [MonitorSelectionOverlayForm.cs](MonitorSelectionOverlayForm.cs) and its partial files handle monitor and area selection. [CaptureSelectionSession.cs](CaptureSelectionSession.cs) controls completion and cleanup. [CaptureGeometry.cs](CaptureGeometry.cs), [MonitorGeometry.cs](MonitorGeometry.cs), and [DesktopWindowService.cs](DesktopWindowService.cs) handle coordinates, DPI, and desktop placement. |
+| Capture shortcuts | [GlobalCaptureShortcuts.cs](GlobalCaptureShortcuts.cs) owns native registrations. [CaptureShortcutSettings.cs](CaptureShortcutSettings.cs) validates and stores bindings. [MainWindow.Shortcuts.cs](MainWindow.Shortcuts.cs) connects them to the launcher and dialog. |
+| Shortcut recording | [CaptureShortcutsWindow.xaml.cs](CaptureShortcutsWindow.xaml.cs) and [ShortcutRecordingHook.cs](ShortcutRecordingHook.cs) temporarily intercept input while a field is listening. |
+| Preview and files | [ScreenshotToastWindow.xaml.cs](ScreenshotToastWindow.xaml.cs) manages preview actions and transfers temporary-file ownership to the editor. [TemporaryScreenshot.cs](TemporaryScreenshot.cs) and [ScreenshotFileService.cs](ScreenshotFileService.cs) handle cleanup and exports. |
+| Editor | [ScreenshotViewerWindow.xaml](ScreenshotViewerWindow.xaml), its code-behind, and the Editor/ContextMenu partial files implement tools, inline text, copy, save, and quick actions. |
+| Annotations | [ImageAnnotation.cs](ImageAnnotation.cs) contains the annotation model and document history/rendering. [AnnotationSurface.cs](AnnotationSurface.cs) handles selection and gestures. [SketchGeometry.cs](SketchGeometry.cs) creates deterministic sketch outlines. |
+| Text extraction | [TextExtractionService.cs](TextExtractionService.cs) calls Tesseract's C API on a worker thread. [ScreenshotViewerWindow.TextExtraction.cs](ScreenshotViewerWindow.TextExtraction.cs) owns the results panel, cancellation, language cache, and text clipboard action. |
+| Themes and assets | [ThemeIconService.cs](ThemeIconService.cs) supplies theme resources and window icons. The executable icon and camera cursor are embedded through [BetterScreenShot.csproj](BetterScreenShot.csproj). |
+| Verification | [Tests/Program.cs](Tests/Program.cs) runs regression checks and dispatches demo/benchmark modes. [Tests/ReadmeScreenshots.cs](Tests/ReadmeScreenshots.cs) opens the documentation fixtures. |
+
+## Behavior to preserve
+
+- Shortcut capture keeps the launcher hidden before and after selection. Full-screen capture still lets the user choose a monitor; area capture still requires a drag. Both finish with the usual side preview. Do not replace this flow with automatic saving or copying.
+- First-use overlays paint while transparent, then apply their dimming opacity. Preserve that ordering and cached-overlay reuse when changing capture initialization. Regressions can blank or flash both monitors.
+- Annotations remain editable in the open editor. Clicking a mark selects it across drawing and pan tools. Curved arrows and lines have editable endpoints and a midpoint. Sketch style starts enabled, and exports use the same geometry as the editor.
+- Copy composites the entire image with its current annotations at original pixel dimensions. It finishes inline text, leaves the editor open, and writes no saved export. Ctrl+C in a text field keeps its normal text-copy behavior. Background rendering uses an independent snapshot.
+- A capture's temporary file belongs to the preview until ownership transfers to the editor. Closing its owner removes it. Saved exports remain on disk. See the README for the full lifetime rules.
+- Toolbar controls share a 32-DIP height and wrap in groups. Color presets and custom color are in the Color button's menu; its swatch tracks the active annotation color. Check both themes and narrow windows when changing control templates or spacing.
+- Recording protection lasts only while a shortcut field listens, with intercepted releases drained afterward. It does not give a saved shortcut priority over Windows or another app. Native registration must still report conflicts. Fn is not a reliable Windows modifier.
+
+## Installation and releases
+
+Follow [installation](README.md#install-on-windows) and [portable publishing](README.md#portable-single-executable) for commands and output paths. The release entry points are [Publish-Installer.ps1](scripts/Publish-Installer.ps1) and [Publish-Portable.ps1](scripts/Publish-Portable.ps1). Generated `artifacts`, `bin`, and `obj` directories are ignored by Git and must be rebuilt after source changes.
+
+The installed app lives at `%LOCALAPPDATA%/Programs/BetterScreenShot`. [Install.ps1](scripts/Install.ps1) creates its Start menu shortcut, sign-in startup entry, and per-user Installed apps entry. It enables startup when installing or updating. Preferences live separately at `%LOCALAPPDATA%/BetterScreenShot/shortcuts.json`.
+
+Application author, company, and installer publisher are A. Peda. The seven-language x64 self-contained build measures 85.14 MiB, compared with 74.41 MiB for the English/Latvian build before the five additional models.
+
+The uninstall entry points to the installed EXE with `--uninstall`. That mode launches the adjacent [Uninstall.ps1](scripts/Uninstall.ps1) and exits, allowing the script to remove the app files. The uninstaller removes the startup and installation entries while retaining preferences and saved screenshots. The installed package needs this script beside the EXE; the portable EXE needs no companion files for normal operation.
+
+### Installation verification matters
+
+During development, an isolated execution environment could read an uninstall registry entry that a command launched from the normal Windows desktop could not see. Settings and Programs and Features also omitted the app. Running the installer from the normal desktop resolved the missing entry, and the user confirmed it appeared in Installed apps.
+
+Run `Install.cmd` from File Explorer for a real user installation. Do not treat a successful registry query inside a build or agent environment as proof that Windows sees the installation. Verify the actual Installed apps view, including name, icon, version, and size. Check that the installed executable matches the published build and that the background process restarts.
+
+An update exits the resident app. Preserve any open screenshots or unsaved editor work before applying it. The `--exit` switch signals the current user's running instance, so avoid using it casually in benchmarks or process probes.
+
+### Packaging constraints
+
+Self-contained builds bundle .NET and compress managed assemblies. Framework-dependent builds are smaller but require the matching .NET 8 Windows Desktop Runtime. WPF trimming is unsupported; do not enable trimming simply to reduce size. The camera cursor must remain embedded rather than loaded from a loose asset file.
+
+The scripts accept `win-x64` and `win-arm64`. The recorded packaging checks used x64 on the development PC. Portable execution does not create an Installed apps entry or automatically enable startup. Copying the EXE to another computer does not transfer that user's shortcut preferences.
+
+## Validation and current status
+
+The Tesseract addition has 70 passing regression checks, including recognition in English, Latvian, Lithuanian, Estonian, Swedish, Finnish, and Russian, dark backgrounds, blank images, cancellation, language selection, caching, word bounds/offsets, word and multiline selection, interrupted panel transitions, scrollbar paging/dragging in both themes, and editor lifetime. With the Select tool active, double-clicking an original image word starts recognition if needed, highlights the word, and selects it in the focused text panel for Ctrl+C. Selecting a passage in the panel highlights all overlapping image words and reveals selections outside the viewport. Highlights share the image transforms and do not enter exports. The panel slides open/closed over 200 ms, respecting Windows animation preferences, and has a themed 8-DIP scrollbar. Live double-click selection was also checked before extraction, in the panel, and after zooming. Editable annotations retain their existing input behavior. OCR supports x64 processes and requires the Visual C++ x64 runtime. The pinned NuGet package supplies only native libraries; the app does not reference its managed wrapper. Models and native libraries are embedded, then verified and extracted into a build-specific temporary cache on first use. See [text extraction](README.md#text-extraction) and [third-party notices](THIRD-PARTY-NOTICES.md).
+
+Before the OCR addition, the source baseline completed with **60 passed, 0 failed**. It covered capture geometry and overlays, background operation, shortcut registration/recording, annotation history and rendering, copy behavior, exports, and toolbar layout. Documentation fixtures were subsequently built and captured successfully; all three committed screenshot files decoded and their README paths resolved.
+
+Portable x64 builds were launched after copying only the EXE into empty folders. The self-contained probe used nonexistent .NET search paths and a fresh extraction cache. Those launch timings measured startup and secondary-instance dispatch, not full editor readiness or screenshot latency. Sizes and measurements are recorded in the README.
+
+Physical mixed-DPI monitor checks and a transfer to a separate PC remain manual release checks. ARM64 execution has not been validated here. The uninstall launch mode was exercised with a harmless fixture script; a destructive full uninstall was not performed as part of that verification.
+
+There is no unfinished feature request recorded at this baseline. Check the working tree and current user request before planning further work. Do not infer a request to commit, push, reinstall, or uninstall from this document alone.
+
+## Suggested skills
+
+These are optional agent workflows, not application dependencies:
+
+- `karpathy-guidelines` for focused changes with clear verification criteria.
+- `computer-use` for observing and testing native Windows behavior. Follow the current tool instructions and stop app input when the user interrupts it.
+- `code-simplifier` for scoped cleanup that preserves behavior.
+- `unslop` for plain documentation and release notes.
+- `handoff` when updating the project context for a later session. Keep this project guide linked to the detailed documentation rather than duplicating it.

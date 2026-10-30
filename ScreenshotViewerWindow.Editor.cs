@@ -12,6 +12,7 @@ using Button = System.Windows.Controls.Button;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ColorConverter = System.Windows.Media.ColorConverter;
+using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace BetterScreenShot;
 
@@ -22,13 +23,17 @@ public partial class ScreenshotViewerWindow
     private int editingTextIndex = -1;
     private Point textPosition;
     private readonly List<ToggleButton> toolButtons = [];
-    private readonly List<ToggleButton> colorButtons = [];
+    private readonly List<MenuItem> colorItems = [];
 
     private void InitializeEditor(BitmapSource image)
     {
         ImageStage.Width = Annotations.Width = image.PixelWidth;
         ImageStage.Height = Annotations.Height = image.PixelHeight;
         ImageDetails.Text = $"{image.PixelWidth} × {image.PixelHeight} pixels";
+        foreach (var language in TextExtractionService.Languages)
+            OcrLanguagePicker.Items.Add(new ComboBoxItem { Content = language.Value, Tag = language.Key });
+        OcrLanguagePicker.Items.Add(new ComboBoxItem { Content = "English + Latvian", Tag = "eng+lav" });
+        OcrLanguagePicker.SelectedIndex = 0;
         (AnnotationTool Tool, string Label, string Key, string Icon)[] tools =
         [
             (AnnotationTool.Select, "Select", "V", "M5 3l14 9-7 1-3 7z"),
@@ -61,20 +66,20 @@ public partial class ScreenshotViewerWindow
         foreach (var (name, hex) in colors)
         {
             var color = (Color)ColorConverter.ConvertFromString(hex);
-            var button = new ToggleButton
-            {
-                Style = (Style)FindResource("ToolStyle"), Width = 24, Margin = new Thickness(1, 2, 1, 2), Tag = color, ToolTip = name,
-                Content = new System.Windows.Shapes.Ellipse { Width = 16, Height = 16, Fill = new SolidColorBrush(color), Stroke = new SolidColorBrush(Colors.Gray), StrokeThickness = .5 }
-            };
-            AutomationProperties.SetName(button, name);
-            button.Click += (_, _) => ChooseColor(color);
-            ColorsPanel.Children.Add(button);
-            colorButtons.Add(button);
+            var header = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            header.Children.Add(new System.Windows.Shapes.Ellipse { Width = 14, Height = 14, Margin = new Thickness(0, 0, 10, 0),
+                Fill = new SolidColorBrush(color), Stroke = new SolidColorBrush(Colors.Gray), StrokeThickness = .5 });
+            header.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center });
+            var item = new MenuItem { Header = header, Tag = color, IsCheckable = true, Style = (Style)FindResource("AnnotationMenuItemStyle") };
+            AutomationProperties.SetName(item, name);
+            item.Click += (_, _) => ChooseColor(color);
+            ColorPaletteMenu.Items.Add(item);
+            colorItems.Add(item);
         }
-        var custom = new Button { Style = (Style)FindResource("ToolbarActionStyle"), Content = "+", Width = 32, FontSize = 18, Padding = new Thickness(0), ToolTip = "Custom color" };
+        var custom = new MenuItem { Header = "Custom color…", Style = (Style)FindResource("AnnotationMenuItemStyle") };
         AutomationProperties.SetName(custom, "Custom color");
-        custom.Click += (_, _) => ChooseCustomColor();
-        ColorsPanel.Children.Add(custom);
+        custom.Click += (_, _) => { ColorPaletteMenu.IsOpen = false; ChooseCustomColor(); };
+        ColorPaletteMenu.Items.Add(custom);
         Annotations.SelectionChanged += SyncEditor;
         Annotations.TextRequested += BeginText;
         Annotations.ContextRequested += ShowAnnotationMenu;
@@ -94,7 +99,7 @@ public partial class ScreenshotViewerWindow
 
     private static string ToolDescription(AnnotationTool tool) => tool switch
         {
-            AnnotationTool.Select => "Click to select. Drag to move; drag a corner to resize. Double-click text to edit.",
+            AnnotationTool.Select => "Double-click an image word to select and copy it. Click a mark to select; double-click a text annotation to edit.",
             AnnotationTool.Hand => "Drag to pan. Scroll to zoom. Click the zoom percentage to fit.",
             AnnotationTool.Text => "Click to add text. Enter to finish; Shift+Enter for a new line. Esc to cancel.",
             AnnotationTool.Pen => "Draw freely. Strokes are smoothed; nearly straight strokes are tidied. Space to pan.",
@@ -107,7 +112,26 @@ public partial class ScreenshotViewerWindow
         Annotations.InkColor = color;
         if (InlineText.IsVisible) InlineText.Foreground = new SolidColorBrush(color);
         else Annotations.ChangeSelected(item => item.Color = color);
-        foreach (var button in colorButtons) button.IsChecked = Equals(button.Tag, color);
+        UpdateColorPicker(color);
+    }
+
+    private void ColorPickerButton_Click(object sender, RoutedEventArgs e)
+    {
+        ColorPaletteMenu.PlacementTarget = ColorPickerButton;
+        ColorPaletteMenu.IsOpen = true;
+    }
+
+    private void UpdateColorPicker(Color color)
+    {
+        CurrentColorSwatch.Fill = new SolidColorBrush(color);
+        foreach (var item in colorItems)
+        {
+            item.IsChecked = Equals(item.Tag, color);
+            item.InputGestureText = item.IsChecked ? "✓" : "";
+        }
+        var name = colorItems.FirstOrDefault(item => Equals(item.Tag, color)) is { } selected
+            ? AutomationProperties.GetName(selected) : $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+        ColorPickerButton.ToolTip = $"Annotation color: {name}";
     }
 
     private void SketchToggle_Click(object sender, RoutedEventArgs e)
@@ -124,7 +148,7 @@ public partial class ScreenshotViewerWindow
         if (selected is not null)
         {
             Annotations.InkColor = selected.Color;
-            foreach (var button in colorButtons) button.IsChecked = Equals(button.Tag, selected.Color);
+            UpdateColorPicker(selected.Color);
             var width = selected.Tool == AnnotationTool.Highlight ? selected.Width / 5 : selected.Width;
             StrokeWidthPicker.SelectedIndex = width <= 2 ? 0 : width >= 7 ? 2 : 1;
             if (selected.Tool == AnnotationTool.Text)
@@ -221,6 +245,7 @@ public partial class ScreenshotViewerWindow
         Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageViewport.ActualWidth - 40) / ImageStage.Width,
             Math.Max(1, ImageViewport.ActualHeight - 40) / ImageStage.Height) * currentZoom);
         Annotations.DrawSelection();
+        OcrSelectionHighlight.StrokeThickness = 1.5 / Annotations.DisplayScale;
         FitButton.Content = $"{Annotations.DisplayScale * 100:0}%";
     }
 
@@ -232,6 +257,7 @@ public partial class ScreenshotViewerWindow
         {
             switch (e.Key)
             {
+                case Key.T when Keyboard.Modifiers.HasFlag(ModifierKeys.Shift): ExtractTextButton_Click(sender, e); break;
                 case Key.Z when Keyboard.Modifiers.HasFlag(ModifierKeys.Shift): RedoButton_Click(sender, e); break;
                 case Key.Z: UndoButton_Click(sender, e); break;
                 case Key.Y: RedoButton_Click(sender, e); break;

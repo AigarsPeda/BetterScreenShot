@@ -271,6 +271,7 @@ namespace BetterScreenShot
             isClosing = true;
             base.OnClosing(e);
             if (e.Cancel) isClosing = false;
+            else CancelTextExtraction();
         }
 
         [DllImport("dwmapi.dll")]
