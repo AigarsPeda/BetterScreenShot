@@ -1,13 +1,10 @@
 using System;
-using System.IO;
+using System.Windows.Media.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using Microsoft.Win32;
-using MediaColor = System.Windows.Media.Color;
-using MediaColorConverter = System.Windows.Media.ColorConverter;
-using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 using Point = System.Windows.Point;
 using WpfCursors = System.Windows.Input.Cursors;
 using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
@@ -21,33 +18,27 @@ namespace BetterScreenShot
         private const double MaxZoom = 5.0;
         private const double ZoomStep = 0.2;
 
-        private readonly string filePath;
-        private bool shouldDeleteTemporaryFile = true;
+        private readonly TemporaryScreenshot screenshot;
         private bool isDragging;
         private Point lastDragPoint;
         private double currentZoom = 1.0;
 
         public ScreenshotViewerWindow(string filePath)
+            : this(new TemporaryScreenshot(filePath), ScreenshotFileService.LoadBitmap(filePath))
         {
-            InitializeComponent();
-            this.filePath = filePath;
-
-            if (!File.Exists(filePath))
-            {
-                System.Windows.MessageBox.Show("The screenshot file no longer exists.", "Screenshot Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
-                Close();
-                return;
-            }
-
-            ViewerImage.Source = ScreenshotFileService.LoadBitmap(filePath);
-            Closed += ScreenshotViewerWindow_Closed;
-            Closed += ScreenshotViewerWindow_OnClosed;
-            SourceInitialized += ScreenshotViewerWindow_SourceInitialized;
-            SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
-            ApplyThemeFromSystem();
-            UpdateZoomState();
         }
 
+        internal ScreenshotViewerWindow(TemporaryScreenshot screenshot, BitmapSource image)
+        {
+            InitializeComponent();
+            this.screenshot = screenshot;
+            ViewerImage.Source = image;
+            ApplyThemeFromSystem();
+            UpdateZoomState();
+            Closed += ScreenshotViewerWindow_Closed;
+            SourceInitialized += ScreenshotViewerWindow_SourceInitialized;
+            SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        }
         private void ScreenshotViewerWindow_SourceInitialized(object? sender, EventArgs e)
         {
             ApplyThemeFromSystem();
@@ -61,38 +52,7 @@ namespace BetterScreenShot
             ApplyTitleBarTheme(theme);
         }
 
-        private void ApplyTheme(AppTheme theme)
-        {
-            if (theme == AppTheme.Dark)
-            {
-                SetBrushColor("ViewerPageBackgroundBrush", "#0F172A");
-                SetBrushColor("ViewerSurfaceBrush", "#111827");
-                SetBrushColor("ViewerSurfaceBorderBrush", "#243041");
-                SetBrushColor("ViewerSurfaceHoverBrush", "#172134");
-                SetBrushColor("ViewerSurfacePressedBrush", "#1C2940");
-                SetBrushColor("ViewerPrimaryTextBrush", "#E5EEF9");
-                SetBrushColor("ViewerSecondaryTextBrush", "#94A3B8");
-                SetBrushColor("ViewerCanvasBrush", "#0B1220");
-                return;
-            }
-
-            SetBrushColor("ViewerPageBackgroundBrush", "#F7F9FC");
-            SetBrushColor("ViewerSurfaceBrush", "#FFFFFF");
-            SetBrushColor("ViewerSurfaceBorderBrush", "#D8E1EC");
-            SetBrushColor("ViewerSurfaceHoverBrush", "#F5F9FD");
-            SetBrushColor("ViewerSurfacePressedBrush", "#EEF4FB");
-            SetBrushColor("ViewerPrimaryTextBrush", "#111827");
-            SetBrushColor("ViewerSecondaryTextBrush", "#415063");
-            SetBrushColor("ViewerCanvasBrush", "#EDEFF4");
-        }
-
-        private void SetBrushColor(string resourceKey, string colorHex)
-        {
-            if (Resources.Contains(resourceKey))
-            {
-                Resources[resourceKey] = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString(colorHex));
-            }
-        }
+        private void ApplyTheme(AppTheme theme) => ThemeIconService.ApplyViewerTheme(Resources, theme);
 
         private void ApplyTitleBarTheme(AppTheme theme)
         {
@@ -211,69 +171,47 @@ namespace BetterScreenShot
         {
             try
             {
-                var savedPath = ScreenshotFileService.SaveCopyAs(filePath);
+                var savedPath = ScreenshotFileService.SaveCopyAs(screenshot.FilePath, (BitmapSource)ViewerImage.Source, this);
 
                 if (savedPath is null)
                 {
                     return;
                 }
 
-                System.Windows.MessageBox.Show($"Saved copy to:\n{savedPath}", "Save Screenshot", MessageBoxButton.OK, MessageBoxImage.Information);
+                AppDialog.ShowSaved(this, savedPath);
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Could not save a copy. {ex.Message}", "Save Screenshot", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppDialog.ShowError(this, "Could not save screenshot", "Choose another location and try again.", ex.Message);
             }
         }
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            var result = System.Windows.MessageBox.Show(
-                "Delete this screenshot?",
-                "Delete Screenshot",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (result != MessageBoxResult.Yes)
+            if (!AppDialog.ConfirmDelete(this))
             {
                 return;
             }
 
             try
             {
-                ScreenshotFileService.DeleteIfExists(filePath);
-                shouldDeleteTemporaryFile = false;
+                ScreenshotFileService.DeleteIfExists(screenshot.FilePath);
                 Close();
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Could not delete the screenshot. {ex.Message}", "Delete Screenshot", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppDialog.ShowError(this, "Could not delete screenshot", "The screenshot is still open. Try deleting it again.", ex.Message);
             }
         }
 
         private void ScreenshotViewerWindow_Closed(object? sender, EventArgs e)
         {
-            if (!shouldDeleteTemporaryFile)
-            {
-                return;
-            }
-
-            try
-            {
-                ScreenshotFileService.DeleteIfExists(filePath);
-            }
-            catch
-            {
-            }
-        }
-
-        private void ScreenshotViewerWindow_OnClosed(object? sender, EventArgs e)
-        {
+            EndDrag();
+            screenshot.Dispose();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             SourceInitialized -= ScreenshotViewerWindow_SourceInitialized;
-            Closed -= ScreenshotViewerWindow_OnClosed;
+            Closed -= ScreenshotViewerWindow_Closed;
         }
-
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
     }

@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -14,6 +15,29 @@ namespace BetterScreenShot
     {
         private const string PersonalizeRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
         private const string AppsUseLightThemeValueName = "AppsUseLightTheme";
+
+        private static readonly (string Key, string Light, string Dark)[] ViewerPalette =
+        [
+            ("ViewerPageBackgroundBrush", "#F7F9FC", "#0F172A"),
+            ("ViewerSurfaceBrush", "#FFFFFF", "#111827"),
+            ("ViewerSurfaceBorderBrush", "#D8E1EC", "#243041"),
+            ("ViewerSurfaceHoverBrush", "#F5F9FD", "#172134"),
+            ("ViewerSurfacePressedBrush", "#EEF4FB", "#1C2940"),
+            ("ViewerPrimaryTextBrush", "#111827", "#E5EEF9"),
+            ("ViewerSecondaryTextBrush", "#415063", "#94A3B8"),
+            ("ViewerCanvasBrush", "#EDEFF4", "#0B1220")
+        ];
+
+        public static void ApplyViewerTheme(ResourceDictionary resources, AppTheme theme)
+        {
+            foreach (var (key, light, dark) in ViewerPalette)
+            {
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(theme == AppTheme.Dark ? dark : light);
+                var brush = new SolidColorBrush(color);
+                brush.Freeze();
+                resources[key] = brush;
+            }
+        }
 
         public static AppTheme DetectWindowsTheme()
         {

@@ -1,5 +1,4 @@
 using System;
-using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -20,6 +19,8 @@ namespace BetterScreenShot
 
         private StatusTone _currentStatusTone;
         private string _currentStatusMessage = "Ready to capture.";
+        private bool isCapturing;
+        private bool isClosed;
 
         public MainWindow()
         {
@@ -34,7 +35,20 @@ namespace BetterScreenShot
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            Dispatcher.BeginInvoke(new Action(SelectionOverlayWindow.WarmUp), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    if (!isClosed && !isCapturing)
+                    {
+                        SelectionOverlayWindow.WarmUp();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Overlay warm-up failed: {ex.Message}");
+                }
+            }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 
         private void MainWindow_SourceInitialized(object? sender, EventArgs e)
@@ -44,6 +58,9 @@ namespace BetterScreenShot
 
         private void MainWindow_Closed(object? sender, EventArgs e)
         {
+            isClosed = true;
+            SelectionOverlayWindow.Shutdown();
+            ScreenshotToastWindow.CloseCurrent();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             Loaded -= MainWindow_Loaded;
             SourceInitialized -= MainWindow_SourceInitialized;
@@ -64,90 +81,85 @@ namespace BetterScreenShot
 
         private async void CaptureButton_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                SetStatus(StatusTone.Info, "Choose a monitor to capture.");
-                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
-
-                var selectedMonitorBounds = SelectionOverlayWindow.SelectMonitor(() =>
-                {
-                    Dispatcher.Invoke(Hide);
-                });
-
-                Show();
-                Activate();
-
-                if (selectedMonitorBounds is null)
-                {
-                    SetStatus(StatusTone.Info, "Full screen capture cancelled.");
-                    return;
-                }
-
-                await Task.Delay(150);
-                Activate();
-                HandleCapture(selectedMonitorBounds.Value);
-            }
-            catch (Exception ex)
-            {
-                if (!IsVisible)
-                {
-                    Show();
-                }
-
-                Activate();
-                SetStatus(StatusTone.Error, $"Error: {ex.Message}");
-            }
+            await CaptureAsync(selectArea: false);
         }
 
         private async void SelectAreaButton_Click(object sender, RoutedEventArgs e)
         {
+            await CaptureAsync(selectArea: true);
+        }
+
+        private async Task CaptureAsync(bool selectArea)
+        {
+            if (isCapturing || isClosed)
+            {
+                return;
+            }
+
+            isCapturing = true;
+            CaptureButton.IsEnabled = false;
+            SelectAreaButton.IsEnabled = false;
+            string? pendingFile = null;
+
             try
             {
-                SetStatus(StatusTone.Info, "Drag to select the area you want.");
-                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+                SetStatus(StatusTone.Info, selectArea ? "Drag to select the area you want." : "Choose a monitor to capture.");
+                ScreenshotToastWindow.HideCurrent();
+                Hide();
+                var bounds = selectArea
+                    ? await SelectionOverlayWindow.SelectAreaAsync()
+                    : await SelectionOverlayWindow.SelectMonitorAsync();
 
-                var selectedCapture = SelectionOverlayWindow.SelectArea(() =>
+                if (isClosed)
                 {
-                    Dispatcher.Invoke(Hide);
-                });
-
-                Show();
-                Activate();
-
-                if (selectedCapture is null)
-                {
-                    SetStatus(StatusTone.Info, "Area selection cancelled.");
                     return;
                 }
 
-                await Task.Delay(150);
-                Activate();
-
-                using (selectedCapture.CapturedBitmap)
+                if (bounds is null)
                 {
-                    var filePath = ScreenshotCaptureService.SaveBitmapToTemporaryFile(selectedCapture.CapturedBitmap);
-                    ScreenshotToastWindow.ShowToast(filePath, selectedCapture.SourceScreenBounds);
+                    SetStatus(StatusTone.Info, selectArea ? "Area selection cancelled." : "Full screen capture cancelled.");
+                    return;
                 }
 
+                // Wait for the compositor, rather than guessing with a fixed delay.
+                DesktopWindowService.FlushPendingUpdates();
+                pendingFile = await Task.Run(() => ScreenshotCaptureService.CaptureToTemporaryFile(bounds.Value));
+                var preview = await Task.Run(() => ScreenshotFileService.LoadBitmap(pendingFile));
+                if (isClosed)
+                {
+                    return;
+                }
+
+                Show();
+                Activate();
+                ScreenshotToastWindow.ShowToast(pendingFile, bounds.Value, preview);
+                pendingFile = null; // The toast now owns the temporary file.
                 SetStatus(StatusTone.Success, "Screenshot captured. Use the popup to save, copy, or discard it.");
             }
             catch (Exception ex)
             {
-                if (!IsVisible)
+                if (!isClosed)
                 {
-                    Show();
+                    SetStatus(StatusTone.Error, $"Error: {ex.Message}");
+                }
+            }
+            finally
+            {
+                if (pendingFile is not null)
+                {
+                    ScreenshotFileService.TryDelete(pendingFile);
                 }
 
-                Activate();
-                SetStatus(StatusTone.Error, $"Error: {ex.Message}");
+                isCapturing = false;
+                if (!isClosed)
+                {
+                    CaptureButton.IsEnabled = true;
+                    SelectAreaButton.IsEnabled = true;
+                    Show();
+                    Activate();
+                    ScreenshotToastWindow.RestoreCurrent();
+                }
             }
-        }
-
-        private void HandleCapture(Rectangle bounds)
-        {
-            var filePath = ScreenshotCaptureService.CaptureToTemporaryFile(bounds);
-            ScreenshotToastWindow.ShowToast(filePath, bounds);
-            SetStatus(StatusTone.Success, "Screenshot captured. Use the popup to save, copy, or discard it.");
         }
 
         private void SetStatus(StatusTone tone, string message)

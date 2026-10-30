@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace BetterScreenShot
@@ -10,32 +11,12 @@ namespace BetterScreenShot
             InitializeComponent();
         }
 
-        public static void WarmUp()
-        {
-            MonitorSelectionOverlayForm.WarmUpOverlays();
-        }
+        public static void WarmUp() => MonitorSelectionOverlayForm.WarmUpOverlays();
 
-        public static SelectedCaptureResult? SelectArea(System.Action? onOverlaysShown = null)
-        {
-            return MonitorSelectionOverlayForm.SelectArea(onOverlaysShown);
-        }
+        public static Task<Rectangle?> SelectAreaAsync() => MonitorSelectionOverlayForm.SelectAreaAsync();
 
-        public static Rectangle? SelectMonitor(System.Action? onOverlaysShown = null)
-        {
-            return MonitorSelectionOverlayForm.SelectMonitor(onOverlaysShown);
-        }
-    }
+        public static Task<Rectangle?> SelectMonitorAsync() => MonitorSelectionOverlayForm.SelectMonitorAsync();
 
-    public sealed class SelectedCaptureResult
-    {
-        public SelectedCaptureResult(Bitmap capturedBitmap, Rectangle sourceScreenBounds)
-        {
-            CapturedBitmap = capturedBitmap;
-            SourceScreenBounds = sourceScreenBounds;
-        }
-
-        public Bitmap CapturedBitmap { get; }
-
-        public Rectangle SourceScreenBounds { get; }
+        public static void Shutdown() => MonitorSelectionOverlayForm.Shutdown();
     }
 }

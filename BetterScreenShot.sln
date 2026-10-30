@@ -1,9 +1,13 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.37328.6 d17.14
+VisualStudioVersion = 17.14.37328.6
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BetterScreenShot", "BetterScreenShot.csproj", "{D3798A25-A74E-4BD8-9BE1-EEBD5E29A369}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BetterScreenShot.RegressionTests", "Tests\BetterScreenShot.RegressionTests.csproj", "{6C93CD89-04F7-41DB-983C-53A4AEA9A22C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,9 +19,16 @@ Global
 		{D3798A25-A74E-4BD8-9BE1-EEBD5E29A369}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D3798A25-A74E-4BD8-9BE1-EEBD5E29A369}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D3798A25-A74E-4BD8-9BE1-EEBD5E29A369}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C93CD89-04F7-41DB-983C-53A4AEA9A22C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C93CD89-04F7-41DB-983C-53A4AEA9A22C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C93CD89-04F7-41DB-983C-53A4AEA9A22C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C93CD89-04F7-41DB-983C-53A4AEA9A22C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6C93CD89-04F7-41DB-983C-53A4AEA9A22C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4259005C-7420-4041-A6F0-9D69CC49B808}
