@@ -14,6 +14,7 @@ internal static class AnnotationTests
 {
     public static void Run(Action<string, Action> check, string directory)
     {
+        AnnotationContextMenuTests.Run(check, directory);
         check("Line and arrow curves pass through the midpoint handle and keep their endpoints", () =>
         {
             foreach (var tool in new[] { AnnotationTool.Line, AnnotationTool.Arrow })

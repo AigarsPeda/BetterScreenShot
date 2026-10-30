@@ -29,6 +29,7 @@ public sealed class AnnotationSurface : FrameworkElement
     internal double DisplayScale { get; set; } = 1;
     internal event Action? SelectionChanged;
     internal event Action<Point>? TextRequested;
+    internal event Action? ContextRequested;
 
     internal AnnotationTool Tool
     {
@@ -88,6 +89,21 @@ public sealed class AnnotationSurface : FrameworkElement
         for (var i = Document.Items.Count - 1; i >= 0; i--)
             if (Document.Items[i].HitTest(point, 6 / Math.Max(.05, DisplayScale))) return i;
         return -1;
+    }
+
+    internal bool SelectForContextMenu(Point point)
+    {
+        CancelGesture();
+        Focus();
+        Select(AnnotationAt(point));
+        return Selected is not null;
+    }
+
+    protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)
+    {
+        base.OnMouseRightButtonUp(e);
+        if (SelectForContextMenu(e.GetPosition(this))) ContextRequested?.Invoke();
+        e.Handled = true;
     }
 
     internal int LineHandleAt(Point point)
@@ -318,5 +334,18 @@ public sealed class AnnotationSurface : FrameworkElement
         var index = SelectedIndex;
         Select(-1);
         Document.Remove(index);
+    }
+
+    internal void DuplicateSelected()
+    {
+        if (Selected is not { } selected) return;
+        var copy = selected.Clone();
+        var bounds = copy.Bounds;
+        var offset = 12 / Math.Max(.05, DisplayScale);
+        var delta = new Vector(bounds.Right + offset <= Width ? offset : -Math.Min(offset, Math.Max(0, bounds.Left)),
+            bounds.Bottom + offset <= Height ? offset : -Math.Min(offset, Math.Max(0, bounds.Top)));
+        copy.Points = copy.Points.Select(point => point + delta).ToList();
+        Document.Add(copy);
+        Select(Document.Items.Count - 1);
     }
 }

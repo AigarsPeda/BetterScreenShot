@@ -12,6 +12,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Contains("--context-menu-preview")) return AnnotationContextMenuTests.Preview();
         if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
         if (args.Contains("--editor-qa")) return AnnotationTests.Demo(qa: true);
         if (args.Contains("--editor-benchmark")) return AnnotationTests.Benchmark();

@@ -15,6 +15,28 @@
         <SolidColorBrush x:Key="ViewerPrimaryTextBrush" Color="#111827" />
         <SolidColorBrush x:Key="ViewerSecondaryTextBrush" Color="#415063" />
         <SolidColorBrush x:Key="ViewerCanvasBrush" Color="#EDEFF4" />
+        <Style x:Key="AnnotationContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="MinWidth" Value="195" /><Setter Property="FontSize" Value="13" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu">
+                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="4">
+                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                </Border>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="AnnotationMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
+                <Border x:Name="MenuRow" Background="Transparent" CornerRadius="6" Padding="10,7">
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{TemplateBinding InputGestureText}" Margin="26,0,0,0" Opacity="0.55" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="MenuRow" Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" /></Trigger>
+                    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" />
             <Setter Property="Padding" Value="9,5" />

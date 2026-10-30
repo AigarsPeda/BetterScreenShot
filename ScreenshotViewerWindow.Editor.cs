@@ -73,15 +73,11 @@ public partial class ScreenshotViewerWindow
         }
         var custom = new Button { Style = (Style)FindResource("ActionStyle"), Content = "+", Width = 28, Padding = new Thickness(0), ToolTip = "Custom color" };
         AutomationProperties.SetName(custom, "Custom color");
-        custom.Click += (_, _) =>
-        {
-            using var picker = new System.Windows.Forms.ColorDialog { FullOpen = true, Color = System.Drawing.Color.FromArgb(Annotations.InkColor.R, Annotations.InkColor.G, Annotations.InkColor.B) };
-            if (picker.ShowDialog(new NativeOwner(new System.Windows.Interop.WindowInteropHelper(this).Handle)) == System.Windows.Forms.DialogResult.OK)
-                ChooseColor(Color.FromRgb(picker.Color.R, picker.Color.G, picker.Color.B));
-        };
+        custom.Click += (_, _) => ChooseCustomColor();
         ColorsPanel.Children.Add(custom);
         Annotations.SelectionChanged += SyncEditor;
         Annotations.TextRequested += BeginText;
+        Annotations.ContextRequested += ShowAnnotationMenu;
         Annotations.Document.Changed += SyncEditor;
         ChooseColor((Color)ColorConverter.ConvertFromString("#FF453A"));
         ChooseTool(AnnotationTool.Select);
@@ -239,6 +235,7 @@ public partial class ScreenshotViewerWindow
                 case Key.Z when Keyboard.Modifiers.HasFlag(ModifierKeys.Shift): RedoButton_Click(sender, e); break;
                 case Key.Z: UndoButton_Click(sender, e); break;
                 case Key.Y: RedoButton_Click(sender, e); break;
+                case Key.D: CommitText(); Annotations.CancelGesture(); Annotations.DuplicateSelected(); break;
                 case Key.S: SaveAsButton_Click(sender, e); break;
                 case Key.D0: FitButton_Click(sender, e); break;
                 case Key.Add: case Key.OemPlus: ChangeZoom(ZoomStep); break;
