@@ -1,6 +1,6 @@
 # Project handoff
 
-Last reviewed: 2026-10-30. Source baseline: `d21d66c`.
+Last reviewed: 2026-10-31. Source baseline: `4f212c3`.
 
 This is the starting point for another developer or coding agent. Keep it in the repository and update it when architecture, release procedures, or known limitations change. Check `git status` and recent commits before relying on the status recorded here.
 
@@ -72,6 +72,10 @@ Self-contained builds bundle .NET and compress managed assemblies. Framework-dep
 The scripts accept `win-x64` and `win-arm64`. The recorded packaging checks used x64 on the development PC. Portable execution does not create an Installed apps entry or automatically enable startup. Copying the EXE to another computer does not transfer that user's shortcut preferences.
 
 ## Validation and current status
+
+The 2026-10-31 OCR follow-up passed all **85 checks** with exit code 0. Auto now caps concurrent language engines at half the logical processor count, up to four, while keeping short unscaled snippets sequential. Release measurements on the 16-logical-processor development PC reduced the supplied editor screenshot from 3609 to 2850 ms, the small file-list fixture from 2922 to 1854 ms, and 1080p text from 5333 to 4054 ms. These are three-call medians. All 30 full OCR results matched before/after, including text, offsets, bounds, and confidence. The eight-pass small-text strategy is unchanged. More concurrent engines can increase CPU work and peak memory; screenshot CPU time rose by 14%. Separate UI runs measured maximum heartbeat gaps of 47 / 59 ms and cached reopening dispatch of 0.8 ms. `--ocr-benchmark` accepts an optional image path and saves full recognition results for comparisons. Raw before/after reports and the regression log are in local `obj/ocr-*-before.json`, `obj/ocr-*-after.json`, and `obj/ocr-performance-regression.log`. The README records the full measurements and limitations. This follow-up was built and tested locally; it has not been repackaged or installed.
+
+Earlier validation history follows.
 
 The OCR performance work completed with **85 passed, 0 failed**, including small multilingual samples and cancellation before a queued request starts native work. Auto now uses one English pass to choose the working size, reducing small-text work from fourteen passes to eight, then uses at most two independent engines on machines with at least four logical processors. Short unscaled snippets stay sequential. A shared request gate bounds active work across editors and panel toggles. `--ocr-benchmark` records phase timings and CPU/wall time; `--ocr-ui-benchmark` records dispatcher gaps and cached reopening dispatch. Three-call medians on the development PC reduced Auto file-list time from 6386 to 2209 ms and 1080p text from 13371 to 4877 ms. A separate UI run had a 57 ms maximum heartbeat gap and 0.8 ms cached reopening dispatch. Short snippets and manual recognition showed little benefit. See the README for all cases, limits, and commands. The x64 package was rebuilt and installed, its executable SHA256 matched the published build, and the updated background process was running.
 

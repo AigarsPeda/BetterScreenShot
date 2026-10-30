@@ -13,16 +13,27 @@ using Point = System.Windows.Point;
 
 internal static class OcrBenchmark
 {
-    internal static int Run()
+    internal static int Run(string? imagePath = null)
     {
         var samples = new List<Sample>();
-        var fixtures = new[]
+        var fixtures = new List<(string Name, BitmapSource Image)>
         {
             ("Large text", TextExtractionTests.Fixture()),
             ("Small file list", OcrLayoutTests.FileListFixture()),
             ("1080p text", DesktopFixture()),
             ("Blank", TextExtractionTests.Fixture(""))
         };
+        if (imagePath != null)
+        {
+            using var input = File.OpenRead(imagePath);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = input;
+            image.EndInit();
+            image.Freeze();
+            fixtures.Add(("User screenshot", image));
+        }
         foreach (var (name, image) in fixtures)
         foreach (var language in new[] { TextExtractionService.AutomaticLanguage, "eng" })
         {
@@ -34,7 +45,7 @@ internal static class OcrBenchmark
                 var started = Stopwatch.GetTimestamp();
                 var result = TextExtractionService.RecognizeAsync(image, language, reportTiming: timings.Enqueue).GetAwaiter().GetResult();
                 samples.Add(new Sample(name, language, iteration, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
-                    (process.TotalProcessorTime - cpuStarted).TotalMilliseconds, result.Words.Count, timings.ToList()));
+                    (process.TotalProcessorTime - cpuStarted).TotalMilliseconds, result.Words.Count, timings.ToList(), result));
             }
             var group = samples.Where(sample => sample.Name == name && sample.Language == language).ToArray();
             double Median(Func<Sample, double> value) => group.Select(value).Order().ElementAt(1);
@@ -120,5 +131,5 @@ internal static class OcrBenchmark
         }
     }
 
-    private sealed record Sample(string Name, string Language, int Iteration, double WallMs, double CpuMs, int Words, List<OcrTiming> Timings);
+    private sealed record Sample(string Name, string Language, int Iteration, double WallMs, double CpuMs, int Words, List<OcrTiming> Timings, TextExtractionResult Result);
 }

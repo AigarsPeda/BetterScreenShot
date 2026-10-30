@@ -74,12 +74,13 @@ internal static class TextExtractionService
             scale = 2;
             remainingCodes = codes;
         }
-        // Independent engines can share the immutable pixels. Keep at most two active
+        // Independent engines share immutable pixels. Leave CPU capacity for the UI
         // and serialize requests so rapid toggles cannot accumulate CPU-heavy jobs.
         var results = new TextExtractionResult[remainingCodes.Length];
         // Short snippets are mostly model-loading work and gain little from parallelism.
         var parallel = Environment.ProcessorCount >= 4 && (scale == 2 || initial.Words.Count >= 12);
-        var options = new ParallelOptions { CancellationToken = cancellationToken, MaxDegreeOfParallelism = parallel ? 2 : 1 };
+        var workers = parallel ? Math.Min(4, Environment.ProcessorCount / 2) : 1;
+        var options = new ParallelOptions { CancellationToken = cancellationToken, MaxDegreeOfParallelism = workers };
         Parallel.For(0, remainingCodes.Length, options, index => results[index] = RecognizeCode(remainingCodes[index], scale));
         candidates.AddRange(results);
         cancellationToken.ThrowIfCancellationRequested();
