@@ -8,6 +8,13 @@ namespace BetterScreenShot
     {
         public static string? SaveCopyAs(string sourceFilePath, BitmapSource image, System.Windows.Window owner)
         {
+            var destination = ChooseSavePath(sourceFilePath, owner);
+            if (destination is not null) Export(sourceFilePath, destination, image);
+            return destination;
+        }
+
+        public static string? ChooseSavePath(string sourceFilePath, System.Windows.Window owner)
+        {
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
                 Title = "Save Screenshot As",
@@ -23,11 +30,10 @@ namespace BetterScreenShot
                 return null;
             }
 
-            Export(sourceFilePath, dialog.FileName, image);
             return dialog.FileName;
         }
 
-        public static void Export(string sourceFilePath, string destinationPath, BitmapSource image)
+        public static void Export(string sourceFilePath, string destinationPath, BitmapSource image, bool imageModified = false)
         {
             if (string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
             {
@@ -37,7 +43,7 @@ namespace BetterScreenShot
             var extension = Path.GetExtension(destinationPath).ToLowerInvariant();
             BitmapEncoder? encoder = extension switch
             {
-                ".png" => null,
+                ".png" => imageModified ? new PngBitmapEncoder() : null,
                 ".jpg" or ".jpeg" => new JpegBitmapEncoder { QualityLevel = 95 },
                 ".bmp" => new BmpBitmapEncoder(),
                 _ => throw new ArgumentException("Choose a PNG, JPEG, or BMP file extension.", nameof(destinationPath))

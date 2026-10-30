@@ -28,6 +28,7 @@ namespace BetterScreenShot
             InitializeComponent();
             this.screenshot = screenshot;
             ViewerImage.Source = image;
+            InitializeEditor(image);
             ApplyThemeFromSystem();
             UpdateZoomState();
             Closed += ScreenshotViewerWindow_Closed;
@@ -76,7 +77,7 @@ namespace BetterScreenShot
                 ImageTranslateTransform.Y = 0;
             }
 
-            ImageViewport.Cursor = currentZoom > MinZoom ? WpfCursors.SizeAll : WpfCursors.Arrow;
+            UpdateDisplayScale();
         }
 
         private void ChangeZoom(double delta)
@@ -103,7 +104,7 @@ namespace BetterScreenShot
 
         private void ImageViewport_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (currentZoom <= MinZoom)
+            if (Annotations.Tool != AnnotationTool.Hand && !Keyboard.IsKeyDown(Key.Space))
             {
                 return;
             }
@@ -112,11 +113,12 @@ namespace BetterScreenShot
             lastDragPoint = e.GetPosition(ImageViewport);
             ImageViewport.CaptureMouse();
             ImageViewport.Cursor = WpfCursors.Hand;
+            e.Handled = true;
         }
 
         private void ImageViewport_MouseMove(object sender, WpfMouseEventArgs e)
         {
-            if (!isDragging || currentZoom <= MinZoom)
+            if (!isDragging)
             {
                 return;
             }
@@ -127,19 +129,12 @@ namespace BetterScreenShot
 
             ImageTranslateTransform.X += delta.X;
             ImageTranslateTransform.Y += delta.Y;
+            e.Handled = true;
         }
 
         private void ImageViewport_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             EndDrag();
-        }
-
-        private void ImageViewport_MouseLeave(object sender, WpfMouseEventArgs e)
-        {
-            if (isDragging && e.LeftButton != MouseButtonState.Pressed)
-            {
-                EndDrag();
-            }
         }
 
         private void EndDrag()
@@ -151,7 +146,7 @@ namespace BetterScreenShot
 
             isDragging = false;
             ImageViewport.ReleaseMouseCapture();
-            ImageViewport.Cursor = currentZoom > MinZoom ? WpfCursors.SizeAll : WpfCursors.Arrow;
+            ImageViewport.Cursor = WpfCursors.Arrow;
         }
 
         private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
@@ -166,22 +161,37 @@ namespace BetterScreenShot
             Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
         }
 
-        private void SaveAsButton_Click(object sender, RoutedEventArgs e)
+        private async void SaveAsButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!SaveButton.IsEnabled) return;
+            CommitText();
+            Annotations.CancelGesture();
             try
             {
-                var savedPath = ScreenshotFileService.SaveCopyAs(screenshot.FilePath, (BitmapSource)ViewerImage.Source, this);
-
+                var savedPath = ScreenshotFileService.ChooseSavePath(screenshot.FilePath, this);
                 if (savedPath is null)
                 {
                     return;
                 }
 
+                SaveButton.IsEnabled = false;
+                SaveButton.Content = "Saving…";
+                var modified = Annotations.Document.Items.Count > 0;
+                var output = modified ? await Annotations.Document.RenderAsync((BitmapSource)ViewerImage.Source) : (BitmapSource)ViewerImage.Source;
+                // Encoding the frozen image also lets an export finish if the editor closes.
+                await Task.Run(() => ScreenshotFileService.Export(screenshot.FilePath, savedPath, output, imageModified: true));
+                if (!IsLoaded) return;
                 AppDialog.ShowSaved(this, savedPath);
             }
             catch (Exception ex)
             {
+                if (!IsLoaded) return;
                 AppDialog.ShowError(this, "Could not save screenshot", "Choose another location and try again.", ex.Message);
+            }
+            finally
+            {
+                SaveButton.IsEnabled = true;
+                SaveButton.Content = "Save As…";
             }
         }
 
@@ -206,6 +216,7 @@ namespace BetterScreenShot
         private void ScreenshotViewerWindow_Closed(object? sender, EventArgs e)
         {
             EndDrag();
+            Annotations.CancelGesture();
             screenshot.Dispose();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             SourceInitialized -= ScreenshotViewerWindow_SourceInitialized;

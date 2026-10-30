@@ -12,6 +12,9 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
+        if (args.Contains("--editor-qa")) return AnnotationTests.Demo(qa: true);
+        if (args.Contains("--editor-benchmark")) return AnnotationTests.Benchmark();
         var fixturesRoot = Path.Combine(AppContext.BaseDirectory, "fixtures");
         var directory = Path.Combine(fixturesRoot, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -194,6 +197,7 @@ internal static class Program
             });
 
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            AnnotationTests.Run(Check, directory);
             OverlayPresentationTests.Run(Check);
             Check("Real area-selection cancellation releases all overlays", () =>
             {
