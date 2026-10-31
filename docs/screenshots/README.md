@@ -1,29 +1,19 @@
 # App screenshots
 
-These JPEGs are captures of the actual Windows app windows. The sample document and annotations come from documentation fixtures; no personal desktop content or saved user preferences are included.
+These PNGs render the current WPF window content with sample images and annotations. Each screen has a light and dark version. The fixtures use no personal desktop content and do not change saved theme or shortcut preferences.
 
-Use English and Latvian sample text only.
-
-To refresh a screenshot, build the regression runner and open the corresponding fixture:
+Regenerate all ten images with:
 
 ```powershell
-dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --readme-editor
-dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --readme-capture
-dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --readme-preview
-
-dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --readme-text-recognition
-
-dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --readme-text-selection
+dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --readme-generate
 ```
 
-Capture just the app window and replace the corresponding image. Hover over the preview to reveal its actions before capturing it. For the OCR fixtures, wait for recognition and the panel animation to finish; the fixture selects the sample passage automatically. Close each fixture window when finished. The fixture uses its own temporary sample images and shortcut store, leaving the installed app's settings intact.
+| Pair | Shows |
+| --- | --- |
+| `launcher-{light,dark}.png` | Full-screen capture, area capture, opening an image, and the sun/moon theme switch |
+| `preview-{light,dark}.png` | Screenshot preview and its Copy, Save, Edit, and Discard actions |
+| `editor-{light,dark}.png` | Floating annotation toolbar, contextual controls, and editable marks |
+| `text-recognition-{light,dark}.png` | Extracted text panel and matching image-word selection |
+| `text-selection-{light,dark}.png` | A selected passage spanning two lines, with matching panel text |
 
-| Image | Fixture | Shows |
-| --- | --- | --- |
-| `editor.jpg` | `--readme-editor` | Annotation tools, compact color menu, and an editable curved arrow |
-| `capture.jpg` | `--readme-capture` | Full-screen and area capture launcher |
-| `preview.jpg` | `--readme-preview` | Temporary capture preview and quick actions |
-| `text-recognition.jpg` | `--readme-text-recognition` | Local text extraction and synchronized image/panel selection |
-| `text-selection.jpg` | `--readme-text-selection` | A selection across two lines, blue handles, and English/Latvian sample text |
-
-The root README uses relative image paths so the screenshots display on GitHub alongside the source code.
+The root README embeds these files with relative paths so they display on GitHub. The screenshots show the app content without the Windows title bar; title bar appearance depends on the user's Windows theme and version.

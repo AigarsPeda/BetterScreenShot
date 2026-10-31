@@ -21,6 +21,7 @@ internal static class Program
         if (args.Contains("--ocr-selection-demo")) return TextExtractionTests.Demo(selectionHandles: true);
         if (args.Contains("--ocr-panel-demo")) return TextExtractionTests.Demo(longText: true);
         if (args.Contains("--ocr-preview")) return TextExtractionTests.Preview();
+        if (args.Contains("--readme-generate")) return ReadmeScreenshots.Generate();
         if (args.FirstOrDefault(arg => arg.StartsWith("--readme-", StringComparison.Ordinal)) is { } readmeView)
             return ReadmeScreenshots.Demo(readmeView);
         if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();

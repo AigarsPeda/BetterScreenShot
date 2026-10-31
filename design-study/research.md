@@ -4,7 +4,7 @@
 
 ## What the current app needs
 
-The 520 × 320 launcher uses two bordered action cards, two colored icon tiles, two chevrons, a shortcut link, and a full-width status badge. The 1100 × 780 editor repeats borders around the toolbar, commands, image area, OCR panel, and text box. Its tool row exposes many similarly weighted actions at once. The screenshot itself has less visual priority than the controls around it. See the current [capture](../docs/screenshots/capture.jpg), [editor](../docs/screenshots/editor.jpg), and [text recognition](../docs/screenshots/text-recognition.jpg) screenshots.
+The pre-redesign 520 × 320 launcher used two bordered action cards, two colored icon tiles, two chevrons, a shortcut link, and a full-width status badge. The 1100 × 780 editor repeated borders around the toolbar, commands, image area, OCR panel, and text box. Its tool row exposed many similarly weighted actions at once. The screenshot itself had less visual priority than the controls around it. The current application screenshots are in [docs/screenshots](../docs/screenshots/README.md).
 
 The app already detects the Windows light/dark preference for its launcher and editor. The shortcut dialog reads the theme when it opens. The preview toast remains a fixed dark translucent overlay. Colors and icon paths live in several XAML and C# locations, so a production redesign would need shared semantic color names and a consistent icon source. The current [style guide](../STYLEGUIDE.md) specifies the bordered launcher cards and icon tiles; it should be revised only after a direction is chosen.
 

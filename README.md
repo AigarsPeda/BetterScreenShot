@@ -17,17 +17,24 @@ For the code structure, release checks, and development pitfalls, see the [proje
 
 ## Screenshots
 
-Mark up a screenshot with highlights, editable shapes, curved arrows, and text, then copy it directly to another app.
+Mark up an image with highlights, editable shapes, curved arrows, and text. The toolbar floats over the image.
 
-![Screenshot editor with a highlighted heading, blue rectangle, editable curved arrow, and text annotation](docs/screenshots/editor.jpg)
-
-Extract text locally, then select the same passage in the image and the results panel.
-
-![Screenshot editor with recognized text in the side panel and matching words selected in the image](docs/screenshots/text-recognition.jpg)
-
-| Capture a screen or area | Preview and quick actions |
+| Light theme | Dark theme |
 | --- | --- |
-| <img src="docs/screenshots/capture.jpg" alt="Capture launcher with full-screen and area selection options" width="480"> | <img src="docs/screenshots/preview.jpg" alt="Screenshot preview with Copy, Save, Edit, and Discard actions" width="300"> |
+| <img src="docs/screenshots/editor-light.png" alt="Light editor with floating tools and sample annotations" width="620"> | <img src="docs/screenshots/editor-dark.png" alt="Dark editor with floating tools and sample annotations" width="620"> |
+
+Extract text locally and select the matching words on the image and in the results panel.
+
+| Light theme | Dark theme |
+| --- | --- |
+| <img src="docs/screenshots/text-recognition-light.png" alt="Light editor showing text extraction and selected image words" width="620"> | <img src="docs/screenshots/text-recognition-dark.png" alt="Dark editor showing text extraction and selected image words" width="620"> |
+
+The launcher can capture a screen, select an area, or open an existing image. The preview offers Copy, Save, Edit, and Discard actions.
+
+| Light theme | Dark theme |
+| --- | --- |
+| <img src="docs/screenshots/launcher-light.png" alt="Light launcher with three capture and image options and the sun theme button" width="480"> | <img src="docs/screenshots/launcher-dark.png" alt="Dark launcher with three capture and image options and the moon theme button" width="480"> |
+| <img src="docs/screenshots/preview-light.png" alt="Light screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> | <img src="docs/screenshots/preview-dark.png" alt="Dark screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> |
 
 Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. Replacing or closing a preview removes its file. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. Copies saved with Save As remain on disk. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
 
@@ -123,9 +130,11 @@ Open a capture in the editor, use the **Select** tool, and **double-click a word
 
 Drag the blue handle at either end of a text selection to include adjacent words or shrink the range. Selections follow reading order across line breaks, so a sentence can span multiple lines. Dragging across the opposite handle reverses the selection direction; Escape restores the range from before the drag. The text panel stays synchronized and Ctrl+C copies the entire selected passage. Handles keep a constant display size when zooming and are excluded from image exports.
 
-![A sentence selected across two image lines with blue selection handles and matching text selected in the side panel, using English and Latvian sample text](docs/screenshots/text-selection.jpg)
+| Light theme | Dark theme |
+| --- | --- |
+| <img src="docs/screenshots/text-selection-light.png" alt="Light editor with a two-line text selection synchronized with the extraction panel" width="620"> | <img src="docs/screenshots/text-selection-dark.png" alt="Dark editor with a two-line text selection synchronized with the extraction panel" width="620"> |
 
-You can also click **Extract text**, or press **Ctrl+Shift+T** with the canvas focused. The button toggles the results panel open and closed, including while recognition is running. Reopening uses cached results when available. The centered X button also closes the panel.
+You can also click the **Extract text** icon in the floating toolbar, or press **E** or **Ctrl+Shift+T** with the canvas focused. The button toggles the results panel open and closed, including while recognition is running. Reopening uses cached results when available. The X button also closes the panel.
 
 Recognition starts in **Auto** mode. For a manual override, expand **Advanced options** below the results and choose English, Latvian, Lithuanian, Estonian, Swedish, Finnish, Russian, or English + Latvian. Choose Auto to restore automatic recognition. The advanced controls start collapsed in each new editor. Double-click a word in the panel or drag to select a passage and use Ctrl+C, or click **Copy all text**. The editor's existing Copy button still copies the image with annotations.
 
