@@ -16,6 +16,15 @@ internal static class AnnotationTests
     {
         AnnotationContextMenuTests.Run(check, directory);
         AnnotationRenderingTests.Run(check);
+        check("Large-image arrow scale enlarges the stroke and arrowhead without changing other tools", () =>
+        {
+            var surface = new AnnotationSurface { InkWidth = 7, ArrowScale = 4 };
+            Require(surface.WidthForTool(AnnotationTool.Arrow) == 28);
+            Require(surface.WidthForTool(AnnotationTool.Pen) == 7);
+            var small = new ImageAnnotation { Tool = AnnotationTool.Arrow, Width = 7, Points = [new(20, 100), new(220, 100)] };
+            var large = new ImageAnnotation { Tool = AnnotationTool.Arrow, Width = surface.WidthForTool(AnnotationTool.Arrow), Points = [new(20, 100), new(220, 100)] };
+            Require(large.Geometry().Bounds.Height > small.Geometry().Bounds.Height * 3);
+        });
         check("Line and arrow curves pass through the midpoint handle and keep their endpoints", () =>
         {
             foreach (var tool in new[] { AnnotationTool.Line, AnnotationTool.Arrow })
@@ -332,6 +341,7 @@ internal static class AnnotationTests
                     window.UpdateLayout();
                     var surface = (AnnotationSurface)window.FindName("Annotations");
                     Require(surface.DisplayScale > 0);
+                    if (width == 620) Require(surface.ArrowScale > 1);
                     var sketch = (System.Windows.Controls.Primitives.ToggleButton)window.FindName("SketchToggle");
                     Require(sketch.IsChecked == true);
                     var copy = (System.Windows.Controls.Button)window.FindName("CopyButton");

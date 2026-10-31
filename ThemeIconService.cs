@@ -17,6 +17,19 @@ namespace BetterScreenShot
         private const string AppsUseLightThemeValueName = "AppsUseLightTheme";
         private static ImageSource? lightScanIcon;
         private static ImageSource? darkScanIcon;
+        private static readonly Geometry sunIcon = CreateThemeGeometry(
+            "M16 12 A4 4 0 1 1 8 12 A4 4 0 1 1 16 12 Z M12 2 V4 M12 20 V22 M4.93 4.93 L6.34 6.34 M17.66 17.66 L19.07 19.07 M2 12 H4 M20 12 H22 M4.93 19.07 L6.34 17.66 M17.66 6.34 L19.07 4.93");
+        private static readonly Geometry moonIcon = CreateThemeGeometry(
+            "M20.985 12.486 A9 9 0 0 1 11.514 3.015 A9 9 0 1 0 20.985 12.486 Z");
+
+        internal static Geometry ThemeGlyph(AppTheme theme) => theme == AppTheme.Dark ? moonIcon : sunIcon;
+
+        private static Geometry CreateThemeGeometry(string data)
+        {
+            var geometry = Geometry.Parse(data);
+            geometry.Freeze();
+            return geometry;
+        }
 
         private static readonly (string Key, string Light, string Dark)[] ViewerPalette =
         [

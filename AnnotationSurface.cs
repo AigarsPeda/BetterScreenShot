@@ -25,8 +25,15 @@ public sealed class AnnotationSurface : FrameworkElement
     internal ImageAnnotation? Selected => SelectedIndex >= 0 && SelectedIndex < Document.Items.Count ? Document.Items[SelectedIndex] : null;
     internal Color InkColor { get; set; } = Colors.Red;
     internal double InkWidth { get; set; } = 4;
+    internal double ArrowScale { get; set; } = 1;
     internal double TextSize { get; set; } = 28;
     internal double DisplayScale { get; set; } = 1;
+    internal double WidthForTool(AnnotationTool annotationTool) => InkWidth * (annotationTool switch
+    {
+        AnnotationTool.Highlight => 5,
+        AnnotationTool.Arrow => ArrowScale,
+        _ => 1
+    });
     internal event Action? SelectionChanged;
     internal event Action<Point>? TextRequested;
     internal event Action? ContextRequested;
@@ -208,7 +215,7 @@ public sealed class AnnotationSurface : FrameworkElement
             draft = new ImageAnnotation
             {
                 Tool = Tool, Points = [start, start], Color = InkColor,
-                Width = Tool == AnnotationTool.Highlight ? InkWidth * 5 : InkWidth
+                Width = WidthForTool(Tool)
             };
             sampleDistance = 1.5 / Math.Max(.05, DisplayScale);
         }

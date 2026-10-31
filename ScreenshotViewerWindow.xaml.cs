@@ -42,6 +42,7 @@ namespace BetterScreenShot
             Closed += ScreenshotViewerWindow_Closed;
             SourceInitialized += ScreenshotViewerWindow_SourceInitialized;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+            ThemePreferenceService.Changed += ThemePreference_Changed;
         }
 
         private void ScreenshotViewerWindow_SourceInitialized(object? sender, EventArgs e)
@@ -68,7 +69,10 @@ namespace BetterScreenShot
 
         private void ApplyThemeFromSystem()
         {
-            var theme = ThemeIconService.DetectWindowsTheme();
+            var theme = ThemePreferenceService.CurrentTheme;
+            ThemeMenuItem.Header = theme == AppTheme.Dark ? "Switch to light theme" : "Switch to dark theme";
+            ThemeMenuIcon.Data = ThemeIconService.ThemeGlyph(theme);
+            FollowSystemThemeMenuItem.Visibility = ThemePreferenceService.FollowsSystem ? Visibility.Collapsed : Visibility.Visible;
             if (currentTheme == theme)
             {
                 return;
@@ -186,6 +190,20 @@ namespace BetterScreenShot
             Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
         }
 
+        private void ThemePreference_Changed() => Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
+
+        private void ThemeMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try { ThemePreferenceService.Toggle(); }
+            catch (Exception error) { AppDialog.ShowError(this, "Could not change theme", "Try changing the theme again.", error.Message); }
+        }
+
+        private void FollowSystemThemeMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try { ThemePreferenceService.Set(null); }
+            catch (Exception error) { AppDialog.ShowError(this, "Could not change theme", "Try changing the theme again.", error.Message); }
+        }
+
         private async void CopyButton_Click(object sender, RoutedEventArgs e)
         {
             try { await CopyImageAsync(); }
@@ -284,6 +302,7 @@ namespace BetterScreenShot
             Annotations.CancelGesture();
             screenshot.Dispose();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+            ThemePreferenceService.Changed -= ThemePreference_Changed;
             SourceInitialized -= ScreenshotViewerWindow_SourceInitialized;
             Closed -= ScreenshotViewerWindow_Closed;
         }

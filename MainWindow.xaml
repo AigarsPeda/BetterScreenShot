@@ -227,6 +227,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Border x:Name="StatusBadge"
                     Grid.Column="0"
@@ -253,8 +254,34 @@
                                Text="Ready." />
                 </Grid>
             </Border>
-            <Button x:Name="ShortcutsButton"
+            <Button x:Name="ThemeButton"
                     Grid.Column="1"
+                    Margin="8,0,0,0"
+                    Style="{StaticResource FooterButtonStyle}"
+                    Width="32"
+                    Height="32"
+                    Padding="0"
+                    Click="ThemeButton_Click"
+                    AutomationProperties.Name="Change theme">
+                <Viewbox x:Name="ThemeGlyph" Width="18" Height="18" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False">
+                    <Viewbox.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="ThemeGlyphScale" />
+                            <RotateTransform x:Name="ThemeGlyphRotation" />
+                        </TransformGroup>
+                    </Viewbox.RenderTransform>
+                    <Canvas Width="24" Height="24">
+                        <Path x:Name="ThemeGlyphPath"
+                              Stroke="{DynamicResource SecondaryTextBrush}"
+                              StrokeThickness="2"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </Canvas>
+                </Viewbox>
+            </Button>
+            <Button x:Name="ShortcutsButton"
+                    Grid.Column="2"
                     Content="Shortcuts…"
                     Margin="8,0,0,0"
                     Style="{StaticResource FooterButtonStyle}"

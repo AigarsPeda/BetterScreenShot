@@ -13,6 +13,7 @@ For the code structure, release checks, and development pitfalls, see the [proje
 - Screenshot editor with smoothed pen strokes, translucent highlights, underlines, arrows, rectangles, circles, and text. Open or drag a PNG, JPEG, BMP, GIF, or TIFF image onto the launcher or editor to annotate it without changing the original file.
 - Click annotations to move, resize, recolor, or delete them. Double-click text to edit it; undo and redo work across edits.
 - Extract English, Latvian, Lithuanian, Estonian, Swedish, Finnish, and Russian text locally with Tesseract, then select a passage or copy all text.
+- Use the sun or moon button in the launcher footer to switch between light and dark themes. Its icon animates when Windows allows motion. The editor's More menu has the same theme switch and can restore the system theme. The manual choice is saved.
 
 ## Screenshots
 
@@ -94,7 +95,7 @@ Capture uses a compositor flush instead of fixed sleeps, then copies the capture
 
 Use the markup toolbar or the shortcuts V (select), H (pan), P (pen), M (highlight), L (underline/line), A (arrow), R (rectangle), O (circle/oval), and T (text). Click any annotation to select it, including while another tool is active. Drag it to move it, drag a corner to resize, choose a color or stroke width, or press Delete. Double-click text to edit it. Enter commits text; Shift+Enter adds a line; Esc cancels the current operation.
 
-The floating icon dock sits over the screenshot and keeps all nine tools available, with names and shortcuts in their tooltips. Color, stroke width, text size, Sketch, and delete controls appear below it when the current tool or selected annotation needs them. Click **Color** to open the menu, including custom colors; selecting an annotation updates the current color. Zoom, undo, and redo stay in the command row. Controls keep their 32-pixel height and wrap at narrow window widths. Light and dark toolbar previews can be rendered with `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --editor-toolbar-preview`; images are written under `obj/editor-toolbar-preview`.
+The floating icon dock sits over the image with drawing tools and Extract Text (E). Color, stroke width, text size, Sketch, and delete controls appear below it when needed. Click **Color** to open the menu, including custom colors; selecting an annotation updates the current color. Zoom, undo, and redo remain at the top. New arrows scale their stroke and arrowhead to stay readable when a large image is fitted into the editor. Light and dark toolbar previews can be rendered with `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --editor-toolbar-preview`; images are written under `obj/editor-toolbar-preview`.
 
 Hold Shift while drawing for squares, circles, or 45-degree lines. Hold Space to pan or Alt to draw over an existing annotation. Ctrl+Z undoes an operation; Ctrl+Shift+Z or Ctrl+Y redoes it. Scroll to zoom and click the zoom percentage to fit the image.
 

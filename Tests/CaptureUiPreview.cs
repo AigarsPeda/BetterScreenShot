@@ -24,6 +24,7 @@ internal static class CaptureUiPreview
             var launcher = new MainWindow(new CaptureShortcutSettingsStore(Path.Combine(directory, $"shortcuts-{suffix}.json")));
             typeof(MainWindow).GetMethod("ApplyTheme", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(launcher, new object[] { theme });
+            ((System.Windows.Shapes.Path)launcher.FindName("ThemeGlyphPath")).Data = ThemeIconService.ThemeGlyph(theme);
             var neutral = (MediaBrush)launcher.FindResource("StatusNeutralTextBrush");
             ((TextBlock)launcher.FindName("StatusTextBlock")).Foreground = neutral;
             ((System.Windows.Shapes.Ellipse)launcher.FindName("StatusDot")).Fill =

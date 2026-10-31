@@ -121,6 +121,18 @@ internal static class Program
                 imported.WorkingFile.Dispose();
                 Assert(!File.Exists(imported.WorkingFile.FilePath) && File.ReadAllBytes(source).SequenceEqual(original));
             });
+            Check("Manual theme choice persists and can return to system", () =>
+            {
+                var themePath = Path.Combine(directory, "theme.txt");
+                var store = new ThemePreferenceStore(themePath);
+                Assert(store.Load() is null);
+                store.Save(AppTheme.Dark);
+                Assert(store.Load() == AppTheme.Dark);
+                store.Save(AppTheme.Light);
+                Assert(store.Load() == AppTheme.Light);
+                store.Save(null);
+                Assert(store.Load() is null && !File.Exists(themePath));
+            });
             Check("Worker capture copies pixels and releases the source bitmap", () =>
             {
                 var capture = Task.Run(() =>

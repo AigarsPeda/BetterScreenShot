@@ -21,14 +21,16 @@ public partial class CaptureShortcutsWindow : Window
         InitializeComponent();
         this.save = save;
         Draft = settings;
-        currentTheme = ThemeIconService.DetectWindowsTheme();
+        currentTheme = ThemePreferenceService.CurrentTheme;
         ApplyTheme(currentTheme);
         SourceInitialized += (_, _) => ApplyWindowChromeTheme(currentTheme);
         Deactivated += (_, _) => StopRecording();
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        ThemePreferenceService.Changed += ThemePreference_Changed;
         Closed += (_, _) =>
         {
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+            ThemePreferenceService.Changed -= ThemePreference_Changed;
             recordingHook?.Dispose();
             recordingHook = null;
         };
@@ -51,9 +53,14 @@ public partial class CaptureShortcutsWindow : Window
     private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
         if (e.Category is not (UserPreferenceCategory.General or UserPreferenceCategory.Color or UserPreferenceCategory.VisualStyle)) return;
+        ThemePreference_Changed();
+    }
+
+    private void ThemePreference_Changed()
+    {
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            var theme = ThemeIconService.DetectWindowsTheme();
+            var theme = ThemePreferenceService.CurrentTheme;
             if (theme == currentTheme) return;
             currentTheme = theme;
             ApplyTheme(theme);

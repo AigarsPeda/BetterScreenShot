@@ -28,9 +28,11 @@ namespace BetterScreenShot
             Loaded += (_, _) => OnToastLoaded(captureBounds);
             Closing += ScreenshotToastWindow_Closing;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+            ThemePreferenceService.Changed += ThemePreference_Changed;
             Closed += (_, _) =>
             {
                 SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+                ThemePreferenceService.Changed -= ThemePreference_Changed;
                 if (!preserveTemporaryFileForViewer)
                 {
                     screenshot.Dispose();
@@ -60,8 +62,10 @@ namespace BetterScreenShot
 
         private void ApplyToastTheme()
         {
-            ApplyToastTheme(ThemeIconService.DetectWindowsTheme());
+            ApplyToastTheme(ThemePreferenceService.CurrentTheme);
         }
+
+        private void ThemePreference_Changed() => Dispatcher.BeginInvoke(new Action(ApplyToastTheme));
 
         private void ApplyToastTheme(AppTheme theme)
         {

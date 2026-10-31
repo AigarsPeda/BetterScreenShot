@@ -246,6 +246,19 @@
                     <Button.ContextMenu>
                         <ContextMenu Style="{StaticResource AnnotationContextMenuStyle}" Background="{DynamicResource ViewerSurfaceBrush}"
                                      Foreground="{DynamicResource ViewerPrimaryTextBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}">
+                            <MenuItem x:Name="ThemeMenuItem" Header="Switch theme" Style="{StaticResource AnnotationMenuItemStyle}"
+                                      Foreground="{DynamicResource ViewerPrimaryTextBrush}" Click="ThemeMenuItem_Click">
+                                <MenuItem.Icon>
+                                    <Viewbox Width="16" Height="16">
+                                        <Canvas Width="24" Height="24">
+                                            <Path x:Name="ThemeMenuIcon" Stroke="{DynamicResource ViewerPrimaryTextBrush}" StrokeThickness="2"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                        </Canvas>
+                                    </Viewbox>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="FollowSystemThemeMenuItem" Header="Follow system theme" Style="{StaticResource AnnotationMenuItemStyle}"
+                                      Foreground="{DynamicResource ViewerPrimaryTextBrush}" Click="FollowSystemThemeMenuItem_Click" Visibility="Collapsed" />
                             <MenuItem x:Name="DiscardMenuItem" Header="Discard screenshot…" Style="{StaticResource AnnotationMenuItemStyle}"
                                       Foreground="{DynamicResource ViewerPrimaryTextBrush}" Click="DeleteButton_Click" />
                         </ContextMenu>

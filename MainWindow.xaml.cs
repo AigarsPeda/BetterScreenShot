@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Microsoft.Win32;
 using MediaColor = System.Windows.Media.Color;
 using MediaColorConverter = System.Windows.Media.ColorConverter;
@@ -31,6 +32,7 @@ namespace BetterScreenShot
             SourceInitialized += MainWindow_SourceInitialized;
             Closed += MainWindow_Closed;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+            ThemePreferenceService.Changed += ThemePreference_Changed;
             ApplyThemeFromSystem();
             LoadCaptureShortcuts();
         }
@@ -67,6 +69,7 @@ namespace BetterScreenShot
             MonitorSelectionOverlayForm.Shutdown();
             ScreenshotToastWindow.CloseCurrent();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+            ThemePreferenceService.Changed -= ThemePreference_Changed;
             Loaded -= MainWindow_Loaded;
             SourceInitialized -= MainWindow_SourceInitialized;
             Closed -= MainWindow_Closed;
@@ -82,6 +85,17 @@ namespace BetterScreenShot
             }
 
             Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
+        }
+
+        private void ThemePreference_Changed() => Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
+
+        private void ThemeButton_Click(object sender, RoutedEventArgs e)
+        {
+            try { ThemePreferenceService.Toggle(); }
+            catch (Exception error)
+            {
+                AppDialog.ShowError(this, "Could not change theme", "Try changing the theme again.", error.Message);
+            }
         }
 
         private async void CaptureButton_Click(object sender, RoutedEventArgs e)
@@ -242,16 +256,36 @@ namespace BetterScreenShot
 
         private void ApplyThemeFromSystem()
         {
-            var theme = ThemeIconService.DetectWindowsTheme();
+            var theme = ThemePreferenceService.CurrentTheme;
+            var switchLabel = theme == AppTheme.Dark ? "Switch to light theme" : "Switch to dark theme";
+            ThemeButton.ToolTip = switchLabel;
+            ThemeButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, switchLabel);
+            ThemeGlyphPath.Data = ThemeIconService.ThemeGlyph(theme);
             if (currentTheme == theme)
             {
                 return;
             }
+            var animateIcon = currentTheme.HasValue && IsLoaded;
             currentTheme = theme;
             ApplyTheme(theme);
             Icon = ThemeIconService.CreateScanIcon(theme);
             SetStatus(_currentStatusTone, _currentStatusMessage);
             ApplyTitleBarTheme(theme);
+            if (animateIcon) AnimateThemeGlyph();
+        }
+
+        private void AnimateThemeGlyph()
+        {
+            if (!SystemParameters.ClientAreaAnimation) return;
+            var duration = TimeSpan.FromMilliseconds(220);
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            ThemeGlyphRotation.BeginAnimation(RotateTransform.AngleProperty,
+                new DoubleAnimation(-35, 0, duration) { EasingFunction = ease });
+            var scale = new DoubleAnimation(.7, 1, duration) { EasingFunction = ease };
+            ThemeGlyphScale.BeginAnimation(ScaleTransform.ScaleXProperty, scale);
+            ThemeGlyphScale.BeginAnimation(ScaleTransform.ScaleYProperty, scale);
+            ThemeGlyph.BeginAnimation(OpacityProperty,
+                new DoubleAnimation(.3, 1, duration) { EasingFunction = ease });
         }
 
         private void ApplyTheme(AppTheme theme)

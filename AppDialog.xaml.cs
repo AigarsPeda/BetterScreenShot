@@ -58,7 +58,12 @@ namespace BetterScreenShot
 
             Loaded += (_, _) => (isConfirmation ? CancelActionButton : PrimaryActionButton).Focus();
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
-            Closed += (_, _) => SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+            ThemePreferenceService.Changed += ThemePreference_Changed;
+            Closed += (_, _) =>
+            {
+                SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+                ThemePreferenceService.Changed -= ThemePreference_Changed;
+            };
         }
 
         internal static bool ConfirmDelete(Window owner, bool imported = false)
@@ -81,7 +86,7 @@ namespace BetterScreenShot
 
         private void ApplyThemeFromSystem()
         {
-            var theme = ThemeIconService.DetectWindowsTheme();
+            var theme = ThemePreferenceService.CurrentTheme;
             if (currentTheme != theme)
             {
                 ThemeIconService.ApplyViewerTheme(Resources, theme);
@@ -96,6 +101,8 @@ namespace BetterScreenShot
                 Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
             }
         }
+
+        private void ThemePreference_Changed() => Dispatcher.BeginInvoke(new Action(ApplyThemeFromSystem));
 
         private void PrimaryButton_Click(object sender, RoutedEventArgs e)
         {

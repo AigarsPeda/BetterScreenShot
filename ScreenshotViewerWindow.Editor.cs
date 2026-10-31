@@ -147,7 +147,12 @@ public partial class ScreenshotViewerWindow
         {
             Annotations.InkColor = selected.Color;
             UpdateColorPicker(selected.Color);
-            var width = selected.Tool == AnnotationTool.Highlight ? selected.Width / 5 : selected.Width;
+            var width = selected.Width / (selected.Tool switch
+            {
+                AnnotationTool.Highlight => 5,
+                AnnotationTool.Arrow => Annotations.ArrowScale,
+                _ => 1
+            });
             StrokeWidthPicker.SelectedIndex = width <= 2 ? 0 : width >= 7 ? 2 : 1;
             if (selected.Tool == AnnotationTool.Text)
                 FontSizePicker.Text = selected.FontSize.ToString("0");
@@ -173,7 +178,7 @@ public partial class ScreenshotViewerWindow
     {
         if (syncingControls || Annotations is null || StrokeWidthPicker.SelectedItem is not ComboBoxItem item) return;
         Annotations.InkWidth = double.Parse((string)item.Tag, System.Globalization.CultureInfo.InvariantCulture);
-        Annotations.ChangeSelected(annotation => annotation.Width = Annotations.InkWidth * (annotation.Tool == AnnotationTool.Highlight ? 5 : 1));
+        Annotations.ChangeSelected(annotation => annotation.Width = Annotations.WidthForTool(annotation.Tool));
     }
 
     private void FontSize_Changed(object sender, SelectionChangedEventArgs e)
@@ -254,6 +259,7 @@ public partial class ScreenshotViewerWindow
         if (Annotations is null || ImageStage.Width <= 0) return;
         Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageViewport.ActualWidth - 8) / ImageStage.Width,
             Math.Max(1, ImageViewport.ActualHeight - 8) / ImageStage.Height) * currentZoom);
+        Annotations.ArrowScale = Math.Clamp(currentZoom / Annotations.DisplayScale, 1, 4);
         RenderOptions.SetBitmapScalingMode(ViewerImage, Annotations.DisplayScale > 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.HighQuality);
         Annotations.DrawSelection();
         OcrSelectionHighlight.StrokeThickness = 1.5 / Annotations.DisplayScale;
