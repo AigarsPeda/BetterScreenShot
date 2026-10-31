@@ -20,6 +20,10 @@ Mark up a screenshot with highlights, editable shapes, curved arrows, and text, 
 
 ![Screenshot editor with a highlighted heading, blue rectangle, editable curved arrow, and text annotation](docs/screenshots/editor.jpg)
 
+Extract text locally, then select the same passage in the image and the results panel.
+
+![Screenshot editor with recognized text in the side panel and matching words selected in the image](docs/screenshots/text-recognition.jpg)
+
 | Capture a screen or area | Preview and quick actions |
 | --- | --- |
 | <img src="docs/screenshots/capture.jpg" alt="Capture launcher with full-screen and area selection options" width="480"> | <img src="docs/screenshots/preview.jpg" alt="Screenshot preview with Copy, Save, Edit, and Discard actions" width="300"> |
@@ -117,6 +121,8 @@ The editor keeps a visual for each annotation. Adding, replacing, or removing a 
 Open a capture in the editor, use the **Select** tool, and **double-click a word directly on the image**. Recognition starts automatically, the word is highlighted, and the same word is selected in the text panel. Press **Ctrl+C** to copy just that word. Word highlights follow zoom and pan and are excluded from copied or saved images. Double-clicking an editable text annotation still edits that annotation.
 
 Drag the blue handle at either end of a text selection to include adjacent words or shrink the range. Selections follow reading order across line breaks, so a sentence can span multiple lines. Dragging across the opposite handle reverses the selection direction; Escape restores the range from before the drag. The text panel stays synchronized and Ctrl+C copies the entire selected passage. Handles keep a constant display size when zooming and are excluded from image exports.
+
+![A sentence selected across two image lines with blue selection handles and matching text selected in the side panel, using English and Latvian sample text](docs/screenshots/text-selection.jpg)
 
 You can also click **Extract text**, or press **Ctrl+Shift+T** with the canvas focused. The button toggles the results panel open and closed, including while recognition is running. Reopening uses cached results when available. The centered X button also closes the panel.
 
