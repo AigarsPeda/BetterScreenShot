@@ -314,7 +314,7 @@ internal static class AnnotationTests
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
-        check("Editor toolbar wraps at minimum width and inline text remains editable", () =>
+        check("Editor icon dock and contextual controls fit minimum width; inline text remains editable", () =>
         {
             var path = Path.Combine(directory, "editor-layout.png");
             var source = WhiteImage(1200, 700);
@@ -333,24 +333,72 @@ internal static class AnnotationTests
                     var surface = (AnnotationSurface)window.FindName("Annotations");
                     Require(surface.DisplayScale > 0);
                     var sketch = (System.Windows.Controls.Primitives.ToggleButton)window.FindName("SketchToggle");
-                    var sketchPosition = sketch.TranslatePoint(new Point(), window);
-                    Require(sketch.IsChecked == true && sketchPosition.X + sketch.ActualWidth < width);
-                    var remove = (System.Windows.Controls.Button)window.FindName("RemoveButton");
-                    var position = remove.TranslatePoint(new Point(), window);
-                    Require(position.X >= 0 && position.X + remove.ActualWidth < width);
+                    Require(sketch.IsChecked == true);
                     var copy = (System.Windows.Controls.Button)window.FindName("CopyButton");
                     var copyPosition = copy.TranslatePoint(new Point(), window);
                     Require(copyPosition.X >= 0 && copyPosition.X + copy.ActualWidth < width);
-                    var toolbarControls = new[] { "UndoButton", "RedoButton", "StrokeWidthPicker", "FontSizePicker", "RemoveButton", "SketchToggle", "ColorPickerButton" }
-                        .Select(name => (System.Windows.Controls.Control)window.FindName(name))
-                        .Concat(((StackPanel)window.FindName("ToolsPanel")).Children.OfType<System.Windows.Controls.Control>());
-                    foreach (var control in toolbarControls)
+                    var viewport = (FrameworkElement)window.FindName("ImageViewport");
+                    var dock = (FrameworkElement)window.FindName("ToolDock");
+                    var dockPosition = dock.TranslatePoint(new Point(), viewport);
+                    Require(dockPosition.X >= 0 && dockPosition.X + dock.ActualWidth < viewport.ActualWidth);
+                    Require(dockPosition.Y >= 0 && dockPosition.Y + dock.ActualHeight < viewport.ActualHeight);
+                    if (width >= 1100)
+                        Require(Math.Abs(dock.TranslatePoint(new Point(0, dock.ActualHeight / 2), window).Y
+                            - copy.TranslatePoint(new Point(0, copy.ActualHeight / 2), window).Y) < 8);
+                    if (width == 1100)
                     {
-                        if (Math.Abs(control.ActualHeight - 32) >= .01)
+                        var dockCenter = dock.TranslatePoint(new Point(dock.ActualWidth / 2, 0), window).X;
+                        window.SetTextPanelOpen(true);
+                        Complete(Task.Delay(250), window.Dispatcher);
+                        window.UpdateLayout();
+                        if (Math.Abs(dock.TranslatePoint(new Point(dock.ActualWidth / 2, 0), window).X - dockCenter) >= 1)
+                            throw new InvalidOperationException("Opening extracted text moved the icon dock.");
+                        window.SetTextPanelOpen(false);
+                        Complete(Task.Delay(250), window.Dispatcher);
+                        window.UpdateLayout();
+                    }
+                    var toolButtons = ((WrapPanel)window.FindName("ToolsPanel")).Children.OfType<System.Windows.Controls.Control>();
+                    foreach (var control in toolButtons)
+                    {
+                        if (control.ActualHeight < 32 || control.ActualHeight > 35)
                             throw new InvalidOperationException($"Toolbar control {control.Name} has height {control.ActualHeight} at window width {width}.");
                         var controlPosition = control.TranslatePoint(new Point(), window);
                         Require(controlPosition.X >= 0 && controlPosition.X + control.ActualWidth < width);
                     }
+                    foreach (var name in new[] { "UndoButton", "RedoButton" })
+                    {
+                        var control = (System.Windows.Controls.Control)window.FindName(name);
+                        var controlPosition = control.TranslatePoint(new Point(), window);
+                        Require(control.ActualHeight >= 32 && controlPosition.X >= 0 && controlPosition.X + control.ActualWidth < width);
+                    }
+                    var options = (FrameworkElement)window.FindName("AnnotationOptionsTray");
+                    Require(options.Visibility == Visibility.Collapsed);
+                    var chooseTool = typeof(ScreenshotViewerWindow).GetMethod("ChooseTool", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                    foreach (var (tool, visibleControls) in new[]
+                    {
+                        (AnnotationTool.Pen, new[] { "ColorPickerButton", "StrokeWidthPicker" }),
+                        (AnnotationTool.Text, new[] { "ColorPickerButton", "FontSizePicker" }),
+                        (AnnotationTool.Rectangle, new[] { "ColorPickerButton", "StrokeWidthPicker", "SketchToggle" })
+                    })
+                    {
+                        chooseTool.Invoke(window, [tool]);
+                        window.UpdateLayout();
+                        Require(options.Visibility == Visibility.Visible);
+                        var optionsPosition = options.TranslatePoint(new Point(), viewport);
+                        Require(optionsPosition.X >= 0 && optionsPosition.X + options.ActualWidth < viewport.ActualWidth);
+                        Require(optionsPosition.Y > dockPosition.Y && optionsPosition.Y + options.ActualHeight < viewport.ActualHeight);
+                        foreach (var name in visibleControls)
+                        {
+                            var control = (System.Windows.Controls.Control)window.FindName(name);
+                            Require(control.ActualHeight >= 31 && control.ActualHeight <= 35);
+                            var controlPosition = control.TranslatePoint(new Point(), window);
+                            Require(controlPosition.X >= 0 && controlPosition.X + control.ActualWidth < width);
+                        }
+                        Require(((FrameworkElement)window.FindName("ImageViewport")).ActualHeight > 300);
+                    }
+                    chooseTool.Invoke(window, [AnnotationTool.Select]);
+                    window.UpdateLayout();
+                    Require(options.Visibility == Visibility.Collapsed);
                     Require(((FrameworkElement)window.FindName("ImageViewport")).ActualHeight > 300);
                 }
                 var palette = ((System.Windows.Controls.Button)window.FindName("ColorPickerButton")).ContextMenu;
@@ -510,7 +558,10 @@ internal static class AnnotationTests
         {
             var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "unused.png")), WhiteImage(1200, 740));
             ThemeIconService.ApplyViewerTheme(window.Resources, theme);
+            window.Width = width;
             var content = (FrameworkElement)window.Content;
+            content.Width = width;
+            content.Height = 700;
             content.Measure(new System.Windows.Size(width, 700));
             content.Arrange(new Rect(0, 0, width, 700));
             content.UpdateLayout();
@@ -527,6 +578,49 @@ internal static class AnnotationTests
             var path = Path.Combine(directory, $"toolbar-{theme.ToString().ToLowerInvariant()}-{width}.png");
             SavePng(path, bitmap);
             Console.WriteLine(path);
+            if (width is 620 or 1100)
+            {
+                var tools = (WrapPanel)window.FindName("ToolsPanel");
+                var arrow = tools.Children.OfType<System.Windows.Controls.Primitives.ToggleButton>()
+                    .Single(button => Equals(button.Tag, AnnotationTool.Arrow));
+                arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                content.Measure(new System.Windows.Size(width, 700));
+                content.Arrange(new Rect(0, 0, width, 700));
+                content.UpdateLayout();
+                var optionsHeight = (int)Math.Ceiling(toolbar.TranslatePoint(new Point(), content).Y + toolbar.ActualHeight + 12);
+                var optionsVisual = new DrawingVisual();
+                using (var drawing = optionsVisual.RenderOpen())
+                {
+                    drawing.DrawRectangle((System.Windows.Media.Brush)window.FindResource("ViewerPageBackgroundBrush"), null, new Rect(0, 0, width, optionsHeight));
+                    drawing.DrawRectangle(new VisualBrush(content), null, new Rect(content.RenderSize));
+                }
+                var optionsBitmap = new RenderTargetBitmap(width, optionsHeight, 96, 96, PixelFormats.Pbgra32);
+                optionsBitmap.Render(optionsVisual);
+                var optionsPath = Path.Combine(directory, $"toolbar-{theme.ToString().ToLowerInvariant()}-{width}-arrow.png");
+                SavePng(optionsPath, optionsBitmap);
+                Console.WriteLine(optionsPath);
+                if (width == 620)
+                {
+                    var ocrHost = (Grid)window.FindName("ExtractedTextHost");
+                    ocrHost.Visibility = Visibility.Visible;
+                    ocrHost.Width = 312;
+                    content.Measure(new System.Windows.Size(width, 700));
+                    content.Arrange(new Rect(0, 0, width, 700));
+                    content.UpdateLayout();
+                    var narrowHeight = (int)Math.Ceiling(toolbar.TranslatePoint(new Point(), content).Y + toolbar.ActualHeight + 12);
+                    var narrowVisual = new DrawingVisual();
+                    using (var drawing = narrowVisual.RenderOpen())
+                    {
+                        drawing.DrawRectangle((System.Windows.Media.Brush)window.FindResource("ViewerPageBackgroundBrush"), null, new Rect(0, 0, width, narrowHeight));
+                        drawing.DrawRectangle(new VisualBrush(content), null, new Rect(content.RenderSize));
+                    }
+                    var narrowBitmap = new RenderTargetBitmap(width, narrowHeight, 96, 96, PixelFormats.Pbgra32);
+                    narrowBitmap.Render(narrowVisual);
+                    var narrowPath = Path.Combine(directory, $"toolbar-{theme.ToString().ToLowerInvariant()}-{width}-arrow-ocr.png");
+                    SavePng(narrowPath, narrowBitmap);
+                    Console.WriteLine(narrowPath);
+                }
+            }
             window.Close();
         }
         app.Shutdown();

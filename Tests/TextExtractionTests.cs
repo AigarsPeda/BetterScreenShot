@@ -90,6 +90,16 @@ internal static class TextExtractionTests
             var latvian = TextExtractionService.ExtractAsync(Fixture("Labdien! Rīga, Latvija."), "lav").GetAwaiter().GetResult();
             Require(latvian.Contains("Rīga") && latvian.Contains("Latvija"), latvian);
         });
+        check("Short UI text gets a sparse-layout retry without losing word positions", () =>
+        {
+            var passes = 0;
+            var result = TextExtractionService.RecognizeAsync(Fixture("Hello"), "eng",
+                reportTiming: timing => { if (timing.Stage == "recognize") Interlocked.Increment(ref passes); }).GetAwaiter().GetResult();
+            Require(passes >= 2, "Short text should get a sparse-layout retry.");
+            Require(result.Text.Contains("Hello", StringComparison.OrdinalIgnoreCase), result.Text);
+            Require(result.Words.All(word => result.Text.Substring(word.TextStart, word.Text.Length) == word.Text),
+                "Sparse-layout words must keep valid text offsets.");
+        });
         check("Added OCR models recognize Lithuanian, Estonian, Swedish, Finnish and Russian", () =>
         {
             foreach (var (language, sample, expected) in new[]
@@ -281,11 +291,12 @@ internal static class TextExtractionTests
             {
                 window.Show();
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(window.Dispatcher));
-                var button = (System.Windows.Controls.Button)window.FindName("ExtractTextButton");
+                var button = (System.Windows.Controls.Primitives.ToggleButton)window.FindName("ExtractTextButton");
                 var host = (FrameworkElement)window.FindName("ExtractedTextHost");
                 var textBox = (System.Windows.Controls.TextBox)window.FindName("ExtractedTextBox");
                 var pending = window.ToggleTextPanelAsync();
                 Require(button.IsEnabled && !pending.IsCompleted, "The toggle should remain clickable while Auto is recognizing text.");
+                Require(button.IsChecked == true, "The toolbar icon should show when extracted text is open.");
                 button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 Complete(pending);
                 Complete(Task.Delay(250));
@@ -366,7 +377,7 @@ internal static class TextExtractionTests
                 var surface = (AnnotationSurface)window.FindName("Annotations");
                 surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.Text, Text = "ADDED MARKUP", FontSize = 36, Points = [new(20, 180)] });
                 var task = window.ExtractTextAsync();
-                Require(((System.Windows.Controls.Button)window.FindName("ExtractTextButton")).IsEnabled, "The panel toggle must remain available during recognition.");
+                Require(((System.Windows.Controls.Primitives.ToggleButton)window.FindName("ExtractTextButton")).IsEnabled, "The panel toggle must remain available during recognition.");
                 Require(!((System.Windows.Controls.Button)window.FindName("CopyExtractedTextButton")).IsEnabled, "Copy all should wait for the recognition result.");
                 Require(window.ExtractTextAsync().IsCompletedSuccessfully, "Repeated shortcuts should not restart active recognition.");
                 Complete(task);

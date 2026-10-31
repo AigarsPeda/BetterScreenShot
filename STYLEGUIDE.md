@@ -1,84 +1,45 @@
-# Better ScreenShot Style Guide
+# BetterScreenShot style guide
 
-## Design Direction
-- Compact Windows desktop utility.
-- Fast to scan, low-friction, and visually calm.
-- Two equal primary actions should be the main focus of the launcher screen.
-- Avoid decorative chrome that steals space from the actions.
+## Direction
 
-## Main Window
-- The launcher window should be compact and task-first.
-- Do not show a large in-window title on the launcher screen.
-- The standard window title can be empty when the UI itself is self-explanatory.
-- The two primary actions should appear immediately without extra introductory copy.
+- A compact Windows utility with the calm canvas and drawing-tool character of the Sketch studio concept.
+- The captured image is the visual anchor. Controls use one consistent icon language, quiet surfaces, and a purple active state.
+- Group with spacing, one shared surface, or a fine divider. Use a border for focus or selection when it communicates state.
+- Keep text functional. Do not add decorative headings, slogans, size captions, or explanatory copy to the launcher, editor header, or preview.
 
-## Layout
-- Outer page margin: 16 px.
-- Action cards should be stacked vertically.
-- Both primary action cards must always have the same height.
-- Status bar should sit below the actions with a small top gap.
-- Prefer real responsive layout over scaling the whole UI with a Viewbox.
-- Text and icons must remain visible at common window sizes and display scales.
+## Launcher
 
-## Action Card Sizing
-- Action card height: 64 px.
-- Card corner radius: 18 px.
-- Card inner padding: 10 px.
-- Icon tile size: 36 x 36 px.
-- Icon tile corner radius: 10 px.
-- Gap between icon and label: 10 px.
-- Right arrow column: 16 px.
-- Vertical gap between cards: 10 px.
+- Keep the 520 × 320 default window and the 380 × 290 minimum.
+- Show the two primary capture actions immediately. Their rows have equal height and share a single raised surface with one divider.
+- Give each action a small outline icon, a clear label, and its shortcut hint. Do not add icon tiles or trailing chevrons.
+- Place status and the keyboard-shortcuts link in a quiet footer. Status color can change with meaning, but the area should not become a permanent badge.
+- Hover uses a soft surface fill. Keyboard focus has a visible purple outline.
 
-## Typography
-- Action labels: 15 px, semi-bold.
-- Status text: 13 px, semi-bold.
-- Use short, direct labels.
-- Prefer one-line labels when possible.
+## Editor
 
-## Color
-- Page background: soft cool gray-blue.
-- Card surface: white.
-- Card border: light cool gray.
-- Full screen action accent: blue.
-- Select area action accent: green.
-- Status colors:
-  - Neutral for idle.
-  - Blue for guidance and temporary state.
-  - Green for success.
-  - Red for errors.
+- Keep Copy, Save, and Extract text visible and named. Place zoom and undo/redo where they remain reachable at narrow widths.
+- Put the nine annotation tools in a compact centered icon dock. The selected tool has a filled purple state. Each icon has a tooltip, accessible name, and existing keyboard shortcut.
+- Show color, stroke, text size, Sketch, and delete controls when the active tool or selected annotation needs them. Do not leave a dense full-width options bar visible at rest.
+- Float the dock and contextual controls over the upper image viewport. They must not consume a layout row. Keep hit testing within the controls so drawing gestures work elsewhere on the image. At 620 × 450, the image and essential commands must remain usable.
+- Let canvas tone and a slight image shadow separate the screenshot from the workspace. Avoid an outline around every layer.
+- The extracted-text panel uses the same surface and theme roles. Recognition status appears only when needed.
 
-## Iconography
-- Use simple outline icons with rounded caps and joins.
-- Icons should communicate quickly at small sizes.
-- Use a monitor metaphor for full-screen capture.
-- Use a scan/corner metaphor for area capture.
-- Avoid overly detailed icons in primary launcher actions.
-- Keep icon treatment visually balanced with the text, not larger than the text block demands.
+## Capture preview
 
-## Responsiveness
-- Use standard WPF layout containers first.
-- Avoid scaling the entire launcher UI as a single visual block.
-- Do not let icons or labels clip at smaller heights.
-- If space becomes tight, reduce padding before reducing readability.
-- Ellipsis is acceptable for long text, but clipping is not.
+- Show the captured thumbnail and immediate Copy and Save actions. Keep edit and discard available with accessible names.
+- Do not add a title, timestamp, dimensions, or a “screenshot ready” caption.
+- Use a readable light or dark surface based on the Windows app theme. Preview actions must remain legible over light and dark images.
 
-## Interaction
-- Action cards should highlight lightly on hover.
-- Pressed state should darken subtly.
-- Cursor should always indicate clickability on action cards.
-- Full-screen capture mode should use a distinct capture cursor.
+## Color and icons
 
-## Status Messaging
-- Keep status messages short and action-oriented.
-- Preferred examples:
-  - Ready to capture.
-  - Choose a monitor to capture.
-  - Drag to select the area you want.
-  - Screenshot captured. Use the popup to save, copy, or discard it.
-- Avoid technical implementation details in launcher messages.
+- Light: paper `#F7F7F3`, white raised surface, ink `#252735`, purple `#625FC6`.
+- Dark: near-black `#171922`, raised surface `#252833`, light ink, lavender `#B9B5FF`.
+- Use semantic brush resources for text, canvas, surface, focus, accent, selection, status, and errors. Do not invert the light palette mechanically.
+- Use a small consistent Lucide-style outline set. Keep common actions labeled; an icon-only tool must have a tooltip and accessible name.
+- Check text and selected-state contrast in both themes. Do not rely on purple alone to communicate which tool is active.
 
-## Future Screens
-- Reuse the same radius, spacing, and border rhythm.
-- Popup and viewer windows should feel like the same product family.
-- New primary actions should match the same action card height and spacing unless there is a strong reason not to.
+## Interaction and verification
+
+- Preserve capture, edit, OCR, copy, save, shortcut, and annotation behavior while changing visual layout.
+- Honor Windows light/dark changes while windows are open. Respect keyboard focus and reduced-motion settings.
+- Verify launcher status wrapping, toolbar fit at 620/1100/1280 widths, image viewport height, OCR drawer opening, and both theme palettes before release.

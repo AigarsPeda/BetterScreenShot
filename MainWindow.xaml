@@ -6,58 +6,98 @@
         Width="520"
         MinHeight="290"
         MinWidth="380"
+        FontFamily="Segoe UI Variable, Segoe UI"
         Background="{DynamicResource PageBackgroundBrush}"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
-        <SolidColorBrush x:Key="PageBackgroundBrush" Color="#F7F9FC" />
+        <SolidColorBrush x:Key="PageBackgroundBrush" Color="#F7F7F3" />
         <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#D8E1EC" />
-        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#FBFDFF" />
-        <SolidColorBrush x:Key="SurfaceHoverBorderBrush" Color="#C4D4E8" />
-        <SolidColorBrush x:Key="SurfacePressedBrush" Color="#F5F9FD" />
-        <SolidColorBrush x:Key="SurfacePressedBorderBrush" Color="#B7CCE6" />
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#97A6BA" />
-        <SolidColorBrush x:Key="AccentBlueBrush" Color="#2563EB" />
-        <SolidColorBrush x:Key="AccentBlueSoftBrush" Color="#E8F0FF" />
-        <SolidColorBrush x:Key="AccentGreenBrush" Color="#0F9F6E" />
-        <SolidColorBrush x:Key="AccentGreenSoftBrush" Color="#E7F8F1" />
-        <SolidColorBrush x:Key="StatusNeutralBrush" Color="#EEF2F7" />
-        <SolidColorBrush x:Key="StatusNeutralTextBrush" Color="#415063" />
-        <SolidColorBrush x:Key="StatusSuccessBrush" Color="#E7F8F1" />
-        <SolidColorBrush x:Key="StatusSuccessTextBrush" Color="#0D7A55" />
-        <SolidColorBrush x:Key="StatusInfoBrush" Color="#EAF2FF" />
-        <SolidColorBrush x:Key="StatusInfoTextBrush" Color="#2454B8" />
-        <SolidColorBrush x:Key="StatusErrorBrush" Color="#FDECEC" />
-        <SolidColorBrush x:Key="StatusErrorTextBrush" Color="#B42318" />
+        <SolidColorBrush x:Key="DividerBrush" Color="#E3E3EA" />
+        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#F0F0F8" />
+        <SolidColorBrush x:Key="SurfacePressedBrush" Color="#E8E7F5" />
+        <SolidColorBrush x:Key="FocusBrush" Color="#625FC6" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#252735" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#636978" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#625FC6" />
+        <SolidColorBrush x:Key="StatusNeutralBrush" Color="Transparent" />
+        <SolidColorBrush x:Key="StatusNeutralTextBrush" Color="#636978" />
+        <SolidColorBrush x:Key="StatusSuccessBrush" Color="Transparent" />
+        <SolidColorBrush x:Key="StatusSuccessTextBrush" Color="#2F7D5A" />
+        <SolidColorBrush x:Key="StatusInfoBrush" Color="Transparent" />
+        <SolidColorBrush x:Key="StatusInfoTextBrush" Color="#514CB6" />
+        <SolidColorBrush x:Key="StatusErrorBrush" Color="Transparent" />
+        <SolidColorBrush x:Key="StatusErrorTextBrush" Color="#B43E45" />
 
-        <Style x:Key="ActionCardButtonStyle" TargetType="Button">
+        <Style x:Key="CaptureIconStyle" TargetType="Shape">
+            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="StrokeThickness" Value="3.2" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+        </Style>
+
+        <Style x:Key="CaptureActionStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="0,0,0,10" />
-            <Setter Property="Height" Value="64" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Height" Value="77" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="CardBorder"
-                                Background="{DynamicResource SurfaceBrush}"
-                                BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="18"
-                                Padding="10">
-                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" />
+                        <Border x:Name="ActionSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SurfaceHoverBorderBrush}" />
-                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource SurfacePressedBrush}" />
-                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SurfacePressedBorderBrush}" />
+                                <Setter TargetName="ActionSurface" Property="Background" Value="{DynamicResource SurfacePressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ActionSurface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                                <Setter TargetName="ActionSurface" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ActionSurface" Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FooterButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                                <Setter TargetName="ButtonSurface" Property="BorderThickness" Value="2" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -66,185 +106,127 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="{DynamicResource PageBackgroundBrush}">
-        <Grid Margin="16">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" MinHeight="34" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+    <Grid Background="{DynamicResource PageBackgroundBrush}" Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="18" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-            <Button Name="CaptureButton"
-                    Grid.Row="0"
-                    Style="{StaticResource ActionCardButtonStyle}"
-                    Click="CaptureButton_Click">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="36" />
-                        <ColumnDefinition Width="10" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="16" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Width="36"
-                            Height="36"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Left"
-                            Background="{DynamicResource AccentBlueSoftBrush}"
-                            CornerRadius="10">
-                        <Viewbox Width="18" Height="18" Stretch="Uniform">
+        <Border Grid.Row="0"
+                Background="{DynamicResource SurfaceBrush}"
+                CornerRadius="16"
+                Padding="5">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="25" ShadowDepth="6" Color="#252735" Opacity="0.12" />
+            </Border.Effect>
+            <StackPanel>
+                <Button x:Name="CaptureButton"
+                        Style="{StaticResource CaptureActionStyle}"
+                        Click="CaptureButton_Click"
+                        AutomationProperties.Name="Capture full screen">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="24" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Viewbox Width="21" Height="21" Stretch="Uniform" VerticalAlignment="Center">
                             <Canvas Width="40" Height="40">
-                                <Path Stroke="{DynamicResource AccentBlueBrush}"
-                                      StrokeThickness="2"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      StrokeLineJoin="Round"
+                                <Path Style="{StaticResource CaptureIconStyle}"
                                       Data="M7 9 H33 A3 3 0 0 1 36 12 V26 A3 3 0 0 1 33 29 H7 A3 3 0 0 1 4 26 V12 A3 3 0 0 1 7 9 Z" />
-                                <Path Stroke="{DynamicResource AccentBlueBrush}"
-                                      StrokeThickness="2"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      Data="M14 34 H26" />
-                                <Path Stroke="{DynamicResource AccentBlueBrush}"
-                                      StrokeThickness="2"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      Data="M20 29 V34" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M14 34 H26" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M20 29 V34" />
                             </Canvas>
                         </Viewbox>
-                    </Border>
-
-                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock
-                               VerticalAlignment="Center"
-                               Text="Capture Full Screen"
-                               FontSize="15"
-                               FontWeight="SemiBold"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource PrimaryTextBrush}" />
-                    <TextBlock x:Name="FullScreenShortcutLabel" FontSize="11" Margin="0,3,0,0" Opacity="0.65" Foreground="{DynamicResource PrimaryTextBrush}" Text="Shortcut not set" />
-                    </StackPanel>
-
-                    <Path Grid.Column="3"
-                          VerticalAlignment="Center"
-                          HorizontalAlignment="Right"
-                          Stroke="{DynamicResource SecondaryTextBrush}"
-                          StrokeThickness="2"
-                          StrokeStartLineCap="Round"
-                          StrokeEndLineCap="Round"
-                          Data="M0 0 L7 7 L0 14" />
-                </Grid>
-            </Button>
-
-            <Button Name="SelectAreaButton"
-                    Grid.Row="1"
-                    Style="{StaticResource ActionCardButtonStyle}"
-                    Margin="0"
-                    Click="SelectAreaButton_Click">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="36" />
-                        <ColumnDefinition Width="10" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="16" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Width="36"
-                            Height="36"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Left"
-                            Background="{DynamicResource AccentGreenSoftBrush}"
-                            CornerRadius="10">
-                        <Viewbox Width="18" Height="18" Stretch="Uniform">
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="Capture Full Screen"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                            <TextBlock x:Name="FullScreenShortcutLabel"
+                                       Text="Shortcut not set"
+                                       Margin="0,4,0,0"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <Border Height="1" Margin="10,0" Background="{DynamicResource DividerBrush}" />
+                <Button x:Name="SelectAreaButton"
+                        Style="{StaticResource CaptureActionStyle}"
+                        Click="SelectAreaButton_Click"
+                        AutomationProperties.Name="Select area">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="24" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Viewbox Width="21" Height="21" Stretch="Uniform" VerticalAlignment="Center">
                             <Canvas Width="40" Height="40">
-                                <Path Stroke="{DynamicResource AccentGreenBrush}"
-                                      StrokeThickness="2"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      StrokeLineJoin="Round"
-                                      Data="M12 9 H8 A3 3 0 0 0 5 12 V16" />
-                                <Path Stroke="{DynamicResource AccentGreenBrush}"
-                                      StrokeThickness="2"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      StrokeLineJoin="Round"
-                                      Data="M28 9 H32 A3 3 0 0 1 35 12 V16" />
-                                <Path Stroke="{DynamicResource AccentGreenBrush}"
-                                      StrokeThickness="2"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      StrokeLineJoin="Round"
-                                      Data="M35 24 V28 A3 3 0 0 1 32 31 H28" />
-                                <Path Stroke="{DynamicResource AccentGreenBrush}"
-                                      StrokeThickness="2"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      StrokeLineJoin="Round"
-                                      Data="M12 31 H8 A3 3 0 0 1 5 28 V24" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M12 9 H8 A3 3 0 0 0 5 12 V16" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M28 9 H32 A3 3 0 0 1 35 12 V16" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M35 24 V28 A3 3 0 0 1 32 31 H28" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M12 31 H8 A3 3 0 0 1 5 28 V24" />
                             </Canvas>
                         </Viewbox>
-                    </Border>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="Select Area"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                            <TextBlock x:Name="AreaShortcutLabel"
+                                       Text="Shortcut not set"
+                                       Margin="0,4,0,0"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+            </StackPanel>
+        </Border>
 
-                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock
-                               VerticalAlignment="Center"
-                               Text="Select Area"
-                               FontSize="15"
-                               FontWeight="SemiBold"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource PrimaryTextBrush}" />
-                    <TextBlock x:Name="AreaShortcutLabel" FontSize="11" Margin="0,3,0,0" Opacity="0.65" Foreground="{DynamicResource PrimaryTextBrush}" Text="Shortcut not set" />
-                    </StackPanel>
-
-                    <Path Grid.Column="3"
-                          VerticalAlignment="Center"
-                          HorizontalAlignment="Right"
-                          Stroke="{DynamicResource SecondaryTextBrush}"
-                          StrokeThickness="2"
-                          StrokeStartLineCap="Round"
-                          StrokeEndLineCap="Round"
-                          Data="M0 0 L7 7 L0 14" />
-                </Grid>
-            </Button>
-
-            <Button x:Name="ShortcutsButton" Grid.Row="2" Content="Shortcuts…" HorizontalAlignment="Right" VerticalAlignment="Center"
-                    Click="ShortcutsButton_Click" Padding="10,4" FontSize="12" Cursor="Hand" Foreground="{DynamicResource PrimaryTextBrush}" ToolTip="Configure capture keyboard shortcuts">
-                <Button.Template><ControlTemplate TargetType="Button">
-                    <Border x:Name="ShortcutChrome" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}"><ContentPresenter /></Border>
-                    <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ShortcutChrome" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" /></Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ShortcutChrome" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" /></Trigger></ControlTemplate.Triggers>
-                </ControlTemplate></Button.Template>
-            </Button>
-
+        <Grid Grid.Row="2" Margin="2,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
             <Border x:Name="StatusBadge"
-                    Grid.Row="3"
-                    Margin="0,8,0,0"
-                    Padding="12,8"
+                    Grid.Column="0"
                     HorizontalAlignment="Stretch"
-                    Background="{DynamicResource StatusNeutralBrush}"
-                    CornerRadius="14">
+                    VerticalAlignment="Center"
+                    Background="{DynamicResource StatusNeutralBrush}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Ellipse x:Name="StatusDot"
-                             Width="10"
-                             Height="10"
+                             Width="7"
+                             Height="7"
                              VerticalAlignment="Center"
                              Fill="{DynamicResource StatusNeutralTextBrush}" />
                     <TextBlock x:Name="StatusTextBlock"
                                Grid.Column="1"
-                               Margin="10,0,0,0"
+                               Margin="9,0,6,0"
                                VerticalAlignment="Center"
-                               FontSize="13"
-                               FontWeight="SemiBold"
+                               FontSize="12"
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource StatusNeutralTextBrush}"
                                Text="Ready to capture." />
                 </Grid>
             </Border>
+            <Button x:Name="ShortcutsButton"
+                    Grid.Column="1"
+                    Content="Shortcuts…"
+                    Margin="8,0,0,0"
+                    Style="{StaticResource FooterButtonStyle}"
+                    FontSize="12"
+                    Click="ShortcutsButton_Click"
+                    ToolTip="Configure capture keyboard shortcuts" />
         </Grid>
     </Grid>
 </Window>

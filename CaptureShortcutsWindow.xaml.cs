@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using Microsoft.Win32;
 using Button = System.Windows.Controls.Button;
 
 namespace BetterScreenShot;
@@ -12,6 +13,7 @@ public partial class CaptureShortcutsWindow : Window
     private readonly Func<CaptureShortcutSettings, string?> save;
     private bool? recordingArea;
     private ShortcutRecordingHook? recordingHook;
+    private AppTheme currentTheme;
     internal CaptureShortcutSettings Draft { get; private set; }
 
     internal CaptureShortcutsWindow(CaptureShortcutSettings settings, Func<CaptureShortcutSettings, string?> save)
@@ -19,18 +21,44 @@ public partial class CaptureShortcutsWindow : Window
         InitializeComponent();
         this.save = save;
         Draft = settings;
-        var theme = ThemeIconService.DetectWindowsTheme();
+        currentTheme = ThemeIconService.DetectWindowsTheme();
+        ApplyTheme(currentTheme);
+        SourceInitialized += (_, _) => ApplyWindowChromeTheme(currentTheme);
+        Deactivated += (_, _) => StopRecording();
+        SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        Closed += (_, _) =>
+        {
+            SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+            recordingHook?.Dispose();
+            recordingHook = null;
+        };
+        UpdateLabels();
+    }
+
+    private void ApplyTheme(AppTheme theme)
+    {
         ThemeIconService.ApplyViewerTheme(Resources, theme);
         Resources["ShortcutErrorBrush"] = new SolidColorBrush(theme == AppTheme.Dark ? Colors.LightPink : Colors.Firebrick);
         Icon = ThemeIconService.CreateScanIcon(theme);
-        SourceInitialized += (_, _) =>
+    }
+
+    private void ApplyWindowChromeTheme(AppTheme theme)
+    {
+        var dark = theme == AppTheme.Dark ? 1 : 0;
+        DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref dark, sizeof(int));
+    }
+
+    private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category is not (UserPreferenceCategory.General or UserPreferenceCategory.Color or UserPreferenceCategory.VisualStyle)) return;
+        Dispatcher.BeginInvoke(new Action(() =>
         {
-            var dark = theme == AppTheme.Dark ? 1 : 0;
-            DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref dark, sizeof(int));
-        };
-        Deactivated += (_, _) => StopRecording();
-        Closed += (_, _) => { recordingHook?.Dispose(); recordingHook = null; };
-        UpdateLabels();
+            var theme = ThemeIconService.DetectWindowsTheme();
+            if (theme == currentTheme) return;
+            currentTheme = theme;
+            ApplyTheme(theme);
+            ApplyWindowChromeTheme(theme);
+        }));
     }
 
     private void UpdateLabels()

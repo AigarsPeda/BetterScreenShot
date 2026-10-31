@@ -83,6 +83,12 @@ internal static class TextExtractionService
         var options = new ParallelOptions { CancellationToken = cancellationToken, MaxDegreeOfParallelism = workers };
         Parallel.For(0, remainingCodes.Length, options, index => results[index] = RecognizeCode(remainingCodes[index], scale));
         candidates.AddRange(results);
+        // Document layout can ignore a short text block among icons and controls.
+        // Retry that case as sparse text, then let the existing completeness score choose.
+        if (candidates.Max(result => result.Words.Sum(word => word.Text.Count(char.IsLetterOrDigit))) < 32
+            && candidates.Any(result => result.Words.Count > 0)
+            && (long)image.PixelWidth * image.PixelHeight <= 4_000_000)
+            candidates.Add(RecognizeCode(language == AutomaticLanguage ? "eng" : language, scale, 11));
         cancellationToken.ThrowIfCancellationRequested();
         started = Stopwatch.GetTimestamp();
         var merged = MergeResults(candidates);
@@ -100,10 +106,10 @@ internal static class TextExtractionService
             return (pixels, stride);
         }
 
-        TextExtractionResult RecognizeCode(string code, int recognitionScale)
+        TextExtractionResult RecognizeCode(string code, int recognitionScale, int pageSegMode = 3)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var result = RecognizePixels(pixels, source.PixelWidth, source.PixelHeight, stride, directory, code, cancellationToken, reportTiming);
+            var result = RecognizePixels(pixels, source.PixelWidth, source.PixelHeight, stride, directory, code, cancellationToken, reportTiming, pageSegMode);
             if (recognitionScale != 1)
                 result = result with { Words = result.Words.Select(word => word with
                 {
@@ -114,7 +120,7 @@ internal static class TextExtractionService
         }
     }
 
-    private static TextExtractionResult RecognizePixels(byte[] pixels, int width, int height, int stride, string directory, string language, CancellationToken cancellationToken, Action<OcrTiming>? reportTiming)
+    private static TextExtractionResult RecognizePixels(byte[] pixels, int width, int height, int stride, string directory, string language, CancellationToken cancellationToken, Action<OcrTiming>? reportTiming, int pageSegMode)
     {
         var engine = Native.Create();
         if (engine == IntPtr.Zero) throw new InvalidOperationException("Could not create the text recognition engine.");
@@ -124,8 +130,7 @@ internal static class TextExtractionService
             if (Native.Init(engine, directory, language) != 0)
                 throw new InvalidOperationException("Could not load the text recognition language data.");
             Report("init", language, width, height, started, reportTiming);
-            // Automatic layout preserves paragraphs. No orientation model is required for screenshots.
-            Native.SetPageSegMode(engine, 3);
+            Native.SetPageSegMode(engine, pageSegMode);
             var pinnedPixels = GCHandle.Alloc(pixels, GCHandleType.Pinned);
             try
             {

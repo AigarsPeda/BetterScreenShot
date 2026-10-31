@@ -216,7 +216,8 @@ public partial class ScreenshotViewerWindow
     {
         if (textPanelOpen == open) return;
         textPanelOpen = open;
-        ExtractTextButton.ToolTip = open ? "Hide extracted text (Ctrl+Shift+T)" : "Extract text from the original screenshot (Ctrl+Shift+T)";
+        ExtractTextButton.IsChecked = open;
+        ExtractTextButton.ToolTip = open ? "Hide extracted text (E or Ctrl+Shift+T)" : "Extract text (E or Ctrl+Shift+T)";
         var transition = ++textPanelTransition;
         var fromWidth = ExtractedTextHost.Width;
         var fromSlide = ExtractedTextSlide.X;

@@ -26,6 +26,7 @@ internal static class Program
         if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();
         if (args.Contains("--shortcut-recorder-demo")) return CaptureShortcutTests.RecorderDemo();
         if (args.Contains("--shortcuts-preview")) return CaptureShortcutTests.Preview();
+        if (args.Contains("--capture-ui-preview")) return CaptureUiPreview.Render();
         if (args.Contains("--context-menu-preview")) return AnnotationContextMenuTests.Preview();
         if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
         if (args.Contains("--editor-qa")) return AnnotationTests.Demo(qa: true);
@@ -212,7 +213,7 @@ internal static class Program
                 foreach (var scale in new[] { 1d, 1.25d, 1.5d, 2d })
                 {
                     var workArea = new Rectangle(-3840, -2160, 3840, 2100);
-                    var size = new Size((int)(300 * scale), (int)(170 * scale));
+                    var size = new Size((int)(310 * scale), (int)(215 * scale));
                     var margin = (int)(16 * scale);
                     var position = CaptureGeometry.ToastPosition(workArea, size, margin);
                     Assert(position.X + size.Width == workArea.Right - margin);

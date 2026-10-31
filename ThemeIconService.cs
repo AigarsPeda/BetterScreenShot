@@ -20,14 +20,18 @@ namespace BetterScreenShot
 
         private static readonly (string Key, string Light, string Dark)[] ViewerPalette =
         [
-            ("ViewerPageBackgroundBrush", "#F7F9FC", "#0F172A"),
-            ("ViewerSurfaceBrush", "#FFFFFF", "#111827"),
-            ("ViewerSurfaceBorderBrush", "#D8E1EC", "#243041"),
-            ("ViewerSurfaceHoverBrush", "#F5F9FD", "#172134"),
-            ("ViewerSurfacePressedBrush", "#EEF4FB", "#1C2940"),
-            ("ViewerPrimaryTextBrush", "#111827", "#E5EEF9"),
-            ("ViewerSecondaryTextBrush", "#415063", "#94A3B8"),
-            ("ViewerCanvasBrush", "#EDEFF4", "#0B1220")
+            ("ViewerPageBackgroundBrush", "#F7F7F3", "#171922"),
+            ("ViewerSurfaceBrush", "#FFFFFF", "#252833"),
+            ("ViewerSurfaceBorderBrush", "#E3E3EA", "#3D4151"),
+            ("ViewerSurfaceHoverBrush", "#F0F0F8", "#343849"),
+            ("ViewerSurfacePressedBrush", "#E8E7F7", "#444963"),
+            ("ViewerPrimaryTextBrush", "#252735", "#F0F0F6"),
+            ("ViewerSecondaryTextBrush", "#636978", "#B1B5C4"),
+            ("ViewerCanvasBrush", "#FBFBF8", "#1B1D27"),
+            ("ViewerAccentBrush", "#625FC6", "#B9B5FF"),
+            ("ViewerAccentTextBrush", "#FFFFFF", "#222345"),
+            ("ViewerSelectedBrush", "#ECEBFF", "#403E6B"),
+            ("ViewerSelectionFillBrush", "#55625FC6", "#66B9B5FF")
         ];
 
         public static void ApplyViewerTheme(ResourceDictionary resources, AppTheme theme)
@@ -60,7 +64,9 @@ namespace BetterScreenShot
 
         private static ImageSource RenderScanIcon(AppTheme theme)
         {
-            var strokeColor = theme == AppTheme.Dark ? Colors.White : Colors.Black;
+            var strokeColor = theme == AppTheme.Dark
+                ? System.Windows.Media.Color.FromRgb(185, 181, 255)
+                : System.Windows.Media.Color.FromRgb(98, 95, 198);
             var strokeBrush = new SolidColorBrush(strokeColor);
             strokeBrush.Freeze();
 

@@ -10,26 +10,43 @@
             <Setter Property="Background" Value="{DynamicResource ViewerSurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ViewerSurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-                <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="9" Padding="{TemplateBinding Padding}">
                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
                 </Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" /></Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="#409CFF" /><Setter TargetName="Chrome" Property="BorderThickness" Value="2" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource ViewerAccentBrush}" /><Setter TargetName="Chrome" Property="BorderThickness" Value="2" /></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="ShortcutRecorderStyle" TargetType="Button" BasedOn="{StaticResource ShortcutButtonStyle}">
             <Setter Property="Width" Value="195" /><Setter Property="Height" Value="40" />
             <Setter Property="FontFamily" Value="Consolas" /><Setter Property="FontSize" Value="12" />
+            <Setter Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" />
+        </Style>
+        <Style x:Key="ShortcutPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ShortcutButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ViewerAccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ViewerAccentTextBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource ViewerAccentBrush}" BorderThickness="0" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.9" /></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.8" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderThickness" Value="2" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
         </Style>
     </Window.Resources>
     <StackPanel Margin="22">
         <TextBlock Text="Capture from any app" FontSize="19" FontWeight="SemiBold" />
         <TextBlock Text="Click a shortcut, then press the keys you want to use. While listening, the recorder keeps those keys from reaching other apps." Margin="0,7,0,18" TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
-        <Border Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,10,10">
+        <Border Background="{DynamicResource ViewerSurfaceBrush}" CornerRadius="12" Padding="12" Margin="0,0,0,10">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <TextBlock Text="Capture Full Screen" VerticalAlignment="Center" FontWeight="SemiBold" />
@@ -38,7 +55,7 @@
                 <Button Grid.Column="2" Tag="FullScreen" Style="{StaticResource ShortcutButtonStyle}" Content="Clear" Margin="8,0,0,0" Padding="8,0" Click="ClearShortcut_Click" AutomationProperties.Name="Clear full screen shortcut" />
             </Grid>
         </Border>
-        <Border Background="{DynamicResource ViewerSurfaceBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,10,14">
+        <Border Background="{DynamicResource ViewerSurfaceBrush}" CornerRadius="12" Padding="12" Margin="0,0,0,14">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <TextBlock Text="Select Area" VerticalAlignment="Center" FontWeight="SemiBold" />
@@ -51,7 +68,7 @@
         <TextBlock x:Name="ShortcutError" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{DynamicResource ShortcutErrorBrush}" AutomationProperties.LiveSetting="Polite" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
             <Button Style="{StaticResource ShortcutButtonStyle}" Content="Cancel" IsCancel="True" MinWidth="80" Margin="0,0,8,0" />
-            <Button x:Name="SaveShortcutsButton" Style="{StaticResource ShortcutButtonStyle}" Content="Save shortcuts" IsDefault="True" FontWeight="SemiBold" Click="SaveShortcuts_Click" />
+            <Button x:Name="SaveShortcutsButton" Style="{StaticResource ShortcutPrimaryButtonStyle}" Content="Save shortcuts" IsDefault="True" Click="SaveShortcuts_Click" />
         </StackPanel>
     </StackPanel>
 </Window>

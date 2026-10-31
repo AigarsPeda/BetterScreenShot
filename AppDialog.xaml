@@ -9,7 +9,7 @@
         AllowsTransparency="True"
         Background="Transparent"
         ShowInTaskbar="False"
-        FontFamily="Segoe UI"
+        FontFamily="Segoe UI Variable"
         Foreground="{DynamicResource ViewerPrimaryTextBrush}">
     <Window.Resources>
         <Style x:Key="DialogButtonStyle" TargetType="Button">
@@ -19,18 +19,19 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Background" Value="{DynamicResource ViewerSurfaceBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ViewerSurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#7AA2FF" />
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource ViewerAccentBrush}" />
                                 <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="2" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -64,11 +65,13 @@
     </Window.Resources>
 
     <Border x:Name="DialogSurface"
-            Background="{DynamicResource ViewerPageBackgroundBrush}"
-            BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}"
-            BorderThickness="1"
-            CornerRadius="20"
+            Background="{DynamicResource ViewerSurfaceBrush}"
+            CornerRadius="18"
+            Margin="10"
             Padding="24">
+        <Border.Effect>
+            <DropShadowEffect Color="#44000000" BlurRadius="24" ShadowDepth="6" Opacity="0.65" />
+        </Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -127,9 +130,8 @@
                 <TextBlock x:Name="DetailsCaption" Margin="0,0,0,8"
                            FontSize="12" FontWeight="SemiBold"
                            Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
-                <Border Background="{DynamicResource ViewerSurfaceBrush}"
-                        BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}"
-                        BorderThickness="1" CornerRadius="12" Padding="12">
+                <Border Background="{DynamicResource ViewerPageBackgroundBrush}"
+                        CornerRadius="10" Padding="12">
                     <TextBox x:Name="DetailsText"
                              IsReadOnly="True" IsReadOnlyCaretVisible="True"
                              FontSize="12" TextWrapping="Wrap"

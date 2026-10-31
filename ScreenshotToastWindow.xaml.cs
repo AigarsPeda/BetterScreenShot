@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 
 namespace BetterScreenShot
 {
@@ -19,14 +20,17 @@ namespace BetterScreenShot
         internal ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image)
         {
             InitializeComponent();
+            ApplyToastTheme();
 
             screenshot = new TemporaryScreenshot(filePath);
             PreviewImage.Source = image;
 
             Loaded += (_, _) => OnToastLoaded(captureBounds);
             Closing += ScreenshotToastWindow_Closing;
+            SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
             Closed += (_, _) =>
             {
+                SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
                 if (!preserveTemporaryFileForViewer)
                 {
                     screenshot.Dispose();
@@ -37,6 +41,43 @@ namespace BetterScreenShot
                     currentToast = null;
                 }
             };
+        }
+
+        private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+        {
+            if (e.Category != UserPreferenceCategory.General &&
+                e.Category != UserPreferenceCategory.Color &&
+                e.Category != UserPreferenceCategory.VisualStyle)
+            {
+                return;
+            }
+
+            if (!Dispatcher.HasShutdownStarted)
+            {
+                Dispatcher.BeginInvoke(new Action(ApplyToastTheme));
+            }
+        }
+
+        private void ApplyToastTheme()
+        {
+            ApplyToastTheme(ThemeIconService.DetectWindowsTheme());
+        }
+
+        private void ApplyToastTheme(AppTheme theme)
+        {
+            var dark = theme == AppTheme.Dark;
+            SetToastBrush("ToastSurfaceBrush", dark ? "#252833" : "#FFFFFF");
+            SetToastBrush("ToastImageBrush", dark ? "#171922" : "#E3E3EA");
+            SetToastBrush("ToastPrimaryTextBrush", dark ? "#F0F0F6" : "#252735");
+            SetToastBrush("ToastSecondarySurfaceBrush", dark ? "#343849" : "#F0F0F8");
+            SetToastBrush("ToastAccentBrush", dark ? "#B9B5FF" : "#625FC6");
+            SetToastBrush("ToastAccentTextBrush", dark ? "#222345" : "#FFFFFF");
+            SetToastBrush("ToastFocusBrush", dark ? "#B9B5FF" : "#625FC6");
+        }
+
+        private void SetToastBrush(string key, string hex)
+        {
+            Resources[key] = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
         }
 
         public static void ShowToast(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image)
@@ -73,6 +114,11 @@ namespace BetterScreenShot
         {
             DesktopWindowService.PositionToast(this, captureBounds, ScreenMargin);
             BeginSlideAnimation(24, 0, 0, 1, null);
+        }
+
+        private void PreviewImage_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            PreviewImage.Clip = new RectangleGeometry(new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 10, 10);
         }
 
         private void ScreenshotToastWindow_Closing(object? sender, CancelEventArgs e)

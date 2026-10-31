@@ -195,7 +195,9 @@ namespace BetterScreenShot
             var background = (System.Windows.Media.Brush)FindResource(backgroundKey);
             var foreground = (System.Windows.Media.Brush)FindResource(foregroundKey);
             StatusBadge.Background = background;
-            StatusDot.Fill = foreground;
+            StatusDot.Fill = _currentStatusTone == StatusTone.Neutral
+                ? (System.Windows.Media.Brush)FindResource("AccentBrush")
+                : foreground;
             StatusTextBlock.Foreground = foreground;
         }
 
@@ -217,51 +219,43 @@ namespace BetterScreenShot
         {
             if (theme == AppTheme.Dark)
             {
-                SetBrushColor("PageBackgroundBrush", "#0F172A");
-                SetBrushColor("SurfaceBrush", "#111827");
-                SetBrushColor("SurfaceBorderBrush", "#243041");
-                SetBrushColor("SurfaceHoverBrush", "#172134");
-                SetBrushColor("SurfaceHoverBorderBrush", "#334155");
-                SetBrushColor("SurfacePressedBrush", "#1C2940");
-                SetBrushColor("SurfacePressedBorderBrush", "#3B4C63");
-                SetBrushColor("PrimaryTextBrush", "#E5EEF9");
-                SetBrushColor("SecondaryTextBrush", "#94A3B8");
-                SetBrushColor("AccentBlueBrush", "#7AA2FF");
-                SetBrushColor("AccentBlueSoftBrush", "#1C2C4A");
-                SetBrushColor("AccentGreenBrush", "#5DD6A4");
-                SetBrushColor("AccentGreenSoftBrush", "#163328");
-                SetBrushColor("StatusNeutralBrush", "#162133");
-                SetBrushColor("StatusNeutralTextBrush", "#C7D4E5");
-                SetBrushColor("StatusSuccessBrush", "#163328");
-                SetBrushColor("StatusSuccessTextBrush", "#83E1B9");
-                SetBrushColor("StatusInfoBrush", "#1B2B49");
-                SetBrushColor("StatusInfoTextBrush", "#9CB9FF");
-                SetBrushColor("StatusErrorBrush", "#3A1D22");
-                SetBrushColor("StatusErrorTextBrush", "#FFB4B4");
+                SetBrushColor("PageBackgroundBrush", "#171922");
+                SetBrushColor("SurfaceBrush", "#252833");
+                SetBrushColor("DividerBrush", "#3D4151");
+                SetBrushColor("SurfaceHoverBrush", "#343849");
+                SetBrushColor("SurfacePressedBrush", "#403E57");
+                SetBrushColor("FocusBrush", "#B9B5FF");
+                SetBrushColor("PrimaryTextBrush", "#F0F0F6");
+                SetBrushColor("SecondaryTextBrush", "#B1B5C4");
+                SetBrushColor("AccentBrush", "#B9B5FF");
+                SetBrushColor("StatusNeutralBrush", "Transparent");
+                SetBrushColor("StatusNeutralTextBrush", "#B1B5C4");
+                SetBrushColor("StatusSuccessBrush", "Transparent");
+                SetBrushColor("StatusSuccessTextBrush", "#83D5A8");
+                SetBrushColor("StatusInfoBrush", "Transparent");
+                SetBrushColor("StatusInfoTextBrush", "#B9B5FF");
+                SetBrushColor("StatusErrorBrush", "Transparent");
+                SetBrushColor("StatusErrorTextBrush", "#F1A3A9");
                 return;
             }
 
-            SetBrushColor("PageBackgroundBrush", "#F7F9FC");
+            SetBrushColor("PageBackgroundBrush", "#F7F7F3");
             SetBrushColor("SurfaceBrush", "#FFFFFF");
-            SetBrushColor("SurfaceBorderBrush", "#D8E1EC");
-            SetBrushColor("SurfaceHoverBrush", "#FBFDFF");
-            SetBrushColor("SurfaceHoverBorderBrush", "#C4D4E8");
-            SetBrushColor("SurfacePressedBrush", "#F5F9FD");
-            SetBrushColor("SurfacePressedBorderBrush", "#B7CCE6");
-            SetBrushColor("PrimaryTextBrush", "#111827");
-            SetBrushColor("SecondaryTextBrush", "#97A6BA");
-            SetBrushColor("AccentBlueBrush", "#2563EB");
-            SetBrushColor("AccentBlueSoftBrush", "#E8F0FF");
-            SetBrushColor("AccentGreenBrush", "#0F9F6E");
-            SetBrushColor("AccentGreenSoftBrush", "#E7F8F1");
-            SetBrushColor("StatusNeutralBrush", "#EEF2F7");
-            SetBrushColor("StatusNeutralTextBrush", "#415063");
-            SetBrushColor("StatusSuccessBrush", "#E7F8F1");
-            SetBrushColor("StatusSuccessTextBrush", "#0D7A55");
-            SetBrushColor("StatusInfoBrush", "#EAF2FF");
-            SetBrushColor("StatusInfoTextBrush", "#2454B8");
-            SetBrushColor("StatusErrorBrush", "#FDECEC");
-            SetBrushColor("StatusErrorTextBrush", "#B42318");
+            SetBrushColor("DividerBrush", "#E3E3EA");
+            SetBrushColor("SurfaceHoverBrush", "#F0F0F8");
+            SetBrushColor("SurfacePressedBrush", "#E8E7F5");
+            SetBrushColor("FocusBrush", "#625FC6");
+            SetBrushColor("PrimaryTextBrush", "#252735");
+            SetBrushColor("SecondaryTextBrush", "#636978");
+            SetBrushColor("AccentBrush", "#625FC6");
+            SetBrushColor("StatusNeutralBrush", "Transparent");
+            SetBrushColor("StatusNeutralTextBrush", "#636978");
+            SetBrushColor("StatusSuccessBrush", "Transparent");
+            SetBrushColor("StatusSuccessTextBrush", "#2F7D5A");
+            SetBrushColor("StatusInfoBrush", "Transparent");
+            SetBrushColor("StatusInfoTextBrush", "#514CB6");
+            SetBrushColor("StatusErrorBrush", "Transparent");
+            SetBrushColor("StatusErrorTextBrush", "#B43E45");
         }
 
         private void SetBrushColor(string resourceKey, string colorHex)

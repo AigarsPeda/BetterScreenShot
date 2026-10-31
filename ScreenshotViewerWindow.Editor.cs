@@ -29,7 +29,6 @@ public partial class ScreenshotViewerWindow
     {
         ImageStage.Width = Annotations.Width = image.PixelWidth;
         ImageStage.Height = Annotations.Height = image.PixelHeight;
-        ImageDetails.Text = $"{image.PixelWidth} × {image.PixelHeight} pixels";
         OcrLanguagePicker.Items.Add(new ComboBoxItem { Content = "Auto", Tag = TextExtractionService.AutomaticLanguage });
         foreach (var language in TextExtractionService.Languages)
             OcrLanguagePicker.Items.Add(new ComboBoxItem { Content = language.Value, Tag = language.Key });
@@ -38,28 +37,36 @@ public partial class ScreenshotViewerWindow
         (AnnotationTool Tool, string Label, string Key, string Icon)[] tools =
         [
             (AnnotationTool.Select, "Select", "V", "M5 3l14 9-7 1-3 7z"),
-            (AnnotationTool.Hand, "Pan", "H", "M7 12V7a2 2 0 0 1 4 0v4-7a2 2 0 0 1 4 0v7-5a2 2 0 0 1 4 0v6-2a2 2 0 0 1 4 0v5q0 7-7 7h-2q-3 0-5-3l-4-6q-1-3 2-2l3 3"),
-            (AnnotationTool.Pen, "Pen", "P", "M4 17l-1 4 4-1L20 7l-3-3z M14 7l3 3"),
-            (AnnotationTool.Highlight, "Highlight", "M", "M5 14l8-10 6 5-8 10z M5 14l6 5 M3 21h11"),
-            (AnnotationTool.Line, "Underline / line", "L", "M4 17h16 M7 4v5a5 5 0 0 0 10 0V4"),
-            (AnnotationTool.Arrow, "Arrow", "A", "M4 20L20 4 M9 4h11v11"),
-            (AnnotationTool.Rectangle, "Rectangle", "R", "M4 5h16v14H4z"),
-            (AnnotationTool.Ellipse, "Circle / oval", "O", "M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0"),
-            (AnnotationTool.Text, "Text", "T", "M4 5h16 M12 5v15 M8 20h8")
+            (AnnotationTool.Hand, "Pan", "H", "M8 13V6a2 2 0 0 1 4 0v5-1-6a2 2 0 0 1 4 0v6-1-4a2 2 0 0 1 4 0v4-1-2a2 2 0 0 1 4 0v4c0 5-3 8-8 8h-2c-3 0-5-1-7-4l-3-4a2 2 0 0 1 3-2z"),
+            (AnnotationTool.Pen, "Pen", "P", "M12 19l7-7 3 3-7 7-4 1z M19 12l2-2a2 2 0 0 1 3 3l-2 2 M2 22h7"),
+            (AnnotationTool.Highlight, "Highlight", "M", "M9 11l6-6 5 5-6 6z M4 20l5-9 5 5-9 5z M2 23h20"),
+            (AnnotationTool.Line, "Line", "L", "M4 20 20 4"),
+            (AnnotationTool.Arrow, "Arrow", "A", "M5 19 19 5 M9 5h10v10"),
+            (AnnotationTool.Rectangle, "Rectangle", "R", "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"),
+            (AnnotationTool.Ellipse, "Ellipse", "O", "M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0"),
+            (AnnotationTool.Text, "Text", "T", "M4 7V4h16v3 M12 4v16 M9 20h6")
         ];
         foreach (var (tool, label, key, icon) in tools)
         {
             var path = new System.Windows.Shapes.Path
             {
-                Data = Geometry.Parse(icon), Width = 20, Height = 20, Stretch = Stretch.Uniform,
-                StrokeThickness = 1.7, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round
+                Data = Geometry.Parse(icon), Width = 18, Height = 18, Stretch = Stretch.Uniform,
+                StrokeThickness = 1.8, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center
             };
-            path.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "ViewerPrimaryTextBrush");
-            var button = new ToggleButton { Style = (Style)FindResource("ToolStyle"), Tag = tool, Content = path, ToolTip = $"{label} ({key})" };
+            path.SetBinding(System.Windows.Shapes.Shape.StrokeProperty, new System.Windows.Data.Binding(nameof(ToggleButton.Foreground))
+            {
+                RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(ToggleButton), 1)
+            });
+            var content = new Grid { Width = 31, Height = 30 };
+            content.Children.Add(path);
+            content.Children.Add(new TextBlock { Text = key, FontSize = 8, Opacity = 0.65, HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                VerticalAlignment = System.Windows.VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 1, 0), IsHitTestVisible = false });
+            var button = new ToggleButton { Style = (Style)FindResource("ToolStyle"), Tag = tool, Content = content, ToolTip = $"{label} ({key})" };
             AutomationProperties.SetName(button, label);
             button.Click += (_, _) => ChooseTool(tool);
             toolButtons.Add(button);
-            ToolsPanel.Children.Add(button);
+            ToolsPanel.Children.Insert(ToolsPanel.Children.Count - 1, button);
         }
 
         (string Name, string Hex)[] colors = [("Red", "#FF453A"), ("Orange", "#FF9F0A"), ("Yellow", "#FFD60A"),
@@ -148,6 +155,17 @@ public partial class ScreenshotViewerWindow
         UndoButton.IsEnabled = Annotations.Document.CanUndo;
         RedoButton.IsEnabled = Annotations.Document.CanRedo;
         RemoveButton.IsEnabled = selected is not null;
+        var activeTool = selected?.Tool ?? Annotations.Tool;
+        var drawingTool = activeTool is not (AnnotationTool.Select or AnnotationTool.Hand);
+        var strokeTool = activeTool is AnnotationTool.Pen or AnnotationTool.Highlight or AnnotationTool.Line
+            or AnnotationTool.Arrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse;
+        var sketchTool = activeTool is AnnotationTool.Line or AnnotationTool.Arrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse;
+        DeleteOptionsGroup.Visibility = selected is null ? Visibility.Collapsed : Visibility.Visible;
+        ColorOptionsGroup.Visibility = drawingTool ? Visibility.Visible : Visibility.Collapsed;
+        StrokeOptionsGroup.Visibility = strokeTool ? Visibility.Visible : Visibility.Collapsed;
+        TextOptionsGroup.Visibility = activeTool == AnnotationTool.Text ? Visibility.Visible : Visibility.Collapsed;
+        SketchOptionsGroup.Visibility = sketchTool ? Visibility.Visible : Visibility.Collapsed;
+        AnnotationOptionsTray.Visibility = drawingTool || selected is not null ? Visibility.Visible : Visibility.Collapsed;
         syncingControls = false;
     }
 
@@ -221,14 +239,22 @@ public partial class ScreenshotViewerWindow
     private void RemoveButton_Click(object sender, RoutedEventArgs e) { CommitText(); Annotations.CancelGesture(); Annotations.DeleteSelected(); }
     private void MoreButton_Click(object sender, RoutedEventArgs e) { var button = (Button)sender; button.ContextMenu.PlacementTarget = button; button.ContextMenu.IsOpen = true; }
     private void FitButton_Click(object sender, RoutedEventArgs e) { currentZoom = 1; UpdateZoomState(); }
-    private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateDisplayScale();
+    private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ImageViewport.Clip = new RectangleGeometry(new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 12, 12);
+        var narrow = EditorContent.ActualWidth < 900;
+        MarkupToolbar.Margin = new Thickness(8, narrow ? 62 : 10, 8, 0);
+        ExtractedTextPanel.Margin = new Thickness(12, narrow ? 114 : 62, 0, 0);
+        UpdateDisplayScale();
+    }
     private void Viewport_LostMouseCapture(object sender, System.Windows.Input.MouseEventArgs e) { if (e.OriginalSource == ImageViewport) EndDrag(); }
 
     private void UpdateDisplayScale()
     {
         if (Annotations is null || ImageStage.Width <= 0) return;
-        Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageViewport.ActualWidth - 40) / ImageStage.Width,
-            Math.Max(1, ImageViewport.ActualHeight - 40) / ImageStage.Height) * currentZoom);
+        Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageViewport.ActualWidth - 8) / ImageStage.Width,
+            Math.Max(1, ImageViewport.ActualHeight - 8) / ImageStage.Height) * currentZoom);
+        RenderOptions.SetBitmapScalingMode(ViewerImage, Annotations.DisplayScale > 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.HighQuality);
         Annotations.DrawSelection();
         OcrSelectionHighlight.StrokeThickness = 1.5 / Annotations.DisplayScale;
         UpdateOcrSelectionHandles();
@@ -264,6 +290,7 @@ public partial class ScreenshotViewerWindow
         }
         else
         {
+            if (e.Key == Key.E) { ExtractTextButton_Click(sender, e); e.Handled = true; return; }
             var tool = e.Key switch { Key.V => AnnotationTool.Select, Key.H => AnnotationTool.Hand, Key.P => AnnotationTool.Pen,
                 Key.M => AnnotationTool.Highlight, Key.L => AnnotationTool.Line, Key.A => AnnotationTool.Arrow, Key.R => AnnotationTool.Rectangle,
                 Key.O => AnnotationTool.Ellipse, Key.T => AnnotationTool.Text, _ => (AnnotationTool?)null };
