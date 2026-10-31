@@ -7,6 +7,8 @@ using System.Windows.Threading;
 using BetterScreenShot;
 using Brushes = System.Windows.Media.Brushes;
 using MediaColor = System.Windows.Media.Color;
+using MediaPen = System.Windows.Media.Pen;
+using WpfPoint = System.Windows.Point;
 
 internal static class ReadmeScreenshots
 {
@@ -27,15 +29,15 @@ internal static class ReadmeScreenshots
             typeof(MainWindow).GetMethod("ApplyTheme", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(launcher, [theme]);
             ((System.Windows.Shapes.Path)launcher.FindName("ThemeGlyphPath")).Data = ThemeIconService.ThemeGlyph(theme);
-            RenderOffscreen(launcher, 520, 390, Path.Combine(output, $"launcher-{suffix}.png"));
+            RenderOffscreen(launcher, 520, 390, Path.Combine(output, $"launcher-{suffix}.png"), theme,
+                "BetterScreenShot");
             launcher.Close();
 
             var toastSource = WriteFixture(fixtures, $"toast-{suffix}", sample);
             var toast = new ScreenshotToastWindow(toastSource, System.Windows.Forms.Screen.PrimaryScreen!.Bounds, sample);
             typeof(ScreenshotToastWindow).GetMethod("ApplyToastTheme", BindingFlags.Instance | BindingFlags.NonPublic,
                     null, [typeof(AppTheme)], null)!.Invoke(toast, [theme]);
-            RenderOffscreen(toast, 310, 215, Path.Combine(output, $"preview-{suffix}.png"),
-                theme == AppTheme.Dark ? MediaColor.FromRgb(40, 43, 52) : MediaColor.FromRgb(225, 229, 228));
+            RenderOffscreen(toast, 310, 215, Path.Combine(output, $"preview-{suffix}.png"), theme);
             toast.Close();
 
             var editorSource = WriteFixture(fixtures, $"editor-{suffix}", sample);
@@ -43,7 +45,8 @@ internal static class ReadmeScreenshots
             ThemeIconService.ApplyViewerTheme(editor.Resources, theme);
             var surface = (AnnotationSurface)editor.FindName("Annotations");
             AddDemoAnnotations(surface);
-            RenderOffscreen(editor, 1280, 850, Path.Combine(output, $"editor-{suffix}.png"),
+            RenderOffscreen(editor, 1360, 800, Path.Combine(output, $"editor-{suffix}.png"), theme,
+                "Screenshot Editor",
                 afterLayout: () => surface.Select(2));
             editor.Close();
 
@@ -76,7 +79,7 @@ internal static class ReadmeScreenshots
         var source = WriteFixture(fixtures, Path.GetFileNameWithoutExtension(output), image);
         var editor = new ScreenshotViewerWindow(new TemporaryScreenshot(source), image)
         {
-            Width = 1280, Height = 850, Left = -20000, Top = -20000,
+            Width = 1360, Height = 800, Left = -20000, Top = -20000,
             WindowStartupLocation = WindowStartupLocation.Manual, ShowInTaskbar = false, ShowActivated = false
         };
         try
@@ -100,7 +103,7 @@ internal static class ReadmeScreenshots
             textBox.Focus();
             ThemeIconService.ApplyViewerTheme(editor.Resources, theme);
             editor.UpdateLayout();
-            RenderContent(editor, output);
+            RenderContent(editor, output, theme, "Screenshot Editor");
         }
         finally { editor.Close(); }
     }
@@ -115,8 +118,8 @@ internal static class ReadmeScreenshots
         return path;
     }
 
-    private static void RenderOffscreen(Window window, int width, int height, string output, MediaColor? backdrop = null,
-        Action? afterLayout = null)
+    private static void RenderOffscreen(Window window, int width, int height, string output, AppTheme theme,
+        string? title = null, Action? afterLayout = null)
     {
         var content = (FrameworkElement)window.Content;
         content.Measure(new System.Windows.Size(width, height));
@@ -124,30 +127,53 @@ internal static class ReadmeScreenshots
         content.UpdateLayout();
         afterLayout?.Invoke();
         content.UpdateLayout();
-        RenderContent(window, output, backdrop);
+        RenderContent(window, output, theme, title);
     }
 
-    private static void RenderContent(Window window, string output, MediaColor? backdrop = null)
+    private static void RenderContent(Window window, string output, AppTheme theme, string? title = null)
     {
         var content = (FrameworkElement)window.Content;
         var width = (int)Math.Ceiling(content.ActualWidth);
         var height = (int)Math.Ceiling(content.ActualHeight);
-        var margin = backdrop is null ? 0 : 20;
+        var margin = title is null ? 12 : 0;
+        var captionHeight = title is null ? 0 : 32;
+        var bounds = new Rect(margin, margin, width, height + captionHeight);
         var visual = new DrawingVisual();
         using (var drawing = visual.RenderOpen())
         {
-            drawing.DrawRectangle(backdrop is MediaColor color ? new SolidColorBrush(color) : window.Background,
-                null, new Rect(0, 0, width + margin * 2, height + margin * 2));
+            if (title is not null)
+            {
+                drawing.PushClip(new RectangleGeometry(bounds, 10, 10));
+                drawing.DrawRectangle(new SolidColorBrush(theme == AppTheme.Dark
+                    ? MediaColor.FromRgb(32, 33, 36) : MediaColor.FromRgb(250, 250, 250)), null, bounds);
+                DrawTitleBar(drawing, title, theme, width);
+            }
             drawing.DrawRectangle(new VisualBrush(content), null,
-                new Rect(margin, margin, width, height));
+                new Rect(margin, margin + captionHeight, width, height));
+            if (title is not null) drawing.Pop();
         }
-        var bitmap = new RenderTargetBitmap(width + margin * 2, height + margin * 2, 96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap(width + margin * 2, height + captionHeight + margin * 2,
+            96, 96, PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(output);
         encoder.Save(stream);
         Console.WriteLine(output);
+    }
+
+    private static void DrawTitleBar(DrawingContext drawing, string title, AppTheme theme, int width)
+    {
+        var foreground = new SolidColorBrush(theme == AppTheme.Dark
+            ? MediaColor.FromRgb(240, 240, 246) : MediaColor.FromRgb(37, 39, 53));
+        drawing.DrawImage(ThemeIconService.CreateScanIcon(theme), new Rect(10, 8, 16, 16));
+        drawing.DrawText(new FormattedText(title, System.Globalization.CultureInfo.InvariantCulture,
+            System.Windows.FlowDirection.LeftToRight, new Typeface("Segoe UI"), 12, foreground, 1), new WpfPoint(33, 8));
+        var pen = new MediaPen(foreground, 1);
+        drawing.DrawLine(pen, new WpfPoint(width - 112, 16), new WpfPoint(width - 100, 16));
+        drawing.DrawRectangle(null, pen, new Rect(width - 73, 11, 9, 9));
+        drawing.DrawLine(pen, new WpfPoint(width - 30, 11), new WpfPoint(width - 20, 21));
+        drawing.DrawLine(pen, new WpfPoint(width - 20, 11), new WpfPoint(width - 30, 21));
     }
 
     public static int Demo(string view)
