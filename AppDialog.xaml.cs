@@ -61,16 +61,17 @@ namespace BetterScreenShot
             Closed += (_, _) => SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         }
 
-        internal static bool ConfirmDelete(Window owner)
+        internal static bool ConfirmDelete(Window owner, bool imported = false)
         {
-            return new AppDialog(owner, "Delete screenshot?",
-                "The temporary screenshot will be deleted. Saved copies will stay on disk.",
+            return new AppDialog(owner, imported ? "Close image?" : "Delete screenshot?",
+                imported ? "Your original image will stay on disk. Unsaved edits will be discarded." : "The temporary screenshot will be deleted. Saved copies will stay on disk.",
                 AppDialogKind.DeleteConfirmation).ShowDialog() == true;
         }
 
-        internal static void ShowSaved(Window owner, string savedPath)
+        internal static void ShowSaved(Window owner, string savedPath, bool imported = false)
         {
-            new AppDialog(owner, "Screenshot saved", "Your screenshot was saved successfully.", AppDialogKind.Success, savedPath).ShowDialog();
+            new AppDialog(owner, imported ? "Image saved" : "Screenshot saved",
+                imported ? "Your edited image was saved successfully." : "Your screenshot was saved successfully.", AppDialogKind.Success, savedPath).ShowDialog();
         }
 
         internal static void ShowError(Window owner, string title, string message, string details)

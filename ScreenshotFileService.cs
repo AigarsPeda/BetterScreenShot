@@ -13,13 +13,14 @@ namespace BetterScreenShot
             return destination;
         }
 
-        public static string? ChooseSavePath(string sourceFilePath, System.Windows.Window owner)
+        public static string? ChooseSavePath(string sourceFilePath, System.Windows.Window owner, string? originalPath = null)
         {
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
-                Title = "Save Screenshot As",
+                Title = originalPath is null ? "Save Screenshot As" : "Save Edited Image As",
                 Filter = "PNG Image (*.png)|*.png|JPEG Image (*.jpg)|*.jpg|Bitmap Image (*.bmp)|*.bmp",
-                FileName = Path.GetFileNameWithoutExtension(sourceFilePath),
+                FileName = originalPath is null ? Path.GetFileNameWithoutExtension(sourceFilePath) : Path.GetFileNameWithoutExtension(originalPath) + "_edited",
+                InitialDirectory = originalPath is null ? null : Path.GetDirectoryName(originalPath),
                 DefaultExt = ".png",
                 AddExtension = true,
                 OverwritePrompt = true

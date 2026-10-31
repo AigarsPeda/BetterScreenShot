@@ -28,7 +28,7 @@ internal static class CaptureUiPreview
             ((TextBlock)launcher.FindName("StatusTextBlock")).Foreground = neutral;
             ((System.Windows.Shapes.Ellipse)launcher.FindName("StatusDot")).Fill =
                 (MediaBrush)launcher.FindResource("AccentBrush");
-            SaveWindow(launcher, 520, 320, Path.Combine(directory, $"launcher-{suffix}.png"));
+            SaveWindow(launcher, 520, 390, Path.Combine(directory, $"launcher-{suffix}.png"));
             launcher.Close();
 
             var fixturePath = Path.Combine(directory, $"sample-{suffix}.png");

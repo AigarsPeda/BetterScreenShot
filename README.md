@@ -10,7 +10,7 @@ For the code structure, release checks, and development pitfalls, see the [proje
 - Per-monitor DPI-aware selection overlays. Area selection is clipped to the monitor where the drag starts.
 - Bottom-right preview with Copy, Save, Open Viewer, and Discard actions.
 - Save actual PNG, JPEG, or BMP images.
-- Screenshot editor with smoothed pen strokes, translucent highlights, underlines, arrows, rectangles, circles, and text.
+- Screenshot editor with smoothed pen strokes, translucent highlights, underlines, arrows, rectangles, circles, and text. Open or drag a PNG, JPEG, BMP, GIF, or TIFF image onto the launcher or editor to annotate it without changing the original file.
 - Click annotations to move, resize, recolor, or delete them. Double-click text to edit it; undo and redo work across edits.
 - Extract English, Latvian, Lithuanian, Estonian, Swedish, Finnish, and Russian text locally with Tesseract, then select a passage or copy all text.
 

@@ -6,6 +6,7 @@
         Title="Screenshot Editor" Width="1100" Height="780" MinWidth="620" MinHeight="450"
         WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" FontSize="13"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
+        AllowDrop="True" PreviewDragOver="Editor_PreviewDragOver" PreviewDrop="Editor_PreviewDrop"
         Background="{DynamicResource ViewerPageBackgroundBrush}" Foreground="{DynamicResource ViewerPrimaryTextBrush}"
         PreviewKeyDown="Editor_KeyDown" PreviewKeyUp="Editor_KeyUp">
     <Window.Resources>
@@ -245,7 +246,7 @@
                     <Button.ContextMenu>
                         <ContextMenu Style="{StaticResource AnnotationContextMenuStyle}" Background="{DynamicResource ViewerSurfaceBrush}"
                                      Foreground="{DynamicResource ViewerPrimaryTextBrush}" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}">
-                            <MenuItem Header="Discard screenshot…" Style="{StaticResource AnnotationMenuItemStyle}"
+                            <MenuItem x:Name="DiscardMenuItem" Header="Discard screenshot…" Style="{StaticResource AnnotationMenuItemStyle}"
                                       Foreground="{DynamicResource ViewerPrimaryTextBrush}" Click="DeleteButton_Click" />
                         </ContextMenu>
                     </Button.ContextMenu>

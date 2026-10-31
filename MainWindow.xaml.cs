@@ -16,7 +16,7 @@ namespace BetterScreenShot
         private const int DwmwaUseImmersiveDarkMode = 20;
 
         private StatusTone _currentStatusTone;
-        private string _currentStatusMessage = "Ready to capture.";
+        private string _currentStatusMessage = "Ready.";
         private bool isCapturing;
         private bool isClosed;
         private AppTheme? currentTheme;
@@ -94,6 +94,43 @@ namespace BetterScreenShot
             await CaptureAsync(selectArea: true);
         }
 
+        private void OpenImageButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Open Image",
+                Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+            if (dialog.ShowDialog(this) == true) OpenImage(dialog.FileName);
+        }
+
+        private void Window_PreviewDragOver(object sender, System.Windows.DragEventArgs e)
+        {
+            e.Effects = ImportedImageService.TryGetDroppedImage(e.Data, out _) ? System.Windows.DragDropEffects.Copy : System.Windows.DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void Window_PreviewDrop(object sender, System.Windows.DragEventArgs e)
+        {
+            e.Handled = true;
+            if (ImportedImageService.TryGetDroppedImage(e.Data, out var path)) OpenImage(path!);
+        }
+
+        private void OpenImage(string filePath)
+        {
+            try
+            {
+                ImportedImageService.OpenEditor(filePath);
+                SetStatus(StatusTone.Info, "Image opened for editing.");
+            }
+            catch (Exception error)
+            {
+                AppDialog.ShowError(this, "Could not open image", "Choose a PNG, JPEG, BMP, GIF, or TIFF image and try again.", error.Message);
+            }
+        }
+
         private async Task CaptureAsync(bool selectArea, bool fromShortcut = false)
         {
             if (isCapturing || isClosed)
@@ -104,6 +141,7 @@ namespace BetterScreenShot
             isCapturing = true;
             CaptureButton.IsEnabled = false;
             SelectAreaButton.IsEnabled = false;
+            OpenImageButton.IsEnabled = false;
             ShortcutsButton.IsEnabled = false;
             string? pendingFile = null;
 
@@ -160,6 +198,7 @@ namespace BetterScreenShot
                 {
                     CaptureButton.IsEnabled = true;
                     SelectAreaButton.IsEnabled = true;
+                    OpenImageButton.IsEnabled = true;
                     ShortcutsButton.IsEnabled = true;
                     if (!fromShortcut) ShowLauncher();
                     ScreenshotToastWindow.RestoreCurrent();

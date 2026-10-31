@@ -30,6 +30,11 @@ namespace BetterScreenShot
             InitializeComponent();
             this.screenshot = screenshot;
             this.setClipboardImage = setClipboardImage ?? System.Windows.Clipboard.SetImage;
+            if (screenshot.IsImported)
+            {
+                Title = "Image Editor — " + System.IO.Path.GetFileName(screenshot.OriginalPath);
+                DiscardMenuItem.Header = "Close image…";
+            }
             ViewerImage.Source = image;
             InitializeEditor(image);
             ApplyThemeFromSystem();
@@ -42,6 +47,23 @@ namespace BetterScreenShot
         private void ScreenshotViewerWindow_SourceInitialized(object? sender, EventArgs e)
         {
             ApplyTitleBarTheme(currentTheme ?? AppTheme.Light);
+        }
+
+        private void Editor_PreviewDragOver(object sender, System.Windows.DragEventArgs e)
+        {
+            e.Effects = ImportedImageService.TryGetDroppedImage(e.Data, out _) ? System.Windows.DragDropEffects.Copy : System.Windows.DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void Editor_PreviewDrop(object sender, System.Windows.DragEventArgs e)
+        {
+            e.Handled = true;
+            if (!ImportedImageService.TryGetDroppedImage(e.Data, out var path)) return;
+            try { ImportedImageService.OpenEditor(path!); }
+            catch (Exception error)
+            {
+                AppDialog.ShowError(this, "Could not open image", "Choose a PNG, JPEG, BMP, GIF, or TIFF image and try again.", error.Message);
+            }
         }
 
         private void ApplyThemeFromSystem()
@@ -210,7 +232,7 @@ namespace BetterScreenShot
             Annotations.CancelGesture();
             try
             {
-                var savedPath = ScreenshotFileService.ChooseSavePath(screenshot.FilePath, this);
+                var savedPath = ScreenshotFileService.ChooseSavePath(screenshot.FilePath, this, screenshot.OriginalPath);
                 if (savedPath is null)
                 {
                     return;
@@ -223,7 +245,7 @@ namespace BetterScreenShot
                 // Encoding the frozen image also lets an export finish if the editor closes.
                 await Task.Run(() => ScreenshotFileService.Export(screenshot.FilePath, savedPath, output, imageModified: true));
                 if (!IsLoaded) return;
-                AppDialog.ShowSaved(this, savedPath);
+                AppDialog.ShowSaved(this, savedPath, screenshot.IsImported);
             }
             catch (Exception ex)
             {
@@ -239,7 +261,7 @@ namespace BetterScreenShot
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!AppDialog.ConfirmDelete(this))
+            if (!AppDialog.ConfirmDelete(this, screenshot.IsImported))
             {
                 return;
             }
@@ -251,7 +273,8 @@ namespace BetterScreenShot
             }
             catch (Exception ex)
             {
-                AppDialog.ShowError(this, "Could not delete screenshot", "The screenshot is still open. Try deleting it again.", ex.Message);
+                AppDialog.ShowError(this, screenshot.IsImported ? "Could not close image" : "Could not delete screenshot",
+                    screenshot.IsImported ? "Try closing the image again." : "The screenshot is still open. Try deleting it again.", ex.Message);
             }
         }
 

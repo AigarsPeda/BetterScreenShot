@@ -107,6 +107,20 @@ internal static class Program
                 screenshot.Dispose();
                 Assert(!File.Exists(copy));
             });
+            Check("Imported image edits use a temporary copy and preserve the original", () =>
+            {
+                var original = File.ReadAllBytes(source);
+                var drop = new System.Windows.DataObject(System.Windows.DataFormats.FileDrop, new[] { source });
+                Assert(ImportedImageService.TryGetDroppedImage(drop, out var droppedPath) && droppedPath == source);
+                Assert(!ImportedImageService.TryGetDroppedImage(
+                    new System.Windows.DataObject(System.Windows.DataFormats.FileDrop, new[] { source, source }), out _));
+                var imported = ImportedImageService.Load(source);
+                Assert(imported.Image.IsFrozen && imported.Image.PixelWidth == 32 && imported.Image.PixelHeight == 24);
+                Assert(imported.WorkingFile.IsImported && imported.WorkingFile.OriginalPath == Path.GetFullPath(source));
+                Assert(imported.WorkingFile.FilePath != source && File.Exists(imported.WorkingFile.FilePath));
+                imported.WorkingFile.Dispose();
+                Assert(!File.Exists(imported.WorkingFile.FilePath) && File.ReadAllBytes(source).SequenceEqual(original));
+            });
             Check("Worker capture copies pixels and releases the source bitmap", () =>
             {
                 var capture = Task.Run(() =>
