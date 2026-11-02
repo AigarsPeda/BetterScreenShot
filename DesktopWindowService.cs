@@ -28,6 +28,28 @@ namespace BetterScreenShot
             SetPosition(handle, position.X, position.Y, size.Width, size.Height, 0);
         }
 
+        public static void PositionFloatingControls(System.Windows.Window window, Rectangle captureBounds, int margin)
+        {
+            var workArea = System.Windows.Forms.Screen.FromRectangle(captureBounds).WorkingArea;
+            var handle = new WindowInteropHelper(window).EnsureHandle();
+            SetPosition(handle, workArea.Left, workArea.Top, 0, 0, NoSize);
+            var scale = GetDpiForWindow(handle) / 96d;
+            var size = new Size((int)Math.Round(window.ActualWidth * scale), (int)Math.Round(window.ActualHeight * scale));
+            var position = CaptureGeometry.FloatingControlsPosition(workArea, captureBounds, size, (int)Math.Round(margin * scale));
+            SetPosition(handle, position.X, position.Y, size.Width, size.Height, 0);
+        }
+
+        public static void PositionCaptureOutline(System.Windows.Window window, Rectangle captureBounds)
+        {
+            var monitor = System.Windows.Forms.Screen.FromRectangle(captureBounds);
+            var handle = new WindowInteropHelper(window).EnsureHandle();
+            SetPosition(handle, monitor.Bounds.Left, monitor.Bounds.Top, 0, 0, NoSize);
+            var scale = GetDpiForWindow(handle) / 96d;
+            window.Width = captureBounds.Width / scale;
+            window.Height = captureBounds.Height / scale;
+            SetPosition(handle, captureBounds.Left, captureBounds.Top, captureBounds.Width, captureBounds.Height, 0);
+        }
+
         private static void SetPosition(IntPtr handle, int x, int y, int width, int height, uint flags)
         {
             if (!SetWindowPos(handle, IntPtr.Zero, x, y, width, height, flags | NoZOrder | NoActivate))

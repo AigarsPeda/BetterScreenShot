@@ -22,11 +22,21 @@ internal static class Program
         if (args.Contains("--ocr-panel-demo")) return TextExtractionTests.Demo(longText: true);
         if (args.Contains("--ocr-preview")) return TextExtractionTests.Preview();
         if (args.Contains("--readme-generate")) return ReadmeScreenshots.Generate();
+        if (args.Contains("--readme-launcher")) return ReadmeScreenshots.GenerateLauncher();
         if (args.FirstOrDefault(arg => arg.StartsWith("--readme-", StringComparison.Ordinal)) is { } readmeView)
             return ReadmeScreenshots.Demo(readmeView);
         if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();
         if (args.Contains("--shortcut-recorder-demo")) return CaptureShortcutTests.RecorderDemo();
         if (args.Contains("--shortcuts-preview")) return CaptureShortcutTests.Preview();
+        if (args.Contains("--scroll-preview")) return ScrollingCaptureTests.Preview();
+        if (args.Contains("--scroll-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            ScrollingCaptureTests.Run(Check);
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--capture-ui-preview")) return CaptureUiPreview.Render();
         if (args.Contains("--context-menu-preview")) return AnnotationContextMenuTests.Preview();
         if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
@@ -250,6 +260,7 @@ internal static class Program
 
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
             CaptureShortcutTests.Run(Check, directory);
+            ScrollingCaptureTests.Run(Check);
             AnnotationTests.Run(Check, directory);
             TextExtractionTests.Run(Check, directory);
             OverlayPresentationTests.Run(Check);

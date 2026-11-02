@@ -26,5 +26,26 @@ namespace BetterScreenShot
                 Math.Max(workArea.Left + margin, workArea.Right - windowSize.Width - margin),
                 Math.Max(workArea.Top + margin, workArea.Bottom - windowSize.Height - margin));
         }
+
+        public static Point FloatingControlsPosition(Rectangle workArea, Rectangle captureBounds, Size windowSize, int margin)
+        {
+            var left = Math.Clamp(captureBounds.Left, workArea.Left + margin, Math.Max(workArea.Left + margin, workArea.Right - windowSize.Width - margin));
+            var top = Math.Clamp(captureBounds.Top, workArea.Top + margin, Math.Max(workArea.Top + margin, workArea.Bottom - windowSize.Height - margin));
+            var positions = new[]
+            {
+                new Point(captureBounds.Right + margin, top),
+                new Point(captureBounds.Left - windowSize.Width - margin, top),
+                new Point(left, captureBounds.Bottom + margin),
+                new Point(left, captureBounds.Top - windowSize.Height - margin)
+            };
+            foreach (var position in positions)
+            {
+                if (position.X >= workArea.Left + margin && position.Y >= workArea.Top + margin
+                    && position.X + windowSize.Width <= workArea.Right - margin
+                    && position.Y + windowSize.Height <= workArea.Bottom - margin)
+                    return position;
+            }
+            return new Point(left, top);
+        }
     }
 }

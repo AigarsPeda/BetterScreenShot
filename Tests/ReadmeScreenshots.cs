@@ -25,13 +25,7 @@ internal static class ReadmeScreenshots
         foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
         {
             var suffix = theme.ToString().ToLowerInvariant();
-            var launcher = new MainWindow(new CaptureShortcutSettingsStore(Path.Combine(fixtures, "shortcuts.json")));
-            typeof(MainWindow).GetMethod("ApplyTheme", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(launcher, [theme]);
-            ((System.Windows.Shapes.Path)launcher.FindName("ThemeGlyphPath")).Data = ThemeIconService.ThemeGlyph(theme);
-            RenderOffscreen(launcher, 520, 390, Path.Combine(output, $"launcher-{suffix}.png"), theme,
-                "BetterScreenShot");
-            launcher.Close();
+            RenderLauncher(theme, output, fixtures);
 
             var toastSource = WriteFixture(fixtures, $"toast-{suffix}", sample);
             var toast = new ScreenshotToastWindow(toastSource, System.Windows.Forms.Screen.PrimaryScreen!.Bounds, sample);
@@ -59,6 +53,29 @@ internal static class ReadmeScreenshots
         app.Shutdown();
         Console.WriteLine($"Generated 10 screenshots in {output}");
         return 0;
+    }
+
+    public static int GenerateLauncher()
+    {
+        var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        var output = Path.Combine(Environment.CurrentDirectory, "docs", "screenshots");
+        var fixtures = Path.Combine(Environment.CurrentDirectory, "obj", "readme-demo");
+        Directory.CreateDirectory(output);
+        Directory.CreateDirectory(fixtures);
+        foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark }) RenderLauncher(theme, output, fixtures);
+        app.Shutdown();
+        return 0;
+    }
+
+    private static void RenderLauncher(AppTheme theme, string output, string fixtures)
+    {
+        var launcher = new MainWindow(new CaptureShortcutSettingsStore(Path.Combine(fixtures, "shortcuts.json")));
+        typeof(MainWindow).GetMethod("ApplyTheme", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(launcher, [theme]);
+        ((System.Windows.Shapes.Path)launcher.FindName("ThemeGlyphPath")).Data = ThemeIconService.ThemeGlyph(theme);
+        RenderOffscreen(launcher, 520, 470, Path.Combine(output, $"launcher-{theme.ToString().ToLowerInvariant()}.png"), theme,
+            "BetterScreenShot");
+        launcher.Close();
     }
 
     private static void AddDemoAnnotations(AnnotationSurface surface)

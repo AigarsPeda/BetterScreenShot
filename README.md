@@ -7,6 +7,7 @@ For the code structure, release checks, and development pitfalls, see the [proje
 ## Features
 
 - Choose a monitor or drag an area to capture. Press Esc to cancel.
+- Capture a long page by selecting its scrolling area, scrolling downward, and stopping when finished.
 - Per-monitor DPI-aware selection overlays. Area selection is clipped to the monitor where the drag starts.
 - Bottom-right preview with Copy, Save, Open Viewer, and Discard actions.
 - Save actual PNG, JPEG, or BMP images.
@@ -29,11 +30,11 @@ Extract text locally and select the matching words on the image and in the resul
 | --- | --- |
 | <img src="docs/screenshots/text-recognition-light.png" alt="Light editor showing text extraction and selected image words" width="620"> | <img src="docs/screenshots/text-recognition-dark.png" alt="Dark editor showing text extraction and selected image words" width="620"> |
 
-The launcher can capture a screen, select an area, or open an existing image. The preview offers Copy, Save, Edit, and Discard actions.
+The launcher can capture a screen, select an area, capture scrolling content, or open an existing image. The preview offers Copy, Save, Edit, and Discard actions.
 
 | Light theme | Dark theme |
 | --- | --- |
-| <img src="docs/screenshots/launcher-light.png" alt="Light launcher with three capture and image options and the sun theme button" width="480"> | <img src="docs/screenshots/launcher-dark.png" alt="Dark launcher with three capture and image options and the moon theme button" width="480"> |
+| <img src="docs/screenshots/launcher-light.png" alt="Light launcher with scrolling capture and the sun theme button" width="480"> | <img src="docs/screenshots/launcher-dark.png" alt="Dark launcher with scrolling capture and the moon theme button" width="480"> |
 | <img src="docs/screenshots/preview-light.png" alt="Light screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> | <img src="docs/screenshots/preview-dark.png" alt="Dark screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> |
 
 Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. Replacing or closing a preview removes its file. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. Copies saved with Save As remain on disk. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
@@ -47,6 +48,12 @@ Run `Install.cmd` from File Explorer in your normal Windows desktop. An isolated
 Closing the launcher keeps the application running. Use its tray menu to open the launcher, configure settings, turn sign-in startup on or off, or Exit. Launching another copy opens the existing instance instead of competing for the same shortcuts.
 
 Keyboard shortcuts keep both existing selection modes: click a monitor for full-screen capture or drag an area. The launcher stays hidden before and after selection. The usual side preview appears with Copy, Save, Edit, and Discard, without taking keyboard focus.
+
+### Scrolling capture
+
+Choose **Scrolling Capture** in the launcher or tray menu, then drag around the content you want. The selected area stays outlined while you capture; its border and the floating Start/Stop/Cancel toolbar are excluded from the image. Drag the toolbar by its title if needed. Press **Start capture**, scroll downward through the area, and press **Stop capture**. The app matches distinctive overlapping rows and adds only the new rows to one image, which opens in the usual preview for copying, saving, or editing. A fixed message box at the bottom is included once at the end. Scroll in steps smaller than one screen so consecutive views overlap. If the toolbar reports no overlap, scroll back until the previous view is visible, then continue more slowly. Visually identical repeated rows cannot be aligned reliably and are skipped. Capture is limited to 30 million pixels or 32,000 rows to keep memory use bounded.
+
+This mode captures visible screen pixels. Moving popups, animations, changing sticky controls, horizontal scrolling, and pages that reflow while scrolling can leave seams or repeated content. Select the scrolling content itself where possible. The app does not scroll other applications automatically.
 
 Uninstall through Windows Settings → Apps → Installed apps, or run `Uninstall.ps1` from `%LOCALAPPDATA%/Programs/BetterScreenShot`. Uninstalling removes the application and startup entry while retaining saved screenshots and shortcut preferences.
 

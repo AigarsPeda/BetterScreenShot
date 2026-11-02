@@ -108,6 +108,78 @@ namespace BetterScreenShot
             await CaptureAsync(selectArea: true);
         }
 
+        private async void ScrollingCaptureButton_Click(object sender, RoutedEventArgs e)
+            => await CaptureScrollingAsync();
+
+        internal async Task CaptureScrollingAsync()
+        {
+            if (isCapturing || isClosed) return;
+            isCapturing = true;
+            CaptureButton.IsEnabled = false;
+            SelectAreaButton.IsEnabled = false;
+            ScrollingCaptureButton.IsEnabled = false;
+            OpenImageButton.IsEnabled = false;
+            ShortcutsButton.IsEnabled = false;
+            string? pendingFile = null;
+            CaptureAreaOutlineWindow? outline = null;
+            try
+            {
+                SetStatus(StatusTone.Info, "Drag to select the area to scroll.");
+                ScreenshotToastWindow.HideCurrent();
+                Hide();
+                var bounds = await MonitorSelectionOverlayForm.SelectAreaAsync();
+                if (isClosed) return;
+                if (bounds is null)
+                {
+                    SetStatus(StatusTone.Info, "Scrolling capture cancelled.");
+                    return;
+                }
+                outline = new CaptureAreaOutlineWindow(bounds.Value);
+                outline.Show();
+                if (!outline.CanExcludeFromCapture || !outline.IsClickThrough)
+                    throw new InvalidOperationException("Windows could not display the capture border without including it in the image.");
+                var controls = new ScrollingCaptureWindow(bounds.Value);
+                controls.Show();
+                using var image = await controls.Completion;
+                if (isClosed) return;
+                if (image is null)
+                {
+                    SetStatus(StatusTone.Info, "Scrolling capture cancelled.");
+                    return;
+                }
+                var capture = await Task.Run(() => ScreenshotCaptureService.SaveCapture(image));
+                pendingFile = capture.FilePath;
+                if (isClosed) return;
+                ShowLauncher();
+                ScreenshotToastWindow.ShowToast(pendingFile, bounds.Value, capture.Preview);
+                pendingFile = null;
+                SetStatus(controls.MayHaveGaps ? StatusTone.Info : StatusTone.Success,
+                    controls.MayHaveGaps
+                        ? "Long screenshot captured, but some scrolls may be missing. Review it before saving."
+                        : "Long screenshot captured. Use the popup to save or edit it.");
+            }
+            catch (Exception error)
+            {
+                if (!isClosed) SetStatus(StatusTone.Error, $"Scrolling capture failed: {error.Message}");
+            }
+            finally
+            {
+                outline?.Close();
+                if (pendingFile is not null) ScreenshotFileService.TryDelete(pendingFile);
+                isCapturing = false;
+                if (!isClosed)
+                {
+                    CaptureButton.IsEnabled = true;
+                    SelectAreaButton.IsEnabled = true;
+                    ScrollingCaptureButton.IsEnabled = true;
+                    OpenImageButton.IsEnabled = true;
+                    ShortcutsButton.IsEnabled = true;
+                    ShowLauncher();
+                    ScreenshotToastWindow.RestoreCurrent();
+                }
+            }
+        }
+
         private void OpenImageButton_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
@@ -155,6 +227,7 @@ namespace BetterScreenShot
             isCapturing = true;
             CaptureButton.IsEnabled = false;
             SelectAreaButton.IsEnabled = false;
+            ScrollingCaptureButton.IsEnabled = false;
             OpenImageButton.IsEnabled = false;
             ShortcutsButton.IsEnabled = false;
             string? pendingFile = null;
@@ -212,6 +285,7 @@ namespace BetterScreenShot
                 {
                     CaptureButton.IsEnabled = true;
                     SelectAreaButton.IsEnabled = true;
+                    ScrollingCaptureButton.IsEnabled = true;
                     OpenImageButton.IsEnabled = true;
                     ShortcutsButton.IsEnabled = true;
                     if (!fromShortcut) ShowLauncher();

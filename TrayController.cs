@@ -17,6 +17,7 @@ internal sealed class TrayController : IDisposable
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Capture full screen", null, async (_, _) => await launcher.CaptureFromShortcutAsync(false));
         menu.Items.Add("Select area", null, async (_, _) => await launcher.CaptureFromShortcutAsync(true));
+        menu.Items.Add("Scrolling capture", null, async (_, _) => await launcher.CaptureScrollingAsync());
         menu.Items.Add(new Forms.ToolStripSeparator());
         var startup = new Forms.ToolStripMenuItem("Start with Windows") { CheckOnClick = true };
         startup.Click += (_, _) =>

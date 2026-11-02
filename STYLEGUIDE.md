@@ -9,11 +9,13 @@
 
 ## Launcher
 
-- Keep the 520 × 320 default window and the 380 × 290 minimum.
-- Show the two primary capture actions immediately. Their rows have equal height and share a single raised surface with one divider.
+- Keep the 520 × 470 default window and the 380 × 440 minimum.
+- Show full screen, area, and scrolling capture immediately. Their rows have equal height and share a single raised surface with dividers.
 - Give each action a small outline icon, a clear label, and its shortcut hint. Do not add icon tiles or trailing chevrons.
 - Place status and the keyboard-shortcuts link in a quiet footer. Status color can change with meaning, but the area should not become a permanent badge.
 - Hover uses a soft surface fill. Keyboard focus has a visible purple outline.
+- Place scrolling capture controls in a draggable floating toolbar beside the selected area, using the viewer's theme colors.
+- Keep a click-through accent outline around the selected area during scrolling capture, excluded from saved pixels.
 
 ## Editor
 
