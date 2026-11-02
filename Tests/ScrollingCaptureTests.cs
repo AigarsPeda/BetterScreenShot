@@ -1,6 +1,7 @@
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Reflection;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -10,6 +11,32 @@ using BetterScreenShot;
 
 internal static class ScrollingCaptureTests
 {
+    internal static int Benchmark()
+    {
+        const int width = 1200, viewport = 800, steps = 18, scroll = 55;
+        var source = new byte[width * (viewport + steps * scroll) * 4];
+        new Random(17).NextBytes(source);
+        var frames = Enumerable.Range(0, steps + 1)
+            .Select(index => Frame(source, width, index * scroll, viewport)).ToArray();
+        RunOnce();
+        GC.Collect();
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        var clock = Stopwatch.StartNew();
+        for (var trial = 0; trial < 3; trial++) RunOnce();
+        clock.Stop();
+        Console.WriteLine($"Three 18-step 1200×800 captures: {clock.ElapsedMilliseconds} ms, "
+            + $"{(GC.GetAllocatedBytesForCurrentThread() - allocated) / 1_000_000d:F2} MB allocated");
+        return 0;
+
+        void RunOnce()
+        {
+            var stitcher = new ScrollingStitcher(frames[0]);
+            for (var index = 1; index < frames.Length; index++)
+                if (stitcher.Add(frames[index]) != ScrollFrameResult.Added)
+                    throw new InvalidOperationException($"Benchmark frame {index} did not stitch.");
+        }
+    }
+
     internal static void Run(Action<string, Action> check)
     {
         check("Scrolling launcher flow hands the finished image to the preview", () =>

@@ -29,6 +29,7 @@ internal static class Program
         if (args.Contains("--shortcut-recorder-demo")) return CaptureShortcutTests.RecorderDemo();
         if (args.Contains("--shortcuts-preview")) return CaptureShortcutTests.Preview();
         if (args.Contains("--scroll-preview")) return ScrollingCaptureTests.Preview();
+        if (args.Contains("--scroll-benchmark")) return ScrollingCaptureTests.Benchmark();
         if (args.Contains("--scroll-tests"))
         {
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };

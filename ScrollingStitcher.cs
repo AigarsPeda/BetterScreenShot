@@ -34,6 +34,8 @@ internal sealed class ScrollingStitcher
     private const int MaxPixels = 30_000_000;
     private readonly List<byte[]> strips = [];
     private ScrollFrame last;
+    private ulong[]? lastFingerprints;
+    private Dictionary<ulong, int>? lastUniqueRows;
     private int fixedFooterHeight;
     internal int Width => last.Width;
     internal int Height { get; private set; }
@@ -52,7 +54,7 @@ internal sealed class ScrollingStitcher
     internal ScrollFrameResult Add(ScrollFrame next)
     {
         if (next.Width != Width || next.Height != last.Height) throw new ArgumentException("The capture area changed size.", nameof(next));
-        var shift = FindShift(last, next, fixedFooterHeight, out var detectedFooter);
+        var shift = FindShift(next, out var detectedFooter, out var nextFingerprints, out var nextUniqueRows);
         if (shift == 0) return ScrollFrameResult.Unchanged;
         if (shift < 0) return ScrollFrameResult.NoOverlap;
         var footer = AddedFrames == 0 ? detectedFooter : fixedFooterHeight;
@@ -67,6 +69,8 @@ internal sealed class ScrollingStitcher
         Buffer.BlockCopy(next.Pixels, (next.Height - fixedFooterHeight - shift) * next.Stride, strip, 0, strip.Length);
         strips.Add(strip);
         last = next;
+        lastFingerprints = nextFingerprints;
+        lastUniqueRows = nextUniqueRows;
         Height += shift;
         AddedFrames++;
         return ScrollFrameResult.Added;
@@ -104,21 +108,24 @@ internal sealed class ScrollingStitcher
         }
     }
 
-    private static int FindShift(ScrollFrame previous, ScrollFrame current, int knownFooter, out int fixedFooter)
+    private int FindShift(ScrollFrame current, out int fixedFooter,
+        out ulong[]? currentFingerprints, out Dictionary<ulong, int>? currentUniqueRows)
     {
-        fixedFooter = knownFooter;
-        if (previous.Pixels.AsSpan().SequenceEqual(current.Pixels)) return 0;
-        var height = previous.Height;
+        fixedFooter = fixedFooterHeight;
+        currentFingerprints = null;
+        currentUniqueRows = null;
+        if (last.Pixels.AsSpan().SequenceEqual(current.Pixels)) return 0;
+        var height = last.Height;
         var maxShift = height - Math.Max(32, height / 5);
         if (maxShift < 4) return -1;
         // Match distinctive three-row fingerprints. Flat backgrounds and repeated buttons
         // cannot vote for a scroll distance, so they cannot create a false seam.
-        var before = Fingerprints(previous);
-        var after = Fingerprints(current);
-        var uniqueBefore = UniqueRows(before);
-        var uniqueAfter = UniqueRows(after);
+        var before = lastFingerprints ??= Fingerprints(last);
+        var uniqueBefore = lastUniqueRows ??= UniqueRows(before);
+        currentFingerprints = Fingerprints(current);
+        currentUniqueRows = UniqueRows(currentFingerprints);
         var votes = new Dictionary<int, List<int>>();
-        foreach (var (fingerprint, currentRow) in uniqueAfter)
+        foreach (var (fingerprint, currentRow) in currentUniqueRows)
         {
             if (!uniqueBefore.TryGetValue(fingerprint, out var previousRow)) continue;
             var shift = previousRow - currentRow;
@@ -127,7 +134,7 @@ internal sealed class ScrollingStitcher
             rows.Add(currentRow);
         }
         var ranked = votes.OrderByDescending(item => item.Value.Count).ToArray();
-        if (ranked.Length == 0) return Score(previous, current, 0) < 0.8 ? 0 : -1;
+        if (ranked.Length == 0) return Score(last, current, 0) < 0.8 ? 0 : -1;
         var best = ranked[0];
         var runnerUp = ranked.Skip(1).Where(item => Math.Abs(item.Key - best.Key) > 2)
             .Select(item => item.Value.Count).DefaultIfEmpty(0).Max();
@@ -135,11 +142,11 @@ internal sealed class ScrollingStitcher
         var span = best.Value.Max() - best.Value.Min();
         if (best.Value.Count < requiredVotes || runnerUp * 2 >= best.Value.Count
             || span < Math.Min(24, (height - best.Key) / 4)) return -1;
-        if (fixedFooter == 0) fixedFooter = DetectFixedFooter(previous, current, before, after);
+        if (fixedFooter == 0) fixedFooter = DetectFixedFooter(last, current, before, currentFingerprints);
         var contentHeight = height - fixedFooter;
         if (best.Key >= contentHeight - 32) return -1;
-        var aligned = Score(previous, current, best.Key, contentHeight);
-        var stationary = Score(previous, current, 0, contentHeight);
+        var aligned = Score(last, current, best.Key, contentHeight);
+        var stationary = Score(last, current, 0, contentHeight);
         if (aligned > 18 || aligned >= stationary * 0.9) return -1;
         return best.Key;
     }
@@ -193,7 +200,7 @@ internal sealed class ScrollingStitcher
             ulong hash = 14695981039346656037;
             var first = y * frame.Stride + left * 4;
             var colorful = 0;
-            foreach (var row in new[] { y - 2, y, y + 2 })
+            for (var row = y - 2; row <= y + 2; row += 2)
             for (var x = left; x < right; x += step)
             {
                 var pixel = row * frame.Stride + x * 4;
