@@ -11,6 +11,27 @@ using BetterScreenShot;
 
 internal static class ScrollingCaptureTests
 {
+    internal static int Stress()
+    {
+        const int width = 990, viewport = 1000, shift = 750, steps = 39;
+        var baseline = GC.GetTotalMemory(forceFullCollection: true);
+        using var stitcher = new ScrollingStitcher(PatternFrame(width, viewport, 0));
+        var path = stitcher.SpoolPath;
+        for (var index = 1; index <= steps; index++)
+            if (stitcher.Add(PatternFrame(width, viewport, index * shift)) != ScrollFrameResult.Added)
+                throw new InvalidOperationException($"Near-limit frame {index} did not stitch.");
+        var retained = GC.GetTotalMemory(forceFullCollection: true) - baseline;
+        var expectedBytes = (long)width * stitcher.Height * 4;
+        Console.WriteLine($"Captured {width}×{stitcher.Height:N0}: "
+            + $"{stitcher.SpoolBytes / 1_000_000d:F1} MB in the temporary file, "
+            + $"{retained / 1_000_000d:F1} MB additional managed memory.");
+        if (stitcher.SpoolBytes != expectedBytes || retained >= 40_000_000)
+            throw new InvalidOperationException("Near-limit capture retained too many pixels in memory.");
+        stitcher.Dispose();
+        if (File.Exists(path)) throw new InvalidOperationException("The temporary capture file was not deleted.");
+        return 0;
+    }
+
     internal static int Benchmark()
     {
         const int width = 1200, viewport = 800, steps = 18, scroll = 55;
@@ -30,7 +51,7 @@ internal static class ScrollingCaptureTests
 
         void RunOnce()
         {
-            var stitcher = new ScrollingStitcher(frames[0]);
+            using var stitcher = new ScrollingStitcher(frames[0]);
             for (var index = 1; index < frames.Length; index++)
                 if (stitcher.Add(frames[index]) != ScrollFrameResult.Added)
                     throw new InvalidOperationException($"Benchmark frame {index} did not stitch.");
@@ -56,9 +77,11 @@ internal static class ScrollingCaptureTests
                 var controls = System.Windows.Application.Current.Windows.OfType<ScrollingCaptureWindow>().Single(window => window.IsVisible);
                 ((System.Windows.Controls.Button)controls.FindName("StartButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 PumpUntil(() => ((System.Windows.Controls.Button)controls.FindName("StopButton")).IsEnabled, launcher.Dispatcher);
+                var spoolPath = controls.SpoolPath!;
                 ((System.Windows.Controls.Button)controls.FindName("StopButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 PumpUntil(() => capture.IsCompleted, launcher.Dispatcher);
                 capture.GetAwaiter().GetResult();
+                Require(!File.Exists(spoolPath));
                 var toast = System.Windows.Application.Current.Windows.OfType<ScreenshotToastWindow>()
                     .Single(window => window.IsVisible);
                 var thumbnail = (BitmapSource)((System.Windows.Controls.Image)toast.FindName("PreviewImage")).Source;
@@ -96,7 +119,7 @@ internal static class ScrollingCaptureTests
                 PumpUntil(() => stop.IsEnabled, window.Dispatcher);
                 stop.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 PumpUntil(() => window.Completion.IsCompleted, window.Dispatcher);
-                var image = window.Completion.GetAwaiter().GetResult();
+                using var image = window.Completion.GetAwaiter().GetResult();
                 Require(image is not null && image.Width == bounds.Width && image.Height == bounds.Height);
             }
             finally
@@ -113,6 +136,30 @@ internal static class ScrollingCaptureTests
             ((System.Windows.Controls.Button)window.FindName("CancelButton"))
                 .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             Require(window.Completion.IsCompleted && window.Completion.GetAwaiter().GetResult() is null);
+        });
+        check("Cancelling an active capture deletes its temporary rows", () =>
+        {
+            var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
+            var window = new ScrollingCaptureWindow(new Rectangle(screen.Left + 20, screen.Top + 20, 120, 100));
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(window.Dispatcher));
+            try
+            {
+                window.Show();
+                ((System.Windows.Controls.Button)window.FindName("StartButton"))
+                    .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                PumpUntil(() => window.SpoolPath is not null, window.Dispatcher);
+                var path = window.SpoolPath!;
+                ((System.Windows.Controls.Button)window.FindName("CancelButton"))
+                    .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require(window.Completion.IsCompleted && window.Completion.GetAwaiter().GetResult() is null
+                    && !File.Exists(path));
+            }
+            finally
+            {
+                window.Close();
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
         });
         check("The selection outline stays visible without entering captured pixels", () =>
         {
@@ -151,7 +198,7 @@ internal static class ScrollingCaptureTests
             const int width = 180, viewport = 220, fullHeight = 670;
             var source = new byte[width * fullHeight * 4];
             new Random(42).NextBytes(source);
-            var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
+            using var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
             Require(stitcher.Add(Frame(source, width, 0, viewport)) == ScrollFrameResult.Unchanged);
             Require(stitcher.Add(Frame(source, width, 110, viewport)) == ScrollFrameResult.Added);
             Require(stitcher.Add(Frame(source, width, 250, viewport)) == ScrollFrameResult.Added);
@@ -178,7 +225,7 @@ internal static class ScrollingCaptureTests
                 var pixel = (y * width + x) * 4;
                 source[pixel] = source[pixel + 1] = source[pixel + 2] = 38;
             }
-            var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
+            using var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
             Require(stitcher.Add(Frame(source, width, 102, viewport)) == ScrollFrameResult.Added);
             Require(stitcher.Add(Frame(source, width, 205, viewport)) == ScrollFrameResult.Added);
             Require(stitcher.Height == 445);
@@ -208,7 +255,7 @@ internal static class ScrollingCaptureTests
                 for (var y = top + 38; y < top + 40; y++)
                 for (var x = 15; x < 80 + block * 17 % 150; x++) SetPixel(source, width, x, y, 116, 116, 122);
             }
-            var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
+            using var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
             Require(stitcher.Add(Frame(source, width, 75, viewport)) == ScrollFrameResult.Added);
             Require(stitcher.Add(Frame(source, width, 155, viewport)) == ScrollFrameResult.Added);
             Require(stitcher.Add(Frame(source, width, 235, viewport)) == ScrollFrameResult.Added);
@@ -230,7 +277,7 @@ internal static class ScrollingCaptureTests
             for (var top = 0; top < fullHeight; top += 40)
             for (var y = top + 5; y < Math.Min(top + 17, fullHeight); y++)
             for (var x = 15; x < 90; x++) SetPixel(source, width, x, y, 98, 87, 193);
-            var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
+            using var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
             Require(stitcher.Add(Frame(source, width, 25, viewport)) == ScrollFrameResult.NoOverlap);
             Require(stitcher.Height == viewport);
         });
@@ -240,7 +287,7 @@ internal static class ScrollingCaptureTests
             var content = new byte[width * 700 * 4];
             new Random(24).NextBytes(content);
             var first = FrameWithFooter(content, width, 0, viewport, footerHeight);
-            var stitcher = new ScrollingStitcher(first);
+            using var stitcher = new ScrollingStitcher(first);
             Require(stitcher.Add(FrameWithFooter(content, width, 70, viewport, footerHeight)) == ScrollFrameResult.Added);
             Require(stitcher.Add(FrameWithFooter(content, width, 150, viewport, footerHeight, changedFooter: true)) == ScrollFrameResult.Added);
             Require(stitcher.Height == viewport + 150);
@@ -263,7 +310,7 @@ internal static class ScrollingCaptureTests
             const int width = 120, viewport = 220;
             var source = new byte[width * 800 * 4];
             new Random(91).NextBytes(source);
-            var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
+            using var stitcher = new ScrollingStitcher(Frame(source, width, 0, viewport));
             Require(stitcher.Add(Frame(source, width, 100, viewport)) == ScrollFrameResult.Added);
             Require(stitcher.Add(Frame(source, width, 500, viewport)) == ScrollFrameResult.NoOverlap);
             Require(stitcher.Add(Frame(source, width, 70, viewport)) == ScrollFrameResult.NoOverlap);
@@ -276,7 +323,7 @@ internal static class ScrollingCaptureTests
         {
             const int width = 1500, height = 4000;
             var pixels = new byte[width * height * 4];
-            var stitcher = new ScrollingStitcher(new ScrollFrame(width, height, pixels));
+            using var stitcher = new ScrollingStitcher(new ScrollFrame(width, height, pixels));
             var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             var capture = ScreenshotCaptureService.SaveScrollingCapture(stitcher);
             var allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
@@ -305,7 +352,7 @@ internal static class ScrollingCaptureTests
             const int width = 320, height = 240;
             var source = new byte[width * height * 4];
             new Random(41).NextBytes(source);
-            var stitcher = new ScrollingStitcher(new ScrollFrame(width, height, source));
+            using var stitcher = new ScrollingStitcher(new ScrollFrame(width, height, source));
             var capture = ScreenshotCaptureService.SaveScrollingCapture(stitcher);
             using var temporary = new TemporaryScreenshot(capture.FilePath);
             Require(new FileInfo(capture.FilePath).Length > 128_000);
@@ -317,7 +364,7 @@ internal static class ScrollingCaptureTests
         });
         check("Streaming PNG handles a one-pixel capture", () =>
         {
-            var stitcher = new ScrollingStitcher(new ScrollFrame(1, 1, [29, 71, 193, 0]));
+            using var stitcher = new ScrollingStitcher(new ScrollFrame(1, 1, [29, 71, 193, 0]));
             var capture = ScreenshotCaptureService.SaveScrollingCapture(stitcher);
             using var temporary = new TemporaryScreenshot(capture.FilePath);
             var decoded = new FormatConvertedBitmap(ScreenshotCaptureService.LoadFullImage(capture.FilePath), PixelFormats.Bgr32, null, 0);
@@ -388,7 +435,7 @@ internal static class ScrollingCaptureTests
             }
             stop.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => controls.Completion.IsCompleted, controls.Dispatcher);
-            var image = controls.Completion.GetAwaiter().GetResult()
+            using var image = controls.Completion.GetAwaiter().GetResult()
                 ?? throw new InvalidOperationException("Live scrolling capture was cancelled.");
             var expected = new byte[width * (viewport + sequence[^1].Offset) * 4];
             var stride = width * 4;
@@ -466,6 +513,24 @@ internal static class ScrollingCaptureTests
     {
         var pixels = new byte[width * height * 4];
         Buffer.BlockCopy(source, startRow * width * 4, pixels, 0, pixels.Length);
+        return new ScrollFrame(width, height, pixels);
+    }
+
+    private static ScrollFrame PatternFrame(int width, int height, int startRow)
+    {
+        var pixels = new byte[width * height * 4];
+        for (var y = 0; y < height; y++)
+        {
+            var value = unchecked((uint)(startRow + y) * 2654435761u);
+            for (var x = 0; x < width; x++)
+            {
+                value = unchecked(value * 1664525u + 1013904223u);
+                var pixel = (y * width + x) * 4;
+                pixels[pixel] = (byte)value;
+                pixels[pixel + 1] = (byte)(value >> 8);
+                pixels[pixel + 2] = (byte)(value >> 16);
+            }
+        }
         return new ScrollFrame(width, height, pixels);
     }
 

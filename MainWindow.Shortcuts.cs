@@ -35,7 +35,11 @@ public partial class MainWindow
     private void UpdateShortcutLabels()
     {
         FullScreenShortcutLabel.Text = shortcutSettings.FullScreen.IsEnabled ? shortcutSettings.FullScreen.DisplayText : "Shortcut not set";
-        AreaShortcutLabel.Text = shortcutSettings.Area.IsEnabled ? shortcutSettings.Area.DisplayText : "Shortcut not set";
+        var areaShortcuts = new List<string>();
+        if (shortcutSettings.Area.IsEnabled && shortcutSettings.Area != WindowsSnipShortcutHook.Shortcut)
+            areaShortcuts.Add(shortcutSettings.Area.DisplayText);
+        if (shortcutSettings.UseWindowsSnipShortcut) areaShortcuts.Add("Shift+Win+S");
+        AreaShortcutLabel.Text = areaShortcuts.Count > 0 ? string.Join(", ", areaShortcuts) : "Shortcut not set";
     }
 
     private void ShortcutsButton_Click(object sender, RoutedEventArgs e)

@@ -9,8 +9,10 @@ internal static class PngStreamWriter
     private static readonly byte[] signature = [137, 80, 78, 71, 13, 10, 26, 10];
     private static readonly uint[] crcTable = BuildCrcTable();
 
-    internal static void Write(Stream output, int width, int height, IEnumerable<ReadOnlyMemory<byte>> rows)
+    internal static void Write(Stream output, ScrollingStitcher stitcher)
     {
+        var width = stitcher.Width;
+        var height = stitcher.Height;
         output.Write(signature);
         Span<byte> header = stackalloc byte[13];
         header.Clear();
@@ -26,20 +28,18 @@ internal static class PngStreamWriter
             {
                 var rgb = new byte[checked(width * 3)];
                 var count = 0;
-                foreach (var row in rows)
+                stitcher.ForEachRow((source, offset) =>
                 {
-                    if (row.Length != width * 4) throw new InvalidOperationException("Invalid scrolling capture row.");
-                    var source = row.Span;
                     for (var x = 0; x < width; x++)
                     {
-                        rgb[x * 3] = source[x * 4 + 2];
-                        rgb[x * 3 + 1] = source[x * 4 + 1];
-                        rgb[x * 3 + 2] = source[x * 4];
+                        rgb[x * 3] = source[offset + x * 4 + 2];
+                        rgb[x * 3 + 1] = source[offset + x * 4 + 1];
+                        rgb[x * 3 + 2] = source[offset + x * 4];
                     }
                     compressed.WriteByte(0); // PNG filter None.
                     compressed.Write(rgb);
                     count++;
-                }
+                });
                 if (count != height) throw new InvalidOperationException("Scrolling capture row count changed.");
             }
             chunks.Flush();

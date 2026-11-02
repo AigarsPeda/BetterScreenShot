@@ -9,6 +9,11 @@ using BetterScreenShot;
 
 internal static class CaptureShortcutTests
 {
+    private sealed class HookLease(Action onDispose) : IDisposable
+    {
+        public void Dispose() => onDispose();
+    }
+
     private static readonly CaptureShortcutSettings Example = new()
     {
         FullScreen = new CaptureShortcut(Key.D1, ModifierKeys.Control | ModifierKeys.Shift),
@@ -88,6 +93,22 @@ internal static class CaptureShortcutTests
             Require(new CaptureShortcut(Key.LeftCtrl, ModifierKeys.Control).ValidationError() is not null);
             Require(new CaptureShortcut(Key.F8).ValidationError() is null && new CaptureShortcut(Key.Snapshot).DisplayText == "Print Screen");
             Require((Example with { Area = Example.FullScreen }).ValidationError() is not null);
+            var windowsSnip = WindowsSnipShortcutHook.Shortcut;
+            Require((Example with { Area = windowsSnip }).ValidationError()!.Contains("Enable"));
+            Require((Example with { Area = windowsSnip, UseWindowsSnipShortcut = true }).ValidationError() is null);
+            Require((Example with { FullScreen = windowsSnip, UseWindowsSnipShortcut = true }).ValidationError() is not null);
+        });
+        check("Win+Shift+S consumes one press and its release only when the exact chord is held", () =>
+        {
+            var state = new WindowsSnipShortcutState();
+            Require(!state.Process(0x53, true, false, out var capture) && !capture);
+            Require(!state.Process(0x53, true, true, out capture) && !capture);
+            Require(!state.Process(0x53, false, true, out capture) && !capture);
+            Require(!state.Process(0x41, true, true, out capture) && !capture);
+            Require(state.Process(0x53, true, true, out capture) && capture);
+            Require(state.Process(0x53, true, true, out capture) && !capture);
+            Require(state.Process(0x53, false, false, out capture) && !capture);
+            Require(!state.Process(0x53, false, true, out capture) && !capture);
         });
         check("Shortcut settings survive restart and invalid files fall back to unassigned", () =>
         {
@@ -96,6 +117,9 @@ internal static class CaptureShortcutTests
             Require(store.Load(out var error) == CaptureShortcutSettings.Disabled && error is null);
             store.Save(Example);
             Require(new CaptureShortcutSettingsStore(path).Load(out error) == Example && error is null);
+            var overridden = Example with { UseWindowsSnipShortcut = true };
+            store.Save(overridden);
+            Require(new CaptureShortcutSettingsStore(path).Load(out error) == overridden && error is null);
             File.WriteAllText(path, "{\"fullScreen\":null}");
             Require(store.Load(out error) == CaptureShortcutSettings.Disabled && error is not null);
             File.WriteAllText(path, "not json");
@@ -135,6 +159,44 @@ internal static class CaptureShortcutTests
             SendHotkey(source, GlobalCaptureShortcuts.AreaId, Example.Area);
             Require(calls.Count == 2);
         });
+        check("Opt-in hook starts and stops with settings and restores the previous binding after failure", () =>
+        {
+            using var source = CreateSource();
+            Action? hookedCapture = null;
+            var activeHooks = 0;
+            var failNextHook = false;
+            var calls = new List<bool>();
+            var registered = new Dictionary<int, CaptureShortcut>();
+            using var shortcuts = new GlobalCaptureShortcuts(source, calls.Add,
+                (id, shortcut) => { if (shortcut.Key == Key.K) return false; registered[id] = shortcut; return true; },
+                id => registered.Remove(id),
+                onCapture =>
+                {
+                    if (failNextHook)
+                    {
+                        failNextHook = false;
+                        throw new System.ComponentModel.Win32Exception(5);
+                    }
+                    activeHooks++;
+                    hookedCapture = onCapture;
+                    return new HookLease(() => activeHooks--);
+                });
+            var overrideSettings = Example with { Area = WindowsSnipShortcutHook.Shortcut, UseWindowsSnipShortcut = true };
+            Require(shortcuts.TryApply(overrideSettings, out _) && activeHooks == 1);
+            Require(registered.Count == 1 && registered[GlobalCaptureShortcuts.FullScreenId] == Example.FullScreen);
+            hookedCapture!();
+            Require(calls.SequenceEqual(new[] { true }));
+            Require(!shortcuts.TryApply(overrideSettings with { FullScreen = new CaptureShortcut(Key.K, ModifierKeys.Control) }, out _));
+            Require(shortcuts.Current == overrideSettings && activeHooks == 1);
+            failNextHook = true;
+            Require(!shortcuts.TryApply(overrideSettings with { Area = Example.Area }, out var error)
+                && error!.Contains("Could not enable"));
+            Require(shortcuts.Current == overrideSettings && activeHooks == 1);
+            Require(shortcuts.TryApply(CaptureShortcutSettings.Disabled, out _) && activeHooks == 0 && registered.Count == 0);
+            Require(shortcuts.TryApply(CaptureShortcutSettings.Disabled with { UseWindowsSnipShortcut = true }, out _)
+                && activeHooks == 1 && registered.Count == 0);
+            Require(shortcuts.TryApply(CaptureShortcutSettings.Disabled, out _) && activeHooks == 0);
+        });
         check("Native global hotkeys register, dispatch on a hidden window and release on close", () =>
         {
             using var source = CreateSource();
@@ -165,9 +227,11 @@ internal static class CaptureShortcutTests
                 dialog.Show();
                 var save = (System.Windows.Controls.Button)dialog.FindName("SaveShortcutsButton");
                 var error = (System.Windows.Controls.TextBlock)dialog.FindName("ShortcutError");
+                var windowsSnip = (System.Windows.Controls.CheckBox)dialog.FindName("WindowsSnipShortcutCheck");
+                windowsSnip.IsChecked = true;
                 dialog.SetShortcut(true, Example.FullScreen);
                 save.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                Require(saves == 0 && error.IsVisible && error.Text.Contains("different shortcuts"));
+                Require(saves == 0 && dialog.Draft.UseWindowsSnipShortcut && error.IsVisible && error.Text.Contains("different shortcuts"));
                 dialog.SetShortcut(true, Example.Area);
                 save.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 Require(saves == 1 && error.Text == "Shortcut already in use." && dialog.IsVisible);

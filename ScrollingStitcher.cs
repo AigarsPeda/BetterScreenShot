@@ -1,4 +1,5 @@
 using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace BetterScreenShot;
@@ -29,10 +30,10 @@ internal sealed class ScrollFrame(int width, int height, byte[] pixels)
     }
 }
 
-internal sealed class ScrollingStitcher
+internal sealed class ScrollingStitcher : IDisposable
 {
     private const int MaxPixels = 30_000_000;
-    private readonly List<byte[]> strips = [];
+    private readonly FileStream spool;
     private ScrollFrame last;
     private ulong[]? lastFingerprints;
     private Dictionary<ulong, int>? lastUniqueRows;
@@ -40,15 +41,23 @@ internal sealed class ScrollingStitcher
     internal int Width => last.Width;
     internal int Height { get; private set; }
     internal int AddedFrames { get; private set; }
+    internal string SpoolPath => spool.Name;
+    internal long SpoolBytes => spool.Length;
 
     internal ScrollingStitcher(ScrollFrame first)
     {
         if (first.Width <= 0 || first.Height <= 0 || first.Pixels.Length != (long)first.Width * first.Height * 4)
             throw new ArgumentException("Invalid scroll capture frame.", nameof(first));
         if ((long)first.Width * first.Height > MaxPixels) throw new InvalidOperationException("The selected area is too large for a scrolling capture.");
+        var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, $"scroll_{Guid.NewGuid():N}.tmp");
+        spool = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
+            64 * 1024, FileOptions.DeleteOnClose | FileOptions.SequentialScan);
+        try { spool.Write(first.Pixels); }
+        catch { spool.Dispose(); throw; }
         last = first;
         Height = first.Height;
-        strips.Add(first.Pixels);
     }
 
     internal ScrollFrameResult Add(ScrollFrame next)
@@ -63,11 +72,10 @@ internal sealed class ScrollingStitcher
         if (AddedFrames == 0 && footer > 0)
         {
             fixedFooterHeight = footer;
-            strips[0] = last.Pixels.AsSpan(0, (last.Height - footer) * last.Stride).ToArray();
+            spool.SetLength((long)(last.Height - footer) * last.Stride);
         }
-        var strip = new byte[shift * next.Stride];
-        Buffer.BlockCopy(next.Pixels, (next.Height - fixedFooterHeight - shift) * next.Stride, strip, 0, strip.Length);
-        strips.Add(strip);
+        spool.Position = spool.Length;
+        spool.Write(next.Pixels, (next.Height - fixedFooterHeight - shift) * next.Stride, shift * next.Stride);
         last = next;
         lastFingerprints = nextFingerprints;
         lastUniqueRows = nextUniqueRows;
@@ -86,17 +94,11 @@ internal sealed class ScrollingStitcher
             {
                 if (data.Stride != Width * 4) throw new InvalidOperationException("Unsupported output pixel layout.");
                 var offset = 0;
-                foreach (var strip in strips)
+                ForEachRow((pixels, sourceOffset) =>
                 {
-                    Marshal.Copy(strip, 0, IntPtr.Add(data.Scan0, offset), strip.Length);
-                    offset += strip.Length;
-                }
-                if (fixedFooterHeight > 0)
-                {
-                    var footerLength = fixedFooterHeight * last.Stride;
-                    Marshal.Copy(last.Pixels, (last.Height - fixedFooterHeight) * last.Stride,
-                        IntPtr.Add(data.Scan0, offset), footerLength);
-                }
+                    Marshal.Copy(pixels, sourceOffset, IntPtr.Add(data.Scan0, offset), Width * 4);
+                    offset += Width * 4;
+                });
             }
             finally { bitmap.UnlockBits(data); }
             return bitmap;
@@ -108,29 +110,40 @@ internal sealed class ScrollingStitcher
         }
     }
 
-    internal IEnumerable<ReadOnlyMemory<byte>> Rows()
+    internal void ForEachRow(Action<byte[], int> useRow)
     {
         var stride = Width * 4;
-        foreach (var strip in strips)
-            for (var offset = 0; offset < strip.Length; offset += stride)
-                yield return strip.AsMemory(offset, stride);
-        if (fixedFooterHeight == 0) yield break;
+        var buffer = new byte[stride];
+        spool.Flush();
+        spool.Position = 0;
+        for (var row = 0; row < Height - fixedFooterHeight; row++)
+        {
+            spool.ReadExactly(buffer);
+            useRow(buffer, 0);
+        }
         for (var row = last.Height - fixedFooterHeight; row < last.Height; row++)
-            yield return last.Pixels.AsMemory(row * stride, stride);
+            useRow(last.Pixels, row * stride);
     }
 
-    internal ReadOnlySpan<byte> RowAt(int row)
+    internal void CopyRow(int row, Span<byte> destination)
     {
         if (row < 0 || row >= Height) throw new ArgumentOutOfRangeException(nameof(row));
         var stride = Width * 4;
-        foreach (var strip in strips)
+        if (destination.Length < stride) throw new ArgumentException("Row buffer is too small.", nameof(destination));
+        var storedHeight = Height - fixedFooterHeight;
+        if (row < storedHeight)
         {
-            var rows = strip.Length / stride;
-            if (row < rows) return strip.AsSpan(row * stride, stride);
-            row -= rows;
+            spool.Position = (long)row * stride;
+            spool.ReadExactly(destination[..stride]);
         }
-        return last.Pixels.AsSpan((last.Height - fixedFooterHeight + row) * stride, stride);
+        else
+        {
+            var footerRow = last.Height - fixedFooterHeight + row - storedHeight;
+            last.Pixels.AsSpan(footerRow * stride, stride).CopyTo(destination);
+        }
     }
+
+    public void Dispose() => spool.Dispose();
 
     private int FindShift(ScrollFrame current, out int fixedFooter,
         out ulong[]? currentFingerprints, out Dictionary<ulong, int>? currentUniqueRows)

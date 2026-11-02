@@ -47,7 +47,7 @@ namespace BetterScreenShot
             try
             {
                 using (var output = File.Create(filePath))
-                    PngStreamWriter.Write(output, stitcher.Width, stitcher.Height, stitcher.Rows());
+                    PngStreamWriter.Write(output, stitcher);
                 return (filePath, CreateToastPreview(stitcher));
             }
             catch
@@ -78,9 +78,10 @@ namespace BetterScreenShot
             var height = Math.Max(1, Math.Min(256, (int)Math.Round((double)visibleHeight * width / stitcher.Width)));
             var stride = width * 4;
             var pixels = new byte[stride * height];
+            var source = new byte[stitcher.Width * 4];
             for (var y = 0; y < height; y++)
             {
-                var source = stitcher.RowAt(top + (int)((long)y * visibleHeight / height));
+                stitcher.CopyRow(top + (int)((long)y * visibleHeight / height), source);
                 for (var x = 0; x < width; x++)
                 {
                     var sourcePixel = (int)((long)x * stitcher.Width / width) * 4;

@@ -52,6 +52,7 @@ internal sealed record CaptureShortcutSettings
 {
     public CaptureShortcut FullScreen { get; init; } = new();
     public CaptureShortcut Area { get; init; } = new();
+    public bool UseWindowsSnipShortcut { get; init; }
     public static CaptureShortcutSettings Disabled => new();
 
     public string? ValidationError()
@@ -59,6 +60,10 @@ internal sealed record CaptureShortcutSettings
         if (FullScreen is null || Area is null) return "Both capture options need a shortcut setting.";
         if (FullScreen.ValidationError() is { } fullError) return $"Capture Full Screen: {fullError}";
         if (Area.ValidationError() is { } areaError) return $"Select Area: {areaError}";
+        var windowsSnip = WindowsSnipShortcutHook.Shortcut;
+        if (FullScreen == windowsSnip) return "Shift+Win+S can only be used for Select Area.";
+        if (Area == windowsSnip && !UseWindowsSnipShortcut)
+            return "Enable the Shift+Win+S option to use this Windows shortcut for Select Area.";
         return FullScreen.IsEnabled && FullScreen == Area ? "Choose different shortcuts for the two capture options." : null;
     }
 }

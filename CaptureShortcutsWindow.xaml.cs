@@ -31,6 +31,7 @@ public partial class CaptureShortcutsWindow : Window
         InitializeComponent();
         this.save = save;
         Draft = settings;
+        WindowsSnipShortcutCheck.IsChecked = settings.UseWindowsSnipShortcut;
         EditorDraft = EditorSettingsService.Current;
         currentTheme = ThemePreferenceService.CurrentTheme;
         ApplyTheme(currentTheme);
@@ -202,6 +203,7 @@ public partial class CaptureShortcutsWindow : Window
     private void SaveShortcuts_Click(object sender, RoutedEventArgs e)
     {
         StopRecording();
+        Draft = Draft with { UseWindowsSnipShortcut = WindowsSnipShortcutCheck.IsChecked == true };
         EditorDraft = EditorDraft with
         {
             DefaultTool = (AnnotationTool)((ComboBoxItem)DefaultToolPicker.SelectedItem).Tag,

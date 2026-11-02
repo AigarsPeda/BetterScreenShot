@@ -20,6 +20,7 @@ public partial class ScrollingCaptureWindow : Window
 
     internal Task<ScrollingStitcher?> Completion => completion.Task;
     internal bool MayHaveGaps { get; private set; }
+    internal string? SpoolPath => stitcher?.SpoolPath;
 
     internal ScrollingCaptureWindow(Rectangle bounds)
     {
@@ -50,7 +51,13 @@ public partial class ScrollingCaptureWindow : Window
             timer.Stop();
             ThemePreferenceService.Changed -= ThemePreference_Changed;
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
-            completion.TrySetResult(null);
+            if (completion.TrySetResult(null) && stitcher is { } owned)
+            {
+                if (captureTask is { IsCompleted: false } running)
+                    _ = running.ContinueWith(_ => owned.Dispose(), TaskScheduler.Default);
+                else owned.Dispose();
+                stitcher = null;
+            }
         };
     }
 
@@ -71,8 +78,9 @@ public partial class ScrollingCaptureWindow : Window
             if ((long)bounds.Width * bounds.Height > 30_000_000)
                 throw new InvalidOperationException("The selected area is too large for a scrolling capture.");
             DesktopWindowService.FlushPendingUpdates();
-            stitcher = new ScrollingStitcher(await Task.Run(() => ScrollFrame.Capture(bounds)));
-            if (isClosed) return;
+            var started = new ScrollingStitcher(await Task.Run(() => ScrollFrame.Capture(bounds)));
+            if (isClosed) { started.Dispose(); return; }
+            stitcher = started;
             StopButton.IsEnabled = true;
             CaptureStatus.Text = "Scroll downward. Press Stop capture when finished.";
             timer.Start();
@@ -119,7 +127,9 @@ public partial class ScrollingCaptureWindow : Window
         if (isClosed) return;
         await CaptureStepAsync();
         if (isClosed) return;
-        completion.TrySetResult(stitcher);
+        var finished = stitcher;
+        stitcher = null;
+        if (!completion.TrySetResult(finished)) finished.Dispose();
         Close();
     }
 

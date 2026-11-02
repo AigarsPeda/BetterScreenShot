@@ -55,7 +55,7 @@ Choose **Scrolling Capture** in the launcher or tray menu, then drag around the 
 
 This mode captures visible screen pixels. Moving popups, animations, changing sticky controls, horizontal scrolling, and pages that reflow while scrolling can leave seams or repeated content. Select the scrolling content itself where possible. The app does not scroll other applications automatically.
 
-Finished scrolling captures stream directly to PNG, and the popup holds only a small thumbnail. Copy and Edit load the full image when selected. Saving as PNG copies the original file; converting to JPEG or BMP loads the full image for that export.
+During capture, raw rows are stored in `%TEMP%/BetterScreenShot` and deleted when the capture finishes or is canceled. The temporary file can reach about 120 MiB at the 30-million-pixel limit. Finished captures stream from that file into PNG, and the popup holds only a small thumbnail. Copy and Edit load the full image when selected. Saving as PNG copies the original file; converting to JPEG or BMP loads the full image for that export.
 
 Uninstall through Windows Settings → Apps → Installed apps, or run `Uninstall.ps1` from `%LOCALAPPDATA%/Programs/BetterScreenShot`. Uninstalling removes the application and startup entry while retaining saved screenshots and shortcut preferences.
 
@@ -80,11 +80,13 @@ You can also run `dotnet run --project BetterScreenShot.csproj`. Building requir
 
 Click **Settings…** below the capture buttons, in the tray menu, or in the editor's More menu. Capture Full Screen and Select Area each accept a global shortcut. Click a field, press a key combination, then save. Clear disables it. Capture shortcuts start unassigned, work from other applications while BetterScreenShot is running, and are restored on the next launch. They are stored in `%LOCALAPPDATA%/BetterScreenShot/shortcuts.json`.
 
+To use **Shift+Win+S** for Select Area, turn on its separate checkbox in Settings and save. This intercepts the Windows Snipping Tool shortcut while BetterScreenShot runs. Turn the option off or exit BetterScreenShot to restore the Windows behavior. You can keep another Select Area shortcut assigned at the same time.
+
 The settings window also lets you assign a letter to each editor tool. E is reserved for Extract text, and duplicate letters are rejected. Arrow is the starting tool by default. You can choose a different starting tool, or enable **Remember the last-used tool** to reopen the editor with whichever tool you selected most recently. Default annotation color, stroke width, text size, and Sketch outlines apply to new editor windows. Editor preferences are stored in `%LOCALAPPDATA%/BetterScreenShot/editor.json`.
 
 The app reports duplicate shortcuts and combinations Windows cannot register, including shortcuts already used by another app. Cancelling the dialog keeps the previous configuration. A shortcut starts the same monitor or area selection as its launcher button; Esc cancels selection.
 
-While a shortcut field is listening, its recorder intercepts key presses and releases before they reach other applications. It stops listening on capture, Escape, Tab, or loss of focus. This temporary protection does not give saved shortcuts priority over another app or Windows. If Windows rejects a combination, disable that assignment in the other app or choose a different shortcut. Win-key combinations can be reserved by Windows.
+While a shortcut field is listening, its recorder intercepts key presses and releases before they reach other applications. It stops listening on capture, Escape, Tab, or loss of focus. Ordinary saved shortcuts do not have priority over another app or Windows. If Windows rejects a combination, disable that assignment in the other app or choose a different shortcut. The separate Shift+Win+S option uses a keyboard hook to intercept that Windows shortcut.
 
 ## Checks
 

@@ -12,18 +12,22 @@ internal sealed class GlobalCaptureShortcuts : IDisposable
     private readonly Action<bool> capture;
     private readonly Func<int, CaptureShortcut, bool> register;
     private readonly Action<int> unregister;
+    private readonly Func<Action, IDisposable> createSnipHook;
     private readonly Dictionary<int, CaptureShortcut> active = [];
+    private IDisposable? snipHook;
     private bool disposed;
     internal CaptureShortcutSettings Current { get; private set; } = CaptureShortcutSettings.Disabled;
 
     public GlobalCaptureShortcuts(HwndSource source, Action<bool> capture,
-        Func<int, CaptureShortcut, bool>? register = null, Action<int>? unregister = null)
+        Func<int, CaptureShortcut, bool>? register = null, Action<int>? unregister = null,
+        Func<Action, IDisposable>? createSnipHook = null)
     {
         this.source = source;
         this.capture = capture;
         this.register = register ?? ((id, shortcut) => RegisterHotKey(source.Handle, id, (uint)shortcut.Modifiers | 0x4000,
             (uint)KeyInterop.VirtualKeyFromKey(shortcut.Key)));
         this.unregister = unregister ?? (id => UnregisterHotKey(source.Handle, id));
+        this.createSnipHook = createSnipHook ?? (onCapture => new WindowsSnipShortcutHook(source.Dispatcher, onCapture));
         source.AddHook(WindowMessage);
     }
 
@@ -51,6 +55,7 @@ internal sealed class GlobalCaptureShortcuts : IDisposable
         foreach (var (id, shortcut, label) in new[] { (FullScreenId, settings.FullScreen, "Capture Full Screen"), (AreaId, settings.Area, "Select Area") })
         {
             if (!shortcut.IsEnabled) continue;
+            if (id == AreaId && settings.UseWindowsSnipShortcut && shortcut == WindowsSnipShortcutHook.Shortcut) continue;
             if (!register(id, shortcut))
             {
                 error = $"{label}: {shortcut.DisplayText} is already in use or unavailable. Disable it in the other app or choose another shortcut."
@@ -59,12 +64,23 @@ internal sealed class GlobalCaptureShortcuts : IDisposable
             }
             active.Add(id, shortcut);
         }
+        if (settings.UseWindowsSnipShortcut)
+        {
+            try { snipHook = createSnipHook(() => capture(true)); }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                error = "Could not enable Shift+Win+S. Close other keyboard shortcut tools and try again.";
+                return false;
+            }
+        }
         error = null;
         return true;
     }
 
     private void UnregisterAll()
     {
+        snipHook?.Dispose();
+        snipHook = null;
         foreach (var id in active.Keys) unregister(id);
         active.Clear();
     }

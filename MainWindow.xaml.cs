@@ -140,7 +140,7 @@ namespace BetterScreenShot
                     throw new InvalidOperationException("Windows could not display the capture border without including it in the image.");
                 var controls = new ScrollingCaptureWindow(bounds.Value);
                 controls.Show();
-                var image = await controls.Completion;
+                using var image = await controls.Completion;
                 if (isClosed) return;
                 if (image is null)
                 {
