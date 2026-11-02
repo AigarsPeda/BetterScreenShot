@@ -1,5 +1,9 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using StackPanel = System.Windows.Controls.StackPanel;
+using TextBlock = System.Windows.Controls.TextBlock;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -10,17 +14,24 @@ namespace BetterScreenShot;
 
 public partial class CaptureShortcutsWindow : Window
 {
-    private readonly Func<CaptureShortcutSettings, string?> save;
+    private sealed record NativeOwner(IntPtr Handle) : System.Windows.Forms.IWin32Window;
+    private readonly Func<CaptureShortcutSettings, EditorSettings, string?> save;
+    private readonly Dictionary<AnnotationTool, ComboBox> editorKeyPickers = [];
     private bool? recordingArea;
     private ShortcutRecordingHook? recordingHook;
     private AppTheme currentTheme;
     internal CaptureShortcutSettings Draft { get; private set; }
+    internal EditorSettings EditorDraft { get; private set; }
 
     internal CaptureShortcutsWindow(CaptureShortcutSettings settings, Func<CaptureShortcutSettings, string?> save)
+        : this(settings, (capture, _) => save(capture)) { }
+
+    internal CaptureShortcutsWindow(CaptureShortcutSettings settings, Func<CaptureShortcutSettings, EditorSettings, string?> save)
     {
         InitializeComponent();
         this.save = save;
         Draft = settings;
+        EditorDraft = EditorSettingsService.Current;
         currentTheme = ThemePreferenceService.CurrentTheme;
         ApplyTheme(currentTheme);
         SourceInitialized += (_, _) => ApplyWindowChromeTheme(currentTheme);
@@ -35,6 +46,53 @@ public partial class CaptureShortcutsWindow : Window
             recordingHook = null;
         };
         UpdateLabels();
+        InitializeEditorSettings();
+    }
+
+    private void InitializeEditorSettings()
+    {
+        foreach (var tool in EditorSettings.Tools)
+        {
+            DefaultToolPicker.Items.Add(new ComboBoxItem { Content = tool.ToString(), Tag = tool });
+            var panel = new StackPanel { Width = 180, Margin = new Thickness(0, 0, 10, 12) };
+            panel.Children.Add(new TextBlock { Text = tool.ToString(), Margin = new Thickness(0, 0, 0, 5) });
+            var picker = new ComboBox();
+            System.Windows.Automation.AutomationProperties.SetName(picker, $"{tool} shortcut");
+            foreach (var key in Enumerable.Range((int)Key.A, 26).Select(value => (Key)value).Where(key => key != Key.E))
+                picker.Items.Add(new ComboBoxItem { Content = key.ToString(), Tag = key });
+            picker.SelectedItem = picker.Items.Cast<ComboBoxItem>().Single(item => (Key)item.Tag == EditorDraft.ToolKeys[tool]);
+            editorKeyPickers.Add(tool, picker);
+            panel.Children.Add(picker);
+            EditorShortcutPanel.Children.Add(panel);
+        }
+        DefaultToolPicker.SelectedItem = DefaultToolPicker.Items.Cast<ComboBoxItem>().Single(item => (AnnotationTool)item.Tag == EditorDraft.DefaultTool);
+        RememberToolCheck.IsChecked = EditorDraft.RememberLastTool;
+        (string Name, string Hex)[] colors = [("Red", "#FF453A"), ("Orange", "#FF9F0A"), ("Yellow", "#FFD60A"),
+            ("Green", "#30D158"), ("Blue", "#0A84FF"), ("Purple", "#BF5AF2"), ("White", "#FFFFFF"), ("Black", "#111111")];
+        foreach (var (name, hex) in colors) DefaultColorPicker.Items.Add(new ComboBoxItem { Content = name, Tag = hex });
+        if (!colors.Any(color => color.Hex.Equals(EditorDraft.Color, StringComparison.OrdinalIgnoreCase)))
+            DefaultColorPicker.Items.Add(new ComboBoxItem { Content = EditorDraft.Color, Tag = EditorDraft.Color });
+        DefaultColorPicker.SelectedItem = DefaultColorPicker.Items.Cast<ComboBoxItem>().Single(item =>
+            ((string)item.Tag).Equals(EditorDraft.Color, StringComparison.OrdinalIgnoreCase));
+        DefaultStrokePicker.SelectedIndex = EditorDraft.StrokeWidth switch { 2 => 0, 7 => 2, _ => 1 };
+        DefaultTextSizePicker.SelectedIndex = EditorDraft.TextSize switch { 16 => 0, 24 => 1, 40 => 3, 64 => 4, _ => 2 };
+        DefaultSketchCheck.IsChecked = EditorDraft.SketchEnabled;
+    }
+
+    private void CustomColor_Click(object sender, RoutedEventArgs e)
+    {
+        var hex = (string)((ComboBoxItem)DefaultColorPicker.SelectedItem).Tag;
+        var current = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+        using var picker = new System.Windows.Forms.ColorDialog
+        {
+            FullOpen = true,
+            Color = System.Drawing.Color.FromArgb(current.R, current.G, current.B)
+        };
+        if (picker.ShowDialog(new NativeOwner(new WindowInteropHelper(this).Handle)) != System.Windows.Forms.DialogResult.OK) return;
+        hex = $"#{picker.Color.R:X2}{picker.Color.G:X2}{picker.Color.B:X2}";
+        var item = DefaultColorPicker.Items.Cast<ComboBoxItem>().FirstOrDefault(option => Equals(option.Tag, hex));
+        if (item is null) DefaultColorPicker.Items.Add(item = new ComboBoxItem { Content = hex, Tag = hex });
+        DefaultColorPicker.SelectedItem = item;
     }
 
     private void ApplyTheme(AppTheme theme)
@@ -144,7 +202,17 @@ public partial class CaptureShortcutsWindow : Window
     private void SaveShortcuts_Click(object sender, RoutedEventArgs e)
     {
         StopRecording();
-        var error = Draft.ValidationError() ?? save(Draft);
+        EditorDraft = EditorDraft with
+        {
+            DefaultTool = (AnnotationTool)((ComboBoxItem)DefaultToolPicker.SelectedItem).Tag,
+            RememberLastTool = RememberToolCheck.IsChecked == true,
+            Color = (string)((ComboBoxItem)DefaultColorPicker.SelectedItem).Tag,
+            StrokeWidth = double.Parse((string)((ComboBoxItem)DefaultStrokePicker.SelectedItem).Tag, System.Globalization.CultureInfo.InvariantCulture),
+            TextSize = double.Parse((string)((ComboBoxItem)DefaultTextSizePicker.SelectedItem).Content, System.Globalization.CultureInfo.InvariantCulture),
+            SketchEnabled = DefaultSketchCheck.IsChecked == true,
+            ToolKeys = editorKeyPickers.ToDictionary(pair => pair.Key, pair => (Key)((ComboBoxItem)pair.Value.SelectedItem).Tag)
+        };
+        var error = Draft.ValidationError() ?? EditorDraft.ValidationError() ?? save(Draft, EditorDraft);
         ShowError(error);
         if (error is null) DialogResult = true;
     }

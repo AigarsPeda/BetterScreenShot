@@ -17,6 +17,26 @@ internal static class CaptureShortcutTests
 
     public static void Run(Action<string, Action> check, string directory)
     {
+        check("Editor defaults and tool shortcuts persist and reject collisions", () =>
+        {
+            var path = Path.Combine(directory, "editor-settings.json");
+            var store = new EditorSettingsStore(path);
+            var initial = store.Load();
+            Require(initial.OpeningTool == AnnotationTool.Arrow && initial.ValidationError() is null);
+            var keys = new Dictionary<AnnotationTool, Key>(initial.ToolKeys) { [AnnotationTool.Arrow] = Key.Q };
+            var changed = initial with { RememberLastTool = true, LastTool = AnnotationTool.Pen,
+                Color = "#0A84FF", StrokeWidth = 7, TextSize = 40, SketchEnabled = false, ToolKeys = keys };
+            Require(changed.OpeningTool == AnnotationTool.Pen);
+            store.Save(changed);
+            var loaded = new EditorSettingsStore(path).Load();
+            Require(loaded.OpeningTool == AnnotationTool.Pen && loaded.Color == "#0A84FF" &&
+                loaded.StrokeWidth == 7 && loaded.TextSize == 40 && !loaded.SketchEnabled && loaded.ToolKeys[AnnotationTool.Arrow] == Key.Q);
+            Require((loaded with { RememberLastTool = false }).OpeningTool == AnnotationTool.Arrow);
+            Require((loaded with { ToolKeys = new Dictionary<AnnotationTool, Key>(loaded.ToolKeys) { [AnnotationTool.Arrow] = Key.P } }).ValidationError() is not null);
+            Require((loaded with { ToolKeys = new Dictionary<AnnotationTool, Key>(loaded.ToolKeys) { [AnnotationTool.Arrow] = Key.E } }).ValidationError() is not null);
+            File.WriteAllText(path, "null");
+            Require(store.Load().OpeningTool == AnnotationTool.Arrow);
+        });
         check("Recording Ctrl+Win+S suppresses the chord, repeats and releases", () =>
         {
             var state = new ShortcutRecordingState();

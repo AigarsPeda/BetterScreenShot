@@ -382,7 +382,9 @@ internal static class AnnotationTests
                         Require(control.ActualHeight >= 32 && controlPosition.X >= 0 && controlPosition.X + control.ActualWidth < width);
                     }
                     var options = (FrameworkElement)window.FindName("AnnotationOptionsTray");
-                    Require(options.Visibility == Visibility.Collapsed);
+                    if (theme == AppTheme.Light && width == 620)
+                        Require(surface.Tool == AnnotationTool.Arrow && options.Visibility == Visibility.Visible);
+                    else Require(options.Visibility == Visibility.Collapsed);
                     var chooseTool = typeof(ScreenshotViewerWindow).GetMethod("ChooseTool", BindingFlags.Instance | BindingFlags.NonPublic)!;
                     foreach (var (tool, visibleControls) in new[]
                     {

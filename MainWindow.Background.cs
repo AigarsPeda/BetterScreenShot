@@ -23,10 +23,10 @@ public partial class MainWindow
         Activate();
     }
 
-    internal void ShowShortcutSettings()
+    internal void ShowSettingsFromTray()
     {
         ShowLauncher();
-        ShortcutsButton_Click(this, new RoutedEventArgs());
+        ShowSettings(this);
     }
 
     internal Task CaptureFromShortcutAsync(bool area) => CaptureAsync(area, fromShortcut: true);

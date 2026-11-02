@@ -44,7 +44,7 @@ Build a self-contained package with `./scripts/Publish-Installer.ps1`. Extract `
 
 Run `Install.cmd` from File Explorer in your normal Windows desktop. An isolated terminal can redirect registry writes, making an installation entry visible to that terminal while absent from Windows Settings. The normal installation records the version, installation date, size, and an uninstall command that starts the app's dedicated uninstall mode.
 
-Closing the launcher keeps the application running. Use its tray menu to open the launcher, configure keyboard shortcuts, turn sign-in startup on or off, or Exit. Launching another copy opens the existing instance instead of competing for the same shortcuts.
+Closing the launcher keeps the application running. Use its tray menu to open the launcher, configure settings, turn sign-in startup on or off, or Exit. Launching another copy opens the existing instance instead of competing for the same shortcuts.
 
 Keyboard shortcuts keep both existing selection modes: click a monitor for full-screen capture or drag an area. The launcher stays hidden before and after selection. The usual side preview appears with Copy, Save, Edit, and Discard, without taking keyboard focus.
 
@@ -67,9 +67,11 @@ On the development PC, compression reduced the self-contained EXE from 154.43 Mi
 
 You can also run `dotnet run --project BetterScreenShot.csproj`. Building requires the .NET 8 SDK or a newer compatible SDK on Windows.
 
-## Capture shortcuts
+## Settings
 
-Click **Shortcuts…** below the capture buttons. Click the shortcut field for Capture Full Screen or Select Area, press a key combination, and choose Save shortcuts. Each action can have its own shortcut; Clear disables it. Shortcuts start unassigned, work from other applications while BetterScreenShot is running, and are restored on the next launch. Settings are stored in `%LOCALAPPDATA%/BetterScreenShot/shortcuts.json`.
+Click **Settings…** below the capture buttons, in the tray menu, or in the editor's More menu. Capture Full Screen and Select Area each accept a global shortcut. Click a field, press a key combination, then save. Clear disables it. Capture shortcuts start unassigned, work from other applications while BetterScreenShot is running, and are restored on the next launch. They are stored in `%LOCALAPPDATA%/BetterScreenShot/shortcuts.json`.
+
+The settings window also lets you assign a letter to each editor tool. E is reserved for Extract text, and duplicate letters are rejected. Arrow is the starting tool by default. You can choose a different starting tool, or enable **Remember the last-used tool** to reopen the editor with whichever tool you selected most recently. Default annotation color, stroke width, text size, and Sketch outlines apply to new editor windows. Editor preferences are stored in `%LOCALAPPDATA%/BetterScreenShot/editor.json`.
 
 The app reports duplicate shortcuts and combinations Windows cannot register, including shortcuts already used by another app. Cancelling the dialog keeps the previous configuration. A shortcut starts the same monitor or area selection as its launcher button; Esc cancels selection.
 

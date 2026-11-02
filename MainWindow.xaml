@@ -282,12 +282,12 @@
             </Button>
             <Button x:Name="ShortcutsButton"
                     Grid.Column="2"
-                    Content="Shortcuts…"
+                    Content="Settings…"
                     Margin="8,0,0,0"
                     Style="{StaticResource FooterButtonStyle}"
                     FontSize="12"
                     Click="ShortcutsButton_Click"
-                    ToolTip="Configure capture keyboard shortcuts" />
+                    ToolTip="Configure shortcuts and editor defaults" />
         </Grid>
     </Grid>
 </Window>

@@ -259,6 +259,8 @@
                             </MenuItem>
                             <MenuItem x:Name="FollowSystemThemeMenuItem" Header="Follow system theme" Style="{StaticResource AnnotationMenuItemStyle}"
                                       Foreground="{DynamicResource ViewerPrimaryTextBrush}" Click="FollowSystemThemeMenuItem_Click" Visibility="Collapsed" />
+                            <MenuItem Header="Settings…" Style="{StaticResource AnnotationMenuItemStyle}"
+                                      Foreground="{DynamicResource ViewerPrimaryTextBrush}" Click="SettingsMenuItem_Click" />
                             <MenuItem x:Name="DiscardMenuItem" Header="Discard screenshot…" Style="{StaticResource AnnotationMenuItemStyle}"
                                       Foreground="{DynamicResource ViewerPrimaryTextBrush}" Click="DeleteButton_Click" />
                         </ContextMenu>

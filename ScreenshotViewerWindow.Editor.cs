@@ -46,7 +46,7 @@ public partial class ScreenshotViewerWindow
             (AnnotationTool.Ellipse, "Ellipse", "O", "M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0"),
             (AnnotationTool.Text, "Text", "T", "M4 7V4h16v3 M12 4v16 M9 20h6")
         ];
-        foreach (var (tool, label, key, icon) in tools)
+        foreach (var (tool, label, _, icon) in tools)
         {
             var path = new System.Windows.Shapes.Path
             {
@@ -60,9 +60,9 @@ public partial class ScreenshotViewerWindow
             });
             var content = new Grid { Width = 31, Height = 30 };
             content.Children.Add(path);
-            content.Children.Add(new TextBlock { Text = key, FontSize = 8, Opacity = 0.65, HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+            content.Children.Add(new TextBlock { Text = EditorSettingsService.Current.ToolKeys[tool].ToString(), FontSize = 8, Opacity = 0.65, HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
                 VerticalAlignment = System.Windows.VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 1, 0), IsHitTestVisible = false });
-            var button = new ToggleButton { Style = (Style)FindResource("ToolStyle"), Tag = tool, Content = content, ToolTip = $"{label} ({key})" };
+            var button = new ToggleButton { Style = (Style)FindResource("ToolStyle"), Tag = tool, Content = content, ToolTip = $"{label} ({EditorSettingsService.Current.ToolKeys[tool]})" };
             AutomationProperties.SetName(button, label);
             button.Click += (_, _) => ChooseTool(tool);
             toolButtons.Add(button);
@@ -91,8 +91,17 @@ public partial class ScreenshotViewerWindow
         Annotations.SelectionChanged += SyncEditor;
         Annotations.TextRequested += BeginText;
         Annotations.ContextRequested += ShowAnnotationMenu;
-        ChooseColor((Color)ColorConverter.ConvertFromString("#FF453A"));
-        ChooseTool(AnnotationTool.Select);
+        var settings = EditorSettingsService.Current;
+        syncingControls = true;
+        StrokeWidthPicker.SelectedIndex = settings.StrokeWidth switch { 2 => 0, 7 => 2, _ => 1 };
+        FontSizePicker.SelectedIndex = settings.TextSize switch { 16 => 0, 24 => 1, 40 => 3, 64 => 4, _ => 2 };
+        syncingControls = false;
+        Annotations.InkWidth = settings.StrokeWidth;
+        Annotations.TextSize = settings.TextSize;
+        SketchToggle.IsChecked = settings.SketchEnabled;
+        Annotations.Document.SketchEnabled = settings.SketchEnabled;
+        ChooseColor((Color)ColorConverter.ConvertFromString(settings.Color));
+        ChooseTool(settings.OpeningTool);
     }
 
     private void ChooseTool(AnnotationTool tool)
@@ -103,6 +112,18 @@ public partial class ScreenshotViewerWindow
         Annotations.Tool = tool;
         foreach (var button in toolButtons) button.IsChecked = Equals(button.Tag, tool);
         SyncEditor();
+        EditorSettingsService.Remember(tool);
+    }
+
+    private void RefreshToolShortcutLabels()
+    {
+        foreach (var button in toolButtons)
+        {
+            var tool = (AnnotationTool)button.Tag;
+            var key = EditorSettingsService.Current.ToolKeys[tool];
+            ((TextBlock)((Grid)button.Content).Children[1]).Text = key.ToString();
+            button.ToolTip = $"{AutomationProperties.GetName(button)} ({key})";
+        }
     }
 
     private void ChooseColor(Color color)
@@ -297,10 +318,8 @@ public partial class ScreenshotViewerWindow
         else
         {
             if (e.Key == Key.E) { ExtractTextButton_Click(sender, e); e.Handled = true; return; }
-            var tool = e.Key switch { Key.V => AnnotationTool.Select, Key.H => AnnotationTool.Hand, Key.P => AnnotationTool.Pen,
-                Key.M => AnnotationTool.Highlight, Key.L => AnnotationTool.Line, Key.A => AnnotationTool.Arrow, Key.R => AnnotationTool.Rectangle,
-                Key.O => AnnotationTool.Ellipse, Key.T => AnnotationTool.Text, _ => (AnnotationTool?)null };
-            if (tool is not null) ChooseTool(tool.Value);
+            var tool = EditorSettingsService.Current.ToolKeys.FirstOrDefault(pair => pair.Value == e.Key);
+            if (tool.Value == e.Key) ChooseTool(tool.Key);
             else if (e.Key is Key.Delete or Key.Back) RemoveButton_Click(sender, e);
             else if (e.Key == Key.Escape) { Annotations.CancelGesture(); Annotations.Select(-1); }
             else if (e.Key == Key.Space) { Annotations.Cursor = System.Windows.Input.Cursors.Hand; }

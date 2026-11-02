@@ -43,6 +43,14 @@ namespace BetterScreenShot
             SourceInitialized += ScreenshotViewerWindow_SourceInitialized;
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
             ThemePreferenceService.Changed += ThemePreference_Changed;
+            EditorSettingsService.Changed += EditorSettings_Changed;
+        }
+
+        private void EditorSettings_Changed() => Dispatcher.BeginInvoke(new Action(RefreshToolShortcutLabels));
+
+        private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (System.Windows.Application.Current.MainWindow is MainWindow main) main.ShowSettings(this);
         }
 
         private void ScreenshotViewerWindow_SourceInitialized(object? sender, EventArgs e)
@@ -303,6 +311,7 @@ namespace BetterScreenShot
             screenshot.Dispose();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             ThemePreferenceService.Changed -= ThemePreference_Changed;
+            EditorSettingsService.Changed -= EditorSettings_Changed;
             SourceInitialized -= ScreenshotViewerWindow_SourceInitialized;
             Closed -= ScreenshotViewerWindow_Closed;
         }

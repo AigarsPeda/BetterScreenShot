@@ -13,7 +13,7 @@ internal sealed class TrayController : IDisposable
     {
         icon = CreateIcon();
         menu.Items.Add("Open BetterScreenShot", null, (_, _) => launcher.ShowLauncher());
-        menu.Items.Add("Keyboard shortcuts…", null, (_, _) => launcher.ShowShortcutSettings());
+        menu.Items.Add("Settings…", null, (_, _) => launcher.ShowSettingsFromTray());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Capture full screen", null, async (_, _) => await launcher.CaptureFromShortcutAsync(false));
         menu.Items.Add("Select area", null, async (_, _) => await launcher.CaptureFromShortcutAsync(true));

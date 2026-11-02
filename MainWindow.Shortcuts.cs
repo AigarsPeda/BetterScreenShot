@@ -39,6 +39,9 @@ public partial class MainWindow
     }
 
     private void ShortcutsButton_Click(object sender, RoutedEventArgs e)
+        => ShowSettings(this);
+
+    internal void ShowSettings(Window owner)
     {
         if (isCapturing || globalShortcuts is null) return;
         configuringShortcuts = true;
@@ -46,8 +49,8 @@ public partial class MainWindow
         globalShortcuts.TryApply(CaptureShortcutSettings.Disabled, out _);
         try
         {
-            var dialog = new CaptureShortcutsWindow(shortcutSettings, SaveCaptureShortcuts) { Owner = this };
-            if (dialog.ShowDialog() == true) SetStatus(StatusTone.Success, "Capture shortcuts saved.");
+            var dialog = new CaptureShortcutsWindow(shortcutSettings, SaveSettings) { Owner = owner };
+            if (dialog.ShowDialog() == true) SetStatus(StatusTone.Success, "Settings saved.");
         }
         finally
         {
@@ -56,20 +59,31 @@ public partial class MainWindow
         }
     }
 
-    private string? SaveCaptureShortcuts(CaptureShortcutSettings settings)
+    private string? SaveSettings(CaptureShortcutSettings settings, EditorSettings editorSettings)
     {
         if (!globalShortcuts!.TryApply(settings, out var error)) return error;
+        var shortcutsSaved = false;
         try
         {
             shortcutStore.Save(settings);
+            shortcutsSaved = true;
+            EditorSettingsService.Save(editorSettings);
             shortcutSettings = settings;
             UpdateShortcutLabels();
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            globalShortcuts.TryApply(CaptureShortcutSettings.Disabled, out _);
-            return $"Could not save shortcuts. {ex.Message}";
+            if (shortcutsSaved)
+            {
+                try { shortcutStore.Save(shortcutSettings); }
+                catch (Exception rollbackError) when (rollbackError is IOException or UnauthorizedAccessException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Could not restore capture shortcuts: {rollbackError.Message}");
+                }
+            }
+            globalShortcuts.TryApply(shortcutSettings, out _);
+            return $"Could not save settings. {ex.Message}";
         }
     }
 }
