@@ -10,6 +10,9 @@
         PreviewDragOver="Window_PreviewDragOver"
         PreviewDrop="Window_PreviewDrop"
         FontFamily="Segoe UI Variable, Segoe UI"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
         Background="{DynamicResource PageBackgroundBrush}"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
@@ -116,13 +119,15 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
-                Background="{DynamicResource SurfaceBrush}"
-                CornerRadius="16"
-                Padding="5">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="25" ShadowDepth="6" Color="#252735" Opacity="0.12" />
-            </Border.Effect>
+        <Grid Grid.Row="0">
+            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="16">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="25" ShadowDepth="6" Color="#252735" Opacity="0.12" />
+                </Border.Effect>
+            </Border>
+            <Border Background="{DynamicResource SurfaceBrush}"
+                    CornerRadius="16"
+                    Padding="5">
             <StackPanel>
                 <Button x:Name="CaptureButton"
                         Style="{StaticResource CaptureActionStyle}"
@@ -245,7 +250,8 @@
                     </Grid>
                 </Button>
             </StackPanel>
-        </Border>
+            </Border>
+        </Grid>
 
         <Grid Grid.Row="2" Margin="2,0">
             <Grid.ColumnDefinitions>
