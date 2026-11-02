@@ -59,8 +59,17 @@ internal static class ScrollingCaptureTests
                 ((System.Windows.Controls.Button)controls.FindName("StopButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 PumpUntil(() => capture.IsCompleted, launcher.Dispatcher);
                 capture.GetAwaiter().GetResult();
-                Require(System.Windows.Application.Current.Windows.OfType<ScreenshotToastWindow>().Any(window => window.IsVisible)
-                    && launcher.IsVisible);
+                var toast = System.Windows.Application.Current.Windows.OfType<ScreenshotToastWindow>()
+                    .Single(window => window.IsVisible);
+                var thumbnail = (BitmapSource)((System.Windows.Controls.Image)toast.FindName("PreviewImage")).Source;
+                Require(thumbnail.PixelWidth <= 512 && thumbnail.PixelHeight < bounds.Height && launcher.IsVisible);
+                var viewer = toast.OpenViewer();
+                try
+                {
+                    var fullImage = (BitmapSource)((System.Windows.Controls.Image)viewer.FindName("ViewerImage")).Source;
+                    Require(fullImage.PixelWidth == bounds.Width && fullImage.PixelHeight == bounds.Height);
+                }
+                finally { viewer.Close(); }
             }
             finally
             {
@@ -87,7 +96,7 @@ internal static class ScrollingCaptureTests
                 PumpUntil(() => stop.IsEnabled, window.Dispatcher);
                 stop.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 PumpUntil(() => window.Completion.IsCompleted, window.Dispatcher);
-                using var image = window.Completion.GetAwaiter().GetResult();
+                var image = window.Completion.GetAwaiter().GetResult();
                 Require(image is not null && image.Width == bounds.Width && image.Height == bounds.Height);
             }
             finally
@@ -263,6 +272,59 @@ internal static class ScrollingCaptureTests
             using var image = stitcher.BuildBitmap();
             Require(BitmapPixels(image).AsSpan().SequenceEqual(source.AsSpan(0, width * image.Height * 4)));
         });
+        check("Streaming save keeps a large preview bounded and exports full size", () =>
+        {
+            const int width = 1500, height = 4000;
+            var pixels = new byte[width * height * 4];
+            var stitcher = new ScrollingStitcher(new ScrollFrame(width, height, pixels));
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            var capture = ScreenshotCaptureService.SaveScrollingCapture(stitcher);
+            var allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            using var temporary = new TemporaryScreenshot(capture.FilePath);
+            Console.WriteLine($"Streaming save allocated {allocated / 1_000_000d:F2} MB for a {width}×{height} image.");
+            Require(allocated < 10_000_000 && capture.Preview.PixelWidth <= 512 && capture.Preview.PixelHeight <= 256);
+            var full = ScreenshotCaptureService.LoadFullImage(capture.FilePath);
+            Require(full.PixelWidth == width && full.PixelHeight == height);
+            var folder = Path.Combine(Environment.CurrentDirectory, "obj", "scroll-export-test");
+            Directory.CreateDirectory(folder);
+            var png = Path.Combine(folder, "full.png");
+            var bmp = Path.Combine(folder, "full.bmp");
+            var jpeg = Path.Combine(folder, "full.jpg");
+            ScreenshotFileService.Export(capture.FilePath, png, capture.Preview);
+            ScreenshotFileService.Export(capture.FilePath, bmp, full);
+            ScreenshotFileService.Export(capture.FilePath, jpeg, full);
+            Require(File.ReadAllBytes(png).SequenceEqual(File.ReadAllBytes(capture.FilePath)));
+            Require(ScreenshotCaptureService.LoadFullImage(bmp).PixelWidth == width);
+            Require(ScreenshotCaptureService.LoadFullImage(jpeg).PixelHeight == height);
+            File.Delete(png);
+            File.Delete(bmp);
+            File.Delete(jpeg);
+        });
+        check("Streaming PNG preserves pixels across multiple data chunks", () =>
+        {
+            const int width = 320, height = 240;
+            var source = new byte[width * height * 4];
+            new Random(41).NextBytes(source);
+            var stitcher = new ScrollingStitcher(new ScrollFrame(width, height, source));
+            var capture = ScreenshotCaptureService.SaveScrollingCapture(stitcher);
+            using var temporary = new TemporaryScreenshot(capture.FilePath);
+            Require(new FileInfo(capture.FilePath).Length > 128_000);
+            var decoded = new FormatConvertedBitmap(ScreenshotCaptureService.LoadFullImage(capture.FilePath), PixelFormats.Bgr32, null, 0);
+            var actual = new byte[source.Length];
+            decoded.CopyPixels(actual, width * 4, 0);
+            Require(actual.Where((_, index) => index % 4 != 3)
+                .SequenceEqual(source.Where((_, index) => index % 4 != 3)));
+        });
+        check("Streaming PNG handles a one-pixel capture", () =>
+        {
+            var stitcher = new ScrollingStitcher(new ScrollFrame(1, 1, [29, 71, 193, 0]));
+            var capture = ScreenshotCaptureService.SaveScrollingCapture(stitcher);
+            using var temporary = new TemporaryScreenshot(capture.FilePath);
+            var decoded = new FormatConvertedBitmap(ScreenshotCaptureService.LoadFullImage(capture.FilePath), PixelFormats.Bgr32, null, 0);
+            var pixel = new byte[4];
+            decoded.CopyPixels(pixel, 4, 0);
+            Require(pixel[0] == 29 && pixel[1] == 71 && pixel[2] == 193);
+        });
         check("Live screen scrolling stitches speed changes and pauses exactly", LiveScreenCapture);
     }
 
@@ -326,7 +388,7 @@ internal static class ScrollingCaptureTests
             }
             stop.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => controls.Completion.IsCompleted, controls.Dispatcher);
-            using var image = controls.Completion.GetAwaiter().GetResult()
+            var image = controls.Completion.GetAwaiter().GetResult()
                 ?? throw new InvalidOperationException("Live scrolling capture was cancelled.");
             var expected = new byte[width * (viewport + sequence[^1].Offset) * 4];
             var stride = width * 4;
@@ -341,15 +403,21 @@ internal static class ScrollingCaptureTests
                 written += moved * stride;
             }
             Buffer.BlockCopy(frames[^1].Image.Pixels, contentEnd * stride, expected, written, footer * stride);
-            var actual = BitmapPixels(image);
+            var capture = ScreenshotCaptureService.SaveScrollingCapture(image);
+            using var temporary = new TemporaryScreenshot(capture.FilePath);
+            var decoded = new FormatConvertedBitmap(ScreenshotCaptureService.LoadFullImage(capture.FilePath), PixelFormats.Bgr32, null, 0);
+            var actual = new byte[width * image.Height * 4];
+            decoded.CopyPixels(actual, width * 4, 0);
             var folder = Path.Combine(Environment.CurrentDirectory, "obj", "scroll-live");
             Directory.CreateDirectory(folder);
-            image.Save(Path.Combine(folder, "actual.png"), ImageFormat.Png);
+            File.Copy(capture.FilePath, Path.Combine(folder, "actual.png"), overwrite: true);
             using (var reference = BitmapFromPixels(width, viewport + sequence[^1].Offset, expected))
                 reference.Save(Path.Combine(folder, "expected.png"), ImageFormat.Png);
-            if (!actual.AsSpan().SequenceEqual(expected))
+            if (!actual.Where((_, index) => index % 4 != 3)
+                .SequenceEqual(expected.Where((_, index) => index % 4 != 3)))
             {
-                var firstDifferentByte = actual.Zip(expected).TakeWhile(pair => pair.First == pair.Second).Count();
+                var firstDifferentByte = actual.Zip(expected)
+                    .TakeWhile((pair, index) => index % 4 == 3 || pair.First == pair.Second).Count();
                 throw new InvalidOperationException($"Live scrolling differs at output row {firstDifferentByte / stride}. Actual {image.Width} × {image.Height}; expected {width} × {viewport + sequence[^1].Offset}. See obj/scroll-live.");
             }
         }

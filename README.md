@@ -55,6 +55,8 @@ Choose **Scrolling Capture** in the launcher or tray menu, then drag around the 
 
 This mode captures visible screen pixels. Moving popups, animations, changing sticky controls, horizontal scrolling, and pages that reflow while scrolling can leave seams or repeated content. Select the scrolling content itself where possible. The app does not scroll other applications automatically.
 
+Finished scrolling captures stream directly to PNG, and the popup holds only a small thumbnail. Copy and Edit load the full image when selected. Saving as PNG copies the original file; converting to JPEG or BMP loads the full image for that export.
+
 Uninstall through Windows Settings → Apps → Installed apps, or run `Uninstall.ps1` from `%LOCALAPPDATA%/Programs/BetterScreenShot`. Uninstalling removes the application and startup entry while retaining saved screenshots and shortcut preferences.
 
 ## Portable single executable

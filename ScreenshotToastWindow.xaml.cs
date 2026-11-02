@@ -13,16 +13,19 @@ namespace BetterScreenShot
         private const int SlideDurationMs = 180;
         private static ScreenshotToastWindow? currentToast;
         private readonly TemporaryScreenshot screenshot;
+        private readonly bool previewIsThumbnail;
         private bool isAnimatingClose;
         private bool allowImmediateClose;
         private bool preserveTemporaryFileForViewer;
 
-        internal ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image)
+        internal ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image,
+            bool previewIsThumbnail = false)
         {
             InitializeComponent();
             ApplyToastTheme();
 
             screenshot = new TemporaryScreenshot(filePath);
+            this.previewIsThumbnail = previewIsThumbnail;
             PreviewImage.Source = image;
 
             Loaded += (_, _) => OnToastLoaded(captureBounds);
@@ -84,12 +87,13 @@ namespace BetterScreenShot
             Resources[key] = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
         }
 
-        public static void ShowToast(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image)
+        public static void ShowToast(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image,
+            bool previewIsThumbnail = false)
         {
             ScreenshotToastWindow? toast = null;
             try
             {
-                toast = new ScreenshotToastWindow(filePath, captureBounds, image);
+                toast = new ScreenshotToastWindow(filePath, captureBounds, image, previewIsThumbnail);
                 currentToast?.CloseImmediately();
                 currentToast = toast;
                 toast.Show();
@@ -185,7 +189,7 @@ namespace BetterScreenShot
         {
             try
             {
-                System.Windows.Clipboard.SetImage((BitmapSource)PreviewImage.Source);
+                System.Windows.Clipboard.SetImage(FullImage());
                 Close();
             }
             catch (Exception ex)
@@ -198,7 +202,21 @@ namespace BetterScreenShot
         {
             try
             {
-                var savedPath = ScreenshotFileService.SaveCopyAs(screenshot.FilePath, (BitmapSource)PreviewImage.Source, this);
+                string? savedPath;
+                if (previewIsThumbnail)
+                {
+                    savedPath = ScreenshotFileService.ChooseSavePath(screenshot.FilePath, this);
+                    if (savedPath is not null)
+                    {
+                        var image = System.IO.Path.GetExtension(savedPath).Equals(".png", StringComparison.OrdinalIgnoreCase)
+                            ? (BitmapSource)PreviewImage.Source : FullImage();
+                        ScreenshotFileService.Export(screenshot.FilePath, savedPath, image);
+                    }
+                }
+                else
+                {
+                    savedPath = ScreenshotFileService.SaveCopyAs(screenshot.FilePath, (BitmapSource)PreviewImage.Source, this);
+                }
 
                 if (savedPath is null)
                 {
@@ -228,13 +246,17 @@ namespace BetterScreenShot
 
         internal ScreenshotViewerWindow OpenViewer()
         {
-            var viewerWindow = new ScreenshotViewerWindow(screenshot, (BitmapSource)PreviewImage.Source);
+            var viewerWindow = new ScreenshotViewerWindow(screenshot, FullImage());
             viewerWindow.Show();
             viewerWindow.Activate();
             preserveTemporaryFileForViewer = true;
             Close();
             return viewerWindow;
         }
+
+        private BitmapSource FullImage() => previewIsThumbnail
+            ? ScreenshotCaptureService.LoadFullImage(screenshot.FilePath)
+            : (BitmapSource)PreviewImage.Source;
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {

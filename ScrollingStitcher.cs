@@ -108,6 +108,30 @@ internal sealed class ScrollingStitcher
         }
     }
 
+    internal IEnumerable<ReadOnlyMemory<byte>> Rows()
+    {
+        var stride = Width * 4;
+        foreach (var strip in strips)
+            for (var offset = 0; offset < strip.Length; offset += stride)
+                yield return strip.AsMemory(offset, stride);
+        if (fixedFooterHeight == 0) yield break;
+        for (var row = last.Height - fixedFooterHeight; row < last.Height; row++)
+            yield return last.Pixels.AsMemory(row * stride, stride);
+    }
+
+    internal ReadOnlySpan<byte> RowAt(int row)
+    {
+        if (row < 0 || row >= Height) throw new ArgumentOutOfRangeException(nameof(row));
+        var stride = Width * 4;
+        foreach (var strip in strips)
+        {
+            var rows = strip.Length / stride;
+            if (row < rows) return strip.AsSpan(row * stride, stride);
+            row -= rows;
+        }
+        return last.Pixels.AsSpan((last.Height - fixedFooterHeight + row) * stride, stride);
+    }
+
     private int FindShift(ScrollFrame current, out int fixedFooter,
         out ulong[]? currentFingerprints, out Dictionary<ulong, int>? currentUniqueRows)
     {

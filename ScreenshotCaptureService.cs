@@ -41,13 +41,63 @@ namespace BetterScreenShot
             return (SaveBitmapToTemporaryFile(bitmap), preview);
         }
 
+        internal static (string FilePath, BitmapSource Preview) SaveScrollingCapture(ScrollingStitcher stitcher)
+        {
+            var filePath = NewTemporaryFilePath();
+            try
+            {
+                using (var output = File.Create(filePath))
+                    PngStreamWriter.Write(output, stitcher.Width, stitcher.Height, stitcher.Rows());
+                return (filePath, CreateToastPreview(stitcher));
+            }
+            catch
+            {
+                ScreenshotFileService.TryDelete(filePath);
+                throw;
+            }
+        }
+
+        internal static BitmapSource LoadFullImage(string filePath)
+        {
+            using var input = File.OpenRead(filePath);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = input;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+
+        private static BitmapSource CreateToastPreview(ScrollingStitcher stitcher)
+        {
+            // The toast crops tall images to a short center slice. Keep only that slice in memory.
+            var visibleHeight = Math.Min(stitcher.Height, Math.Max(1, (int)Math.Ceiling(stitcher.Width * 0.52)));
+            var top = (stitcher.Height - visibleHeight) / 2;
+            var width = Math.Min(stitcher.Width, 512);
+            var height = Math.Max(1, Math.Min(256, (int)Math.Round((double)visibleHeight * width / stitcher.Width)));
+            var stride = width * 4;
+            var pixels = new byte[stride * height];
+            for (var y = 0; y < height; y++)
+            {
+                var source = stitcher.RowAt(top + (int)((long)y * visibleHeight / height));
+                for (var x = 0; x < width; x++)
+                {
+                    var sourcePixel = (int)((long)x * stitcher.Width / width) * 4;
+                    var targetPixel = y * stride + x * 4;
+                    pixels[targetPixel] = source[sourcePixel];
+                    pixels[targetPixel + 1] = source[sourcePixel + 1];
+                    pixels[targetPixel + 2] = source[sourcePixel + 2];
+                }
+            }
+            var preview = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, stride);
+            preview.Freeze();
+            return preview;
+        }
+
         private static string SaveBitmapToTemporaryFile(Bitmap bitmap)
         {
-            var screenshotsFolder = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
-            Directory.CreateDirectory(screenshotsFolder);
-
-            var fileName = $"screenshot_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{Guid.NewGuid():N}.png";
-            var filePath = Path.Combine(screenshotsFolder, fileName);
+            var filePath = NewTemporaryFilePath();
 
             try
             {
@@ -59,6 +109,13 @@ namespace BetterScreenShot
                 ScreenshotFileService.TryDelete(filePath);
                 throw;
             }
+        }
+
+        private static string NewTemporaryFilePath()
+        {
+            var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
+            Directory.CreateDirectory(folder);
+            return Path.Combine(folder, $"screenshot_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{Guid.NewGuid():N}.png");
         }
     }
 }

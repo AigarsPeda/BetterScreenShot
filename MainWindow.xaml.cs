@@ -140,18 +140,18 @@ namespace BetterScreenShot
                     throw new InvalidOperationException("Windows could not display the capture border without including it in the image.");
                 var controls = new ScrollingCaptureWindow(bounds.Value);
                 controls.Show();
-                using var image = await controls.Completion;
+                var image = await controls.Completion;
                 if (isClosed) return;
                 if (image is null)
                 {
                     SetStatus(StatusTone.Info, "Scrolling capture cancelled.");
                     return;
                 }
-                var capture = await Task.Run(() => ScreenshotCaptureService.SaveCapture(image));
+                var capture = await Task.Run(() => ScreenshotCaptureService.SaveScrollingCapture(image));
                 pendingFile = capture.FilePath;
                 if (isClosed) return;
                 ShowLauncher();
-                ScreenshotToastWindow.ShowToast(pendingFile, bounds.Value, capture.Preview);
+                ScreenshotToastWindow.ShowToast(pendingFile, bounds.Value, capture.Preview, previewIsThumbnail: true);
                 pendingFile = null;
                 SetStatus(controls.MayHaveGaps ? StatusTone.Info : StatusTone.Success,
                     controls.MayHaveGaps

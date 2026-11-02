@@ -11,14 +11,14 @@ public partial class ScrollingCaptureWindow : Window
     private const uint ExcludeFromCapture = 0x00000011;
     private readonly Rectangle bounds;
     private readonly DispatcherTimer timer = new();
-    private readonly TaskCompletionSource<Bitmap?> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<ScrollingStitcher?> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private ScrollingStitcher? stitcher;
     private Task? captureTask;
     private bool isStopping;
     private bool isClosed;
     private bool canExcludeControls;
 
-    internal Task<Bitmap?> Completion => completion.Task;
+    internal Task<ScrollingStitcher?> Completion => completion.Task;
     internal bool MayHaveGaps { get; private set; }
 
     internal ScrollingCaptureWindow(Rectangle bounds)
@@ -119,18 +119,8 @@ public partial class ScrollingCaptureWindow : Window
         if (isClosed) return;
         await CaptureStepAsync();
         if (isClosed) return;
-        try
-        {
-            var image = await Task.Run(stitcher.BuildBitmap);
-            if (isClosed) { image.Dispose(); return; }
-            completion.TrySetResult(image);
-            Close();
-        }
-        catch (Exception error)
-        {
-            completion.TrySetException(error);
-            Close();
-        }
+        completion.TrySetResult(stitcher);
+        Close();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
