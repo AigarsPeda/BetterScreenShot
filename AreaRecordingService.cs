@@ -120,17 +120,18 @@ internal static class AreaRecordingService
                 cancel.ThrowIfCancellationRequested();
                 var pixels = captureFrame(bounds, width, height);
                 preview ??= Preview(pixels, width, height);
-                using var image = SixLabors.ImageSharp.Image.LoadPixelData<Bgra32>(pixels, width, height);
+                var image = SixLabors.ImageSharp.Image.LoadPixelData<Bgra32>(pixels, width, height);
                 if (animation is null)
                 {
-                    animation = image.Clone();
+                    animation = image;
                     animation.Metadata.GetGifMetadata().RepeatCount = 0;
                     animation.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = 12;
                 }
                 else
                 {
-                    animation.Frames.AddFrame(image.Frames.RootFrame)
-                        .Metadata.GetGifMetadata().FrameDelay = frame % 2 == 1 ? 13 : 12;
+                    using (image)
+                        animation.Frames.AddFrame(image.Frames.RootFrame)
+                            .Metadata.GetGifMetadata().FrameDelay = frame % 2 == 1 ? 13 : 12;
                 }
                 frame++;
                 if (frame >= GifSecondsLimit * GifFps) break;

@@ -1,0 +1,80 @@
+{
+  "TimestampUtc": "2026-11-03T14:34:31.2179419+00:00",
+  "Runtime": ".NET 8.0.33",
+  "OS": "Microsoft Windows 10.0.26200",
+  "ProcessorCount": 16,
+  "Workloads": [
+    {
+      "Name": "Video High 720p",
+      "Format": 0,
+      "Quality": 1,
+      "Width": 1280,
+      "Height": 720,
+      "Frames": 60
+    },
+    {
+      "Name": "GIF 640x360",
+      "Format": 1,
+      "Quality": 1,
+      "Width": 640,
+      "Height": 360,
+      "Frames": 24
+    }
+  ],
+  "Samples": [
+    {
+      "Workload": "Video High 720p",
+      "Run": 0,
+      "WallMs": 2106.3497,
+      "CpuMs": 1062.5,
+      "AllocatedBytes": 221217968,
+      "FileBytes": 367624,
+      "Frames": 60
+    },
+    {
+      "Workload": "Video High 720p",
+      "Run": 1,
+      "WallMs": 2136.0956,
+      "CpuMs": 781.25,
+      "AllocatedBytes": 221218840,
+      "FileBytes": 367624,
+      "Frames": 60
+    },
+    {
+      "Workload": "Video High 720p",
+      "Run": 2,
+      "WallMs": 2159.07,
+      "CpuMs": 843.75,
+      "AllocatedBytes": 221218504,
+      "FileBytes": 367624,
+      "Frames": 60
+    },
+    {
+      "Workload": "GIF 640x360",
+      "Run": 0,
+      "WallMs": 3186.3818,
+      "CpuMs": 437.5,
+      "AllocatedBytes": 46087992,
+      "FileBytes": 2264985,
+      "Frames": 24
+    },
+    {
+      "Workload": "GIF 640x360",
+      "Run": 1,
+      "WallMs": 3186.9973,
+      "CpuMs": 375,
+      "AllocatedBytes": 24055048,
+      "FileBytes": 2264985,
+      "Frames": 24
+    },
+    {
+      "Workload": "GIF 640x360",
+      "Run": 2,
+      "WallMs": 3183.8075,
+      "CpuMs": 406.25,
+      "AllocatedBytes": 24054904,
+      "FileBytes": 2264985,
+      "Frames": 24
+    }
+  ]
+}
