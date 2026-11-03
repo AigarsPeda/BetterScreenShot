@@ -135,13 +135,20 @@
                             ToolTip="Open editor"
                             AutomationProperties.Name="Open editor"
                             Click="PreviewButton_Click">
-                        <Viewbox Width="16" Height="16">
-                            <Canvas Width="24" Height="24">
-                                <Path Style="{StaticResource LucideStrokeStyle}"
-                                      Data="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
-                                <Path Style="{StaticResource LucideStrokeStyle}" Data="M15 5 19 9" />
-                            </Canvas>
-                        </Viewbox>
+                        <Grid Width="16" Height="16">
+                            <Viewbox x:Name="EditGlyph">
+                                <Canvas Width="24" Height="24">
+                                    <Path Style="{StaticResource LucideStrokeStyle}"
+                                          Data="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+                                    <Path Style="{StaticResource LucideStrokeStyle}" Data="M15 5 19 9" />
+                                </Canvas>
+                            </Viewbox>
+                            <Viewbox x:Name="PlayGlyph" Visibility="Collapsed">
+                                <Canvas Width="24" Height="24">
+                                    <Path Style="{StaticResource LucideStrokeStyle}" Data="M8 5L19 12 8 19Z" />
+                                </Canvas>
+                            </Viewbox>
+                        </Grid>
                     </Button>
                 </Grid>
             </Border>

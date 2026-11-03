@@ -58,7 +58,7 @@ This mode captures visible screen pixels. Moving popups, animations, changing st
 
 ### Area recording
 
-Choose **Record Area** in the launcher or tray menu and drag around the area you want. In the floating toolbar, choose **Record video** for an H.264 MP4 or **Record GIF** for an animated GIF. A red **REC** dot appears while recording, and **Stop** replaces the format button you clicked without shifting the other controls. Press **Stop** to finish or **Cancel** to discard. The selected area stays outlined, and the outline and toolbar are excluded from the recording. The result appears in the usual popup with Save, Copy, and Discard. Recordings cannot be edited in the app.
+Choose **Record Area** in the launcher or tray menu and drag around the area you want. In the floating toolbar, choose **Record video** for an H.264 MP4 or **Record GIF** for an animated GIF. A red **REC** dot and elapsed time appear while recording, and **Stop** replaces the format button you clicked without shifting the other controls. Press **Stop** to finish or **Cancel** to discard. The selected area stays outlined, and the outline and toolbar are excluded from the recording. The result appears in the usual popup with View, Save, Copy, and Discard. View opens a read-only player sized to the recording, with the editor's layout, Copy and Save at the top, and full-width playback controls at the bottom. Recordings cannot be edited in the app.
 
 Video records visible pixels at 15 frames per second without audio. GIF records at 8 frames per second, scales selections larger than 640 × 480 pixels to fit, and stops after 20 seconds to bound memory use. Copy places the recording file on the clipboard for pasting into apps that accept files.
 

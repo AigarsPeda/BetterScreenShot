@@ -176,7 +176,28 @@ internal static class AreaRecordingTests
                 new System.Drawing.Rectangle(0, 0, 100, 100), (RecordingFormat)99,
                 CancellationToken.None, CancellationToken.None));
         });
-        check("Recording popup has save and copy without editor", () =>
+        check("Recording duration formats seconds and elapsed minutes", () =>
+        {
+            Require(AreaRecordingWindow.FormatElapsed(TimeSpan.Zero) == "0:00");
+            Require(AreaRecordingWindow.FormatElapsed(TimeSpan.FromSeconds(9)) == "0:09");
+            Require(AreaRecordingWindow.FormatElapsed(TimeSpan.FromSeconds(60)) == "1:00");
+            Require(AreaRecordingWindow.FormatElapsed(TimeSpan.FromSeconds(3661)) == "61:01");
+        });
+        check("Recording viewer fits wide, narrow and tall media to the screen", () =>
+        {
+            var desktop = new Rect(0, 0, 1920, 1080);
+            var narrow = RecordingViewerWindow.CalculateWindowSize(830, 580, desktop);
+            Require(narrow.Width == 862 && Math.Abs(narrow.Height - 756) < 0.01);
+            var wide = RecordingViewerWindow.CalculateWindowSize(1920, 1080, desktop);
+            Require(wide.Width == 1100 && wide.Height < 780);
+            var tall = RecordingViewerWindow.CalculateWindowSize(320, 800, desktop);
+            Require(tall.Width == 420 && tall.Height == 780);
+            var compactScreen = RecordingViewerWindow.CalculateWindowSize(830, 580, new Rect(0, 0, 1366, 768));
+            Require(compactScreen.Width < narrow.Width && compactScreen.Height == 704);
+            Throws<ArgumentOutOfRangeException>(() => RecordingViewerWindow.CalculateWindowSize(0, 100, desktop));
+            Throws<ArgumentOutOfRangeException>(() => RecordingViewerWindow.CalculateWindowSize(100, 0, desktop));
+        });
+        check("Recording popup offers view, save and copy without editing", () =>
         {
             var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
             var bounds = new System.Drawing.Rectangle(screen.Left + 20, screen.Top + 20, 40, 30);
@@ -188,7 +209,10 @@ internal static class AreaRecordingTests
             string? copiedPath = null;
             try
             {
-                Require(((System.Windows.Controls.Button)toast.FindName("EditorButton")).Visibility == Visibility.Collapsed);
+                var view = (System.Windows.Controls.Button)toast.FindName("EditorButton");
+                Require(view.Visibility == Visibility.Visible && (string)view.ToolTip == "View recording");
+                Require(((System.Windows.FrameworkElement)toast.FindName("PlayGlyph")).Visibility == Visibility.Visible);
+                Require(((System.Windows.FrameworkElement)toast.FindName("EditGlyph")).Visibility == Visibility.Collapsed);
                 Require(((System.Windows.Controls.Button)toast.FindName("SaveButton")).IsEnabled);
                 ((System.Windows.Controls.Button)toast.FindName("CopyButton"))
                     .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -199,12 +223,146 @@ internal static class AreaRecordingTests
             finally
             {
                 toast.Close();
-                System.Windows.Clipboard.Clear();
+                TryClearClipboard();
                 if (copiedPath is not null) ScreenshotFileService.TryDelete(copiedPath);
             }
             Require(!File.Exists(path));
         });
-        check("Video recording shows and clears the red indicator", () =>
+        check("GIF popup opens an animated read-only viewer with copy and save", () =>
+        {
+            var bounds = new System.Drawing.Rectangle(0, 0, 120, 90);
+            var captured = 0;
+            byte[] NextFrame(System.Drawing.Rectangle _, int width, int height)
+            {
+                var red = Interlocked.Increment(ref captured) <= 2;
+                var pixels = new byte[width * height * 4];
+                for (var index = 0; index < pixels.Length; index += 4)
+                {
+                    pixels[index] = red ? (byte)0 : (byte)255;
+                    pixels[index + 2] = red ? (byte)255 : (byte)0;
+                    pixels[index + 3] = 255;
+                }
+                return pixels;
+            }
+            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(600));
+            var result = AreaRecordingService.Record(bounds, RecordingFormat.Gif,
+                stop.Token, CancellationToken.None, NextFrame);
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+            ScreenshotToastWindow? toast = null;
+            RecordingViewerWindow? viewer = null;
+            string? copy = null;
+            try
+            {
+                toast = new ScreenshotToastWindow(result.FilePath, bounds, result.Preview,
+                    recordingFormat: RecordingFormat.Gif);
+                toast.Show();
+                ((System.Windows.Controls.Button)toast.FindName("EditorButton"))
+                    .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                viewer = Application.Current.Windows.OfType<RecordingViewerWindow>().Single(window => window.IsVisible);
+                Require(File.Exists(result.FilePath) &&
+                    viewer.Width == 420 && viewer.Height < 780 && viewer.FindName("Annotations") is null &&
+                    ((System.Windows.Controls.Button)viewer.FindName("CopyButton")).IsEnabled &&
+                    ((System.Windows.Controls.Button)viewer.FindName("SaveButton")).IsEnabled);
+                var image = (System.Windows.Controls.Image)viewer.FindName("GifImage");
+                var playback = (System.Windows.Controls.Button)viewer.FindName("PlayPauseButton");
+                PumpUntil(() => image.Source is WriteableBitmap && playback.IsEnabled);
+                var stopButton = (System.Windows.Controls.Button)viewer.FindName("StopButton");
+                var timeline = (System.Windows.Controls.Slider)viewer.FindName("PositionSlider");
+                var bar = (System.Windows.FrameworkElement)viewer.FindName("PlaybackBar");
+                var viewport = (System.Windows.FrameworkElement)viewer.FindName("RecordingViewport");
+                Require(stopButton.IsEnabled && timeline.IsEnabled &&
+                    Math.Abs(bar.ActualWidth - viewport.ActualWidth) < 1);
+                var colors = new HashSet<int>();
+                var deadline = DateTime.UtcNow.AddSeconds(3);
+                while (colors.Count < 2 && DateTime.UtcNow < deadline)
+                {
+                    var pixel = new byte[4];
+                    ((WriteableBitmap)image.Source).CopyPixels(new Int32Rect(60, 45, 1, 1), pixel, 4, 0);
+                    colors.Add(pixel[0] > pixel[2] ? 1 : 2);
+                    PumpOnce();
+                }
+                Require(colors.Count == 2);
+                playback.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require((string)playback.Content == "Play" && playback.ActualWidth >= 78);
+                stopButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require((string)playback.Content == "Play" && timeline.Value == 0);
+                ((System.Windows.Controls.Button)viewer.FindName("CopyButton"))
+                    .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require(System.Windows.Clipboard.ContainsFileDropList());
+                copy = System.Windows.Clipboard.GetFileDropList()[0];
+                Require(File.Exists(copy) && File.ReadAllBytes(copy).SequenceEqual(File.ReadAllBytes(result.FilePath)));
+            }
+            finally
+            {
+                viewer?.Close();
+                toast?.Close();
+                TryClearClipboard();
+                if (copy is not null) ScreenshotFileService.TryDelete(copy);
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+            Require(!File.Exists(result.FilePath));
+        });
+        check("Video popup opens a playable viewer and releases its file on close", () =>
+        {
+            var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
+            var bounds = new System.Drawing.Rectangle(screen.Left + 20, screen.Top + 20, 120, 90);
+            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(450));
+            var result = AreaRecordingService.Record(bounds, RecordingFormat.Video,
+                stop.Token, CancellationToken.None);
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+            ScreenshotToastWindow? toast = null;
+            RecordingViewerWindow? viewer = null;
+            try
+            {
+                toast = new ScreenshotToastWindow(result.FilePath, bounds, result.Preview,
+                    recordingFormat: RecordingFormat.Video);
+                toast.Show();
+                viewer = toast.OpenRecordingViewer();
+                var player = (System.Windows.Controls.MediaElement)viewer.FindName("VideoPlayer");
+                var playback = (System.Windows.Controls.Button)viewer.FindName("PlayPauseButton");
+                PumpUntil(() => playback.IsEnabled);
+                var stopButton = (System.Windows.Controls.Button)viewer.FindName("StopButton");
+                var bar = (System.Windows.FrameworkElement)viewer.FindName("PlaybackBar");
+                var viewport = (System.Windows.FrameworkElement)viewer.FindName("RecordingViewport");
+                var toolbar = (System.Windows.FrameworkElement)viewer.FindName("ViewerToolbar");
+                var stage = (System.Windows.FrameworkElement)viewer.FindName("RecordingStage");
+                var zoomOut = (System.Windows.Controls.Button)viewer.FindName("ZoomOutButton");
+                var toolbarBottom = zoomOut.TranslatePoint(new System.Windows.Point(0, zoomOut.ActualHeight), viewport).Y;
+                var videoTop = stage.TranslatePoint(new System.Windows.Point(), viewport).Y;
+                Require(player.Source?.LocalPath == result.FilePath &&
+                    player.Visibility == Visibility.Visible && viewer.Width == 420 && viewer.Height < 780 &&
+                    viewer.FindName("Annotations") is null && viewer.Icon is not null &&
+                    stopButton.IsEnabled && Math.Abs(bar.ActualWidth - viewport.ActualWidth) < 1 &&
+                    Math.Abs(toolbar.ActualWidth - viewport.ActualWidth) < 1 &&
+                    player.Margin == new Thickness(0) && player.Stretch == System.Windows.Media.Stretch.Uniform &&
+                    Math.Abs(videoTop - toolbarBottom - 8) < 1 &&
+                    ((System.Windows.Controls.Button)viewer.FindName("CopyButton")).IsEnabled &&
+                    ((System.Windows.Controls.Button)viewer.FindName("SaveButton")).IsEnabled);
+                ((System.Windows.Controls.Button)viewer.FindName("ZoomInButton"))
+                    .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                var scale = (System.Windows.Media.ScaleTransform)viewer.FindName("RecordingScale");
+                Require(scale.ScaleX > 1 && scale.ScaleX == scale.ScaleY);
+                ((System.Windows.Controls.Button)viewer.FindName("FitButton"))
+                    .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require(scale.ScaleX == 1 && scale.ScaleY == 1);
+                stopButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require((string)playback.Content == "Play" && playback.ActualWidth >= 78);
+                playback.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require((string)playback.Content == "Pause" && File.Exists(result.FilePath));
+                stopButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require((string)playback.Content == "Play");
+            }
+            finally
+            {
+                viewer?.Close();
+                toast?.Close();
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+            Require(!File.Exists(result.FilePath));
+        });
+        check("Video recording shows elapsed time and clears the red indicator", () =>
         {
             var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
             var bounds = new System.Drawing.Rectangle(screen.Left + 20, screen.Top + 20, 120, 100);
@@ -216,6 +374,7 @@ internal static class AreaRecordingTests
             {
                 controls.Show();
                 var indicator = (System.Windows.FrameworkElement)controls.FindName("RecordingIndicator");
+                var duration = (System.Windows.Controls.TextBlock)controls.FindName("RecordingDuration");
                 var video = (System.Windows.Controls.Button)controls.FindName("VideoButton");
                 var gif = (System.Windows.Controls.Button)controls.FindName("GifButton");
                 var stop = (System.Windows.Controls.Button)controls.FindName("StopButton");
@@ -230,14 +389,19 @@ internal static class AreaRecordingTests
                 video.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 controls.UpdateLayout();
                 Require(indicator.Visibility == Visibility.Visible && stop.IsEnabled &&
+                    duration.Text == "0:00" &&
                     video.Visibility == Visibility.Collapsed && stop.Visibility == Visibility.Visible &&
                     actions.Children.IndexOf(stop) == videoSlot && Math.Abs(stop.ActualWidth - videoWidth) < 1 &&
                     gif.Visibility == Visibility.Visible && !gif.IsEnabled &&
                     Math.Abs(gif.TranslatePoint(new System.Windows.Point(), actions).X - gifX) < 1 &&
                     Math.Abs(cancelButton.TranslatePoint(new System.Windows.Point(), actions).X - cancelX) < 1);
-                Thread.Sleep(180);
+                var durationWidth = duration.ActualWidth;
+                PumpUntil(() => duration.Text == "0:01");
+                Require(Math.Abs(duration.ActualWidth - durationWidth) < 1 &&
+                    Math.Abs(gif.TranslatePoint(new System.Windows.Point(), actions).X - gifX) < 1 &&
+                    Math.Abs(cancelButton.TranslatePoint(new System.Windows.Point(), actions).X - cancelX) < 1);
                 stop.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                Require(indicator.Visibility == Visibility.Collapsed);
+                Require(indicator.Visibility == Visibility.Collapsed && duration.Text == "0:01");
                 PumpUntil(() => controls.Completion.IsCompleted);
                 var result = controls.Completion.GetAwaiter().GetResult()
                     ?? throw new InvalidOperationException("Video recording was cancelled.");
@@ -266,6 +430,7 @@ internal static class AreaRecordingTests
                         format == RecordingFormat.Video ? "VideoButton" : "GifButton");
                     start.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                     Require(((System.Windows.FrameworkElement)controls.FindName("RecordingIndicator")).Visibility == Visibility.Visible);
+                    Require(((System.Windows.Controls.TextBlock)controls.FindName("RecordingDuration")).Text == "0:00");
                     ((System.Windows.Controls.Button)controls.FindName("CancelButton"))
                         .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                     Require(controls.Completion.IsCompletedSuccessfully && controls.Completion.Result is null);
@@ -318,7 +483,7 @@ internal static class AreaRecordingTests
                 PumpUntil(() => flow.IsCompleted);
                 flow.GetAwaiter().GetResult();
                 var toast = Application.Current.Windows.OfType<ScreenshotToastWindow>().Single(window => window.IsVisible);
-                Require(((System.Windows.Controls.Button)toast.FindName("EditorButton")).Visibility == Visibility.Collapsed);
+                Require(((System.Windows.Controls.Button)toast.FindName("EditorButton")).Visibility == Visibility.Visible);
                 Require(launcher.IsVisible);
             }
             finally
@@ -374,5 +539,18 @@ internal static class AreaRecordingTests
             Dispatcher.PushFrame(frame);
         }
         Require(done());
+    }
+
+    private static void PumpOnce()
+    {
+        var frame = new DispatcherFrame();
+        Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() => frame.Continue = false), DispatcherPriority.Background);
+        Dispatcher.PushFrame(frame);
+    }
+
+    private static void TryClearClipboard()
+    {
+        try { System.Windows.Clipboard.Clear(); }
+        catch (UnauthorizedAccessException) { }
     }
 }

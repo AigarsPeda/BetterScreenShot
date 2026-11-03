@@ -40,6 +40,10 @@
                     <Ellipse Width="9" Height="9" Fill="#E5484D" />
                     <TextBlock Text="REC" Margin="5,0,0,0" FontSize="10" FontWeight="Bold"
                                Foreground="#E5484D" />
+                    <TextBlock x:Name="RecordingDuration" Text="0:00" Width="58" Margin="9,0,0,0"
+                               FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource ViewerPrimaryTextBrush}"
+                               AutomationProperties.Name="Recording duration" />
                 </StackPanel>
             </StackPanel>
             <StackPanel x:Name="ActionsPanel" Grid.Row="1" Orientation="Horizontal" Margin="0,7,0,0">

@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Microsoft.Win32;
 
 namespace BetterScreenShot;
@@ -12,6 +14,8 @@ public partial class AreaRecordingWindow : Window
     private readonly Rectangle bounds;
     private readonly CancellationTokenSource stop = new();
     private readonly CancellationTokenSource cancel = new();
+    private readonly Stopwatch recordingClock = new();
+    private readonly DispatcherTimer durationTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private readonly TaskCompletionSource<(string FilePath, BitmapSource Preview, RecordingFormat Format)?> completion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task<(string FilePath, BitmapSource Preview)>? recording;
@@ -26,6 +30,7 @@ public partial class AreaRecordingWindow : Window
         InitializeComponent();
         this.bounds = bounds;
         ApplyTheme();
+        durationTimer.Tick += (_, _) => RecordingDuration.Text = FormatElapsed(recordingClock.Elapsed);
         SourceInitialized += (_, _) => canExcludeControls = OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)
             && SetWindowDisplayAffinity(new WindowInteropHelper(this).Handle, ExcludeFromCapture);
         Loaded += (_, _) =>
@@ -43,6 +48,7 @@ public partial class AreaRecordingWindow : Window
         Closed += (_, _) =>
         {
             isClosed = true;
+            durationTimer.Stop();
             ThemePreferenceService.Changed -= ThemePreference_Changed;
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             if (completion.TrySetResult(null))
@@ -67,6 +73,8 @@ public partial class AreaRecordingWindow : Window
 
     private void Video_Click(object sender, RoutedEventArgs e) => Start(RecordingFormat.Video);
     private void Gif_Click(object sender, RoutedEventArgs e) => Start(RecordingFormat.Gif);
+
+    internal static string FormatElapsed(TimeSpan elapsed) => $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}";
 
     private void Start(RecordingFormat selectedFormat)
     {
@@ -97,6 +105,9 @@ public partial class AreaRecordingWindow : Window
         selectedButton.Visibility = Visibility.Collapsed;
         StopButton.Visibility = Visibility.Visible;
         StopButton.IsEnabled = true;
+        RecordingDuration.Text = "0:00";
+        recordingClock.Restart();
+        durationTimer.Start();
         RecordingIndicator.Visibility = Visibility.Visible;
         _ = recording.ContinueWith(task => Dispatcher.BeginInvoke(new Action(() =>
         {
@@ -116,6 +127,9 @@ public partial class AreaRecordingWindow : Window
     {
         if (recording is null || stop.IsCancellationRequested) return;
         stop.Cancel();
+        recordingClock.Stop();
+        durationTimer.Stop();
+        RecordingDuration.Text = FormatElapsed(recordingClock.Elapsed);
         StopButton.IsEnabled = false;
         RecordingIndicator.Visibility = Visibility.Collapsed;
         CaptureStatus.Text = "Finishing recording…";

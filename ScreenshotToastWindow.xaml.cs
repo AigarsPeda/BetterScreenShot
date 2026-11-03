@@ -34,7 +34,10 @@ namespace BetterScreenShot
             if (recordingFormat is { } format)
             {
                 Title = "Recording ready";
-                EditorButton.Visibility = Visibility.Collapsed;
+                EditorButton.ToolTip = "View recording";
+                EditorButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "View recording");
+                EditGlyph.Visibility = Visibility.Collapsed;
+                PlayGlyph.Visibility = Visibility.Visible;
                 DiscardButton.ToolTip = "Discard recording";
                 DiscardButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "Discard recording");
                 CopyButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty,
@@ -290,7 +293,8 @@ namespace BetterScreenShot
         {
             try
             {
-                OpenViewer();
+                if (recordingFormat is null) OpenViewer();
+                else OpenRecordingViewer();
             }
             catch (Exception ex)
             {
@@ -302,6 +306,17 @@ namespace BetterScreenShot
         internal ScreenshotViewerWindow OpenViewer()
         {
             var viewerWindow = new ScreenshotViewerWindow(screenshot, FullImage());
+            viewerWindow.Show();
+            viewerWindow.Activate();
+            preserveTemporaryFileForViewer = true;
+            Close();
+            return viewerWindow;
+        }
+
+        internal RecordingViewerWindow OpenRecordingViewer()
+        {
+            if (recordingFormat is null) throw new InvalidOperationException("This popup does not contain a recording.");
+            var viewerWindow = new RecordingViewerWindow(screenshot, recordingFormat.Value, (BitmapSource)PreviewImage.Source);
             viewerWindow.Show();
             viewerWindow.Activate();
             preserveTemporaryFileForViewer = true;
