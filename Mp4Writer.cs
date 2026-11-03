@@ -20,8 +20,9 @@ internal sealed class Mp4Writer : IDisposable
     private IntPtr writer;
     private int stream;
 
-    internal Mp4Writer(string path, int width, int height, int framesPerSecond)
+    internal Mp4Writer(string path, int width, int height, int framesPerSecond, int bitrate)
     {
+        if (bitrate <= 0) throw new ArgumentOutOfRangeException(nameof(bitrate));
         Marshal.ThrowExceptionForHR(MFStartup(0x00020070, 0));
         try
         {
@@ -29,7 +30,7 @@ internal sealed class Mp4Writer : IDisposable
             var output = CreateType(H264, width, height, framesPerSecond);
             try
             {
-                Set32(output, AverageBitrate, (int)Math.Clamp((long)width * height * framesPerSecond / 8, 1_000_000, 20_000_000));
+                Set32(output, AverageBitrate, bitrate);
                 Marshal.ThrowExceptionForHR(Method<AddStream>(writer, 3)(writer, output, out stream));
             }
             finally { Marshal.Release(output); }

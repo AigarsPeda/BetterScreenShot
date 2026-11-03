@@ -12,25 +12,29 @@ using Rectangle = System.Drawing.Rectangle;
 namespace BetterScreenShot;
 
 internal enum RecordingFormat { Video, Gif }
+internal enum VideoQuality { Standard, High, Maximum }
+internal readonly record struct VideoEncodingOptions(int FramesPerSecond, int Bitrate);
 
 internal static class AreaRecordingService
 {
     internal const int GifSecondsLimit = 20;
-    private const int VideoFps = 15;
     private const int GifFps = 8;
 
     internal static (string FilePath, BitmapSource Preview) Record(
-        Rectangle bounds, RecordingFormat format, CancellationToken stop, CancellationToken cancel)
-        => Record(bounds, format, stop, cancel, Capture);
+        Rectangle bounds, RecordingFormat format, CancellationToken stop, CancellationToken cancel,
+        VideoQuality videoQuality = VideoQuality.High)
+        => Record(bounds, format, stop, cancel, Capture, videoQuality);
 
     internal static (string FilePath, BitmapSource Preview) Record(
         Rectangle bounds, RecordingFormat format, CancellationToken stop, CancellationToken cancel,
-        Func<Rectangle, int, int, byte[]> captureFrame)
+        Func<Rectangle, int, int, byte[]> captureFrame, VideoQuality videoQuality = VideoQuality.High)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0)
             throw new ArgumentOutOfRangeException(nameof(bounds), "Recording dimensions must be positive.");
         if (format is not (RecordingFormat.Video or RecordingFormat.Gif))
             throw new ArgumentOutOfRangeException(nameof(format));
+        if (videoQuality is not (VideoQuality.Standard or VideoQuality.High or VideoQuality.Maximum))
+            throw new ArgumentOutOfRangeException(nameof(videoQuality));
         var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
         Directory.CreateDirectory(folder);
         var extension = format == RecordingFormat.Video ? ".mp4" : ".gif";
@@ -38,7 +42,7 @@ internal static class AreaRecordingService
         try
         {
             return format == RecordingFormat.Video
-                ? RecordVideo(bounds, path, stop, cancel, captureFrame)
+                ? RecordVideo(bounds, path, stop, cancel, captureFrame, videoQuality)
                 : RecordGif(bounds, path, stop, cancel, captureFrame);
         }
         catch
@@ -48,26 +52,52 @@ internal static class AreaRecordingService
         }
     }
 
+    internal static VideoEncodingOptions GetVideoEncodingOptions(int width, int height, VideoQuality quality)
+    {
+        if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
+        if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height));
+        var (fps, bitrateDivisor, maxBitrate) = quality switch
+        {
+            VideoQuality.Standard => (15, 8, 20_000_000),
+            VideoQuality.High => (30, 4, 40_000_000),
+            VideoQuality.Maximum => (30, 2, 80_000_000),
+            _ => throw new ArgumentOutOfRangeException(nameof(quality))
+        };
+        var bitrate = (int)Math.Clamp((double)width * height * fps / bitrateDivisor,
+            1_000_000, maxBitrate);
+        return new VideoEncodingOptions(fps, bitrate);
+    }
+
     private static (string, BitmapSource) RecordVideo(Rectangle bounds, string path,
-        CancellationToken stop, CancellationToken cancel, Func<Rectangle, int, int, byte[]> captureFrame)
+        CancellationToken stop, CancellationToken cancel, Func<Rectangle, int, int, byte[]> captureFrame,
+        VideoQuality quality)
     {
         var width = (bounds.Width + 1) & ~1;
         var height = (bounds.Height + 1) & ~1;
-        using var writer = new Mp4Writer(path, width, height, VideoFps);
+        var options = GetVideoEncodingOptions(width, height, quality);
+        using var writer = new Mp4Writer(path, width, height, options.FramesPerSecond, options.Bitrate);
         BitmapSource? preview = null;
         var clock = Stopwatch.StartNew();
         var frame = 0;
-        var duration = 10_000_000L / VideoFps;
+        var frameDuration = TimeSpan.TicksPerSecond / options.FramesPerSecond;
+        byte[]? previousPixels = null;
+        var previousTime = 0L;
         do
         {
             cancel.ThrowIfCancellationRequested();
             var pixels = captureFrame(bounds, width, height);
             preview ??= Preview(pixels, width, height);
-            writer.WriteFrame(pixels, frame * duration, duration);
+            var timestamp = frame == 0 ? 0 : clock.Elapsed.Ticks;
+            if (previousPixels is not null)
+                writer.WriteFrame(previousPixels, previousTime, Math.Max(1, timestamp - previousTime));
+            previousPixels = pixels;
+            previousTime = timestamp;
             frame++;
-            WaitForNextFrame(clock, frame, VideoFps, stop, cancel);
+            WaitForNextFrame(clock, frame, options.FramesPerSecond, stop, cancel);
         } while (!stop.IsCancellationRequested);
         cancel.ThrowIfCancellationRequested();
+        writer.WriteFrame(previousPixels!, previousTime,
+            Math.Max(frameDuration, clock.Elapsed.Ticks - previousTime));
         writer.Finish();
         cancel.ThrowIfCancellationRequested();
         return (path, preview!);

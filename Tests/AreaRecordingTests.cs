@@ -1,5 +1,7 @@
 using System.IO;
+using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Buffers.Binary;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -36,6 +38,64 @@ internal static class AreaRecordingTests
                 Require(error is null && player.HasVideo &&
                     player.NaturalVideoWidth == 122 && player.NaturalVideoHeight == 102);
                 player.Close();
+            }
+            finally { ScreenshotFileService.TryDelete(result.FilePath); }
+        });
+        check("Video quality choices increase frame rate and bitrate", () =>
+        {
+            var standard = AreaRecordingService.GetVideoEncodingOptions(1920, 1080, VideoQuality.Standard);
+            var high = AreaRecordingService.GetVideoEncodingOptions(1920, 1080, VideoQuality.High);
+            var maximum = AreaRecordingService.GetVideoEncodingOptions(1920, 1080, VideoQuality.Maximum);
+            Require(standard.FramesPerSecond == 15 && high.FramesPerSecond == 30 &&
+                maximum.FramesPerSecond == 30 &&
+                standard.Bitrate < high.Bitrate && high.Bitrate < maximum.Bitrate);
+            Require(AreaRecordingService.GetVideoEncodingOptions(3840, 2160, VideoQuality.Maximum).Bitrate <= 80_000_000);
+            Require(AreaRecordingService.GetVideoEncodingOptions(int.MaxValue, int.MaxValue, VideoQuality.Maximum).Bitrate == 80_000_000);
+            Throws<ArgumentOutOfRangeException>(() => AreaRecordingService.GetVideoEncodingOptions(0, 1080, VideoQuality.High));
+            Throws<ArgumentOutOfRangeException>(() => AreaRecordingService.GetVideoEncodingOptions(1920, 1080, (VideoQuality)99));
+        });
+        check("Standard and Maximum quality both create valid MP4 recordings", () =>
+        {
+            var bounds = new System.Drawing.Rectangle(0, 0, 640, 360);
+            foreach (var quality in new[] { VideoQuality.Standard, VideoQuality.Maximum })
+            {
+                using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+                var result = AreaRecordingService.Record(bounds, RecordingFormat.Video,
+                    stop.Token, CancellationToken.None, (_, width, height) => new byte[width * height * 4], quality);
+                try
+                {
+                    Require(File.Exists(result.FilePath) && Mp4SampleCount(result.FilePath) > 1);
+                    Require(result.Preview.PixelWidth == 640 && result.Preview.PixelHeight == 360);
+                }
+                finally { ScreenshotFileService.TryDelete(result.FilePath); }
+            }
+            using var immediateStop = new CancellationTokenSource();
+            immediateStop.Cancel();
+            var largeBounds = new System.Drawing.Rectangle(0, 0, 1920, 1080);
+            var large = AreaRecordingService.Record(largeBounds, RecordingFormat.Video,
+                immediateStop.Token, CancellationToken.None,
+                (_, width, height) => new byte[width * height * 4], VideoQuality.Maximum);
+            try { Require(Mp4SampleCount(large.FilePath) == 1); }
+            finally { ScreenshotFileService.TryDelete(large.FilePath); }
+        });
+        check("Slow captures keep the recorded video's real duration", () =>
+        {
+            var bounds = new System.Drawing.Rectangle(0, 0, 120, 90);
+            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(650));
+            var clock = Stopwatch.StartNew();
+            var result = AreaRecordingService.Record(bounds, RecordingFormat.Video,
+                stop.Token, CancellationToken.None, (_, width, height) =>
+                {
+                    Thread.Sleep(75);
+                    return new byte[width * height * 4];
+                }, VideoQuality.High);
+            clock.Stop();
+            try
+            {
+                var mediaDuration = Mp4Duration(result.FilePath);
+                if (mediaDuration < TimeSpan.FromMilliseconds(450) ||
+                    mediaDuration > clock.Elapsed + TimeSpan.FromMilliseconds(200))
+                    throw new InvalidOperationException($"Recording took {clock.Elapsed}, media duration {mediaDuration}.");
             }
             finally { ScreenshotFileService.TryDelete(result.FilePath); }
         });
@@ -175,6 +235,9 @@ internal static class AreaRecordingTests
             Throws<ArgumentOutOfRangeException>(() => AreaRecordingService.Record(
                 new System.Drawing.Rectangle(0, 0, 100, 100), (RecordingFormat)99,
                 CancellationToken.None, CancellationToken.None));
+            Throws<ArgumentOutOfRangeException>(() => AreaRecordingService.Record(
+                new System.Drawing.Rectangle(0, 0, 100, 100), RecordingFormat.Video,
+                CancellationToken.None, CancellationToken.None, (VideoQuality)99));
         });
         check("Recording duration formats seconds and elapsed minutes", () =>
         {
@@ -216,8 +279,7 @@ internal static class AreaRecordingTests
                 Require(((System.Windows.Controls.Button)toast.FindName("SaveButton")).IsEnabled);
                 ((System.Windows.Controls.Button)toast.FindName("CopyButton"))
                     .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                Require(System.Windows.Clipboard.ContainsFileDropList());
-                copiedPath = System.Windows.Clipboard.GetFileDropList()[0];
+                copiedPath = ClipboardFilePath();
                 Require(File.Exists(copiedPath) && File.ReadAllBytes(copiedPath).SequenceEqual(new byte[] { 71, 73, 70 }));
             }
             finally
@@ -289,8 +351,7 @@ internal static class AreaRecordingTests
                 Require((string)playback.Content == "Play" && timeline.Value == 0);
                 ((System.Windows.Controls.Button)viewer.FindName("CopyButton"))
                     .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                Require(System.Windows.Clipboard.ContainsFileDropList());
-                copy = System.Windows.Clipboard.GetFileDropList()[0];
+                copy = ClipboardFilePath();
                 Require(File.Exists(copy) && File.ReadAllBytes(copy).SequenceEqual(File.ReadAllBytes(result.FilePath)));
             }
             finally
@@ -375,26 +436,41 @@ internal static class AreaRecordingTests
                 controls.Show();
                 var indicator = (System.Windows.FrameworkElement)controls.FindName("RecordingIndicator");
                 var duration = (System.Windows.Controls.TextBlock)controls.FindName("RecordingDuration");
+                var qualityPicker = (System.Windows.Controls.ComboBox)controls.FindName("VideoQualityPicker");
                 var video = (System.Windows.Controls.Button)controls.FindName("VideoButton");
                 var gif = (System.Windows.Controls.Button)controls.FindName("GifButton");
                 var stop = (System.Windows.Controls.Button)controls.FindName("StopButton");
                 var cancelButton = (System.Windows.Controls.Button)controls.FindName("CancelButton");
-                var actions = (System.Windows.Controls.StackPanel)controls.FindName("ActionsPanel");
-                var videoSlot = actions.Children.IndexOf(video);
+                var actions = (System.Windows.Controls.Grid)controls.FindName("ActionsPanel");
+                var videoSlot = System.Windows.Controls.Grid.GetColumn(video);
                 var videoWidth = video.ActualWidth;
                 var gifX = gif.TranslatePoint(new System.Windows.Point(), actions).X;
                 var cancelX = cancelButton.TranslatePoint(new System.Windows.Point(), actions).X;
+                var qualityX = qualityPicker.TranslatePoint(new System.Windows.Point(), controls).X;
+                var qualityWidth = qualityPicker.ActualWidth;
+                var cancelWindowX = cancelButton.TranslatePoint(new System.Windows.Point(), controls).X;
+                var qualityY = qualityPicker.TranslatePoint(new System.Windows.Point(), controls).Y;
+                var cancelY = cancelButton.TranslatePoint(new System.Windows.Point(), controls).Y;
                 Require(indicator.Visibility == Visibility.Collapsed && video.IsEnabled &&
-                    stop.Visibility == Visibility.Collapsed && videoWidth > 0);
+                    qualityPicker.SelectedIndex == 1 && controls.SelectedVideoQuality == VideoQuality.High &&
+                    stop.Visibility == Visibility.Collapsed && videoWidth > 0 && controls.Width == 384 &&
+                    ((System.Windows.Controls.TextBlock)controls.FindName("ModeLabel")).Text == "Video quality" &&
+                    Math.Abs(qualityX - cancelWindowX) < 1 && qualityY < cancelY);
+                qualityPicker.SelectedIndex = 2;
+                Require(controls.SelectedVideoQuality == VideoQuality.Maximum);
                 video.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 controls.UpdateLayout();
-                Require(indicator.Visibility == Visibility.Visible && stop.IsEnabled &&
+                Require(indicator.Visibility == Visibility.Visible && stop.IsEnabled && !qualityPicker.IsEnabled &&
+                    qualityPicker.Visibility == Visibility.Collapsed &&
+                    ((System.Windows.Controls.TextBlock)controls.FindName("ModeLabel")).Text == "Recording" &&
                     duration.Text == "0:00" &&
                     video.Visibility == Visibility.Collapsed && stop.Visibility == Visibility.Visible &&
-                    actions.Children.IndexOf(stop) == videoSlot && Math.Abs(stop.ActualWidth - videoWidth) < 1 &&
+                    System.Windows.Controls.Grid.GetColumn(stop) == videoSlot && Math.Abs(stop.ActualWidth - videoWidth) < 1 &&
                     gif.Visibility == Visibility.Visible && !gif.IsEnabled &&
                     Math.Abs(gif.TranslatePoint(new System.Windows.Point(), actions).X - gifX) < 1 &&
-                    Math.Abs(cancelButton.TranslatePoint(new System.Windows.Point(), actions).X - cancelX) < 1);
+                    Math.Abs(cancelButton.TranslatePoint(new System.Windows.Point(), actions).X - cancelX) < 1 &&
+                    indicator.TranslatePoint(new System.Windows.Point(), controls).X >= qualityX &&
+                    indicator.TranslatePoint(new System.Windows.Point(indicator.ActualWidth, 0), controls).X <= qualityX + qualityWidth);
                 var durationWidth = duration.ActualWidth;
                 PumpUntil(() => duration.Text == "0:01");
                 Require(Math.Abs(duration.ActualWidth - durationWidth) < 1 &&
@@ -414,6 +490,41 @@ internal static class AreaRecordingTests
                 if (path is not null) ScreenshotFileService.TryDelete(path);
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
+        });
+        check("Closed video quality picker and menu fit near the bottom of the screen", () =>
+        {
+            var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
+            var bounds = new System.Drawing.Rectangle(screen.Left + 20, screen.Top + 20, 120, 100);
+            var controls = new AreaRecordingWindow(bounds);
+            try
+            {
+                controls.Show();
+                var picker = (System.Windows.Controls.ComboBox)controls.FindName("VideoQualityPicker");
+                var toolbar = (System.Windows.Controls.Grid)controls.FindName("ToolbarLayout");
+                var actions = (System.Windows.Controls.Grid)controls.FindName("ActionsPanel");
+                var cancel = (System.Windows.Controls.Button)controls.FindName("CancelButton");
+                var pickerBottom = picker.TranslatePoint(new System.Windows.Point(0, picker.ActualHeight), toolbar).Y;
+                var actionsTop = actions.TranslatePoint(new System.Windows.Point(), toolbar).Y;
+                var cancelBottom = cancel.TranslatePoint(new System.Windows.Point(0, cancel.ActualHeight), controls).Y;
+                Require(toolbar.RowDefinitions[0].ActualHeight >= picker.ActualHeight + 4 &&
+                    pickerBottom <= toolbar.RowDefinitions[0].ActualHeight - 2 &&
+                    pickerBottom + 4 <= actionsTop && cancelBottom <= controls.ActualHeight - 10);
+                controls.Top = SystemParameters.WorkArea.Bottom - controls.ActualHeight - 8;
+                picker.IsDropDownOpen = true;
+                var popup = (System.Windows.Controls.Primitives.Popup)picker.Template.FindName("PART_Popup", picker);
+                var last = (System.Windows.Controls.ComboBoxItem)picker.Items[2];
+                PumpUntil(() => popup.IsOpen && popup.Child is System.Windows.FrameworkElement { ActualHeight: > 0 } &&
+                    last.IsVisible && last.ActualHeight > 0);
+                var pickerTop = picker.PointToScreen(new System.Windows.Point()).Y;
+                var popupTop = popup.Child.PointToScreen(new System.Windows.Point()).Y;
+                var popupBottom = popup.Child.PointToScreen(new System.Windows.Point(0,
+                    ((System.Windows.FrameworkElement)popup.Child).ActualHeight)).Y;
+                var lastBottom = last.PointToScreen(new System.Windows.Point(0, last.ActualHeight)).Y;
+                Require(popupTop >= screen.Top && popupBottom <= pickerTop + 1 &&
+                    lastBottom <= popupBottom + 1);
+                picker.IsDropDownOpen = false;
+            }
+            finally { controls.Close(); }
         });
         check("Floating controls cancel either format without a result", () =>
         {
@@ -462,8 +573,8 @@ internal static class AreaRecordingTests
                 var stop = (System.Windows.Controls.Button)controls.FindName("StopButton");
                 var cancelButton = (System.Windows.Controls.Button)controls.FindName("CancelButton");
                 var indicator = (System.Windows.FrameworkElement)controls.FindName("RecordingIndicator");
-                var actions = (System.Windows.Controls.StackPanel)controls.FindName("ActionsPanel");
-                var gifSlot = actions.Children.IndexOf(gif);
+                var actions = (System.Windows.Controls.Grid)controls.FindName("ActionsPanel");
+                var gifSlot = System.Windows.Controls.Grid.GetColumn(gif);
                 var gifWidth = gif.ActualWidth;
                 var videoX = video.TranslatePoint(new System.Windows.Point(), actions).X;
                 var cancelX = cancelButton.TranslatePoint(new System.Windows.Point(), actions).X;
@@ -472,7 +583,7 @@ internal static class AreaRecordingTests
                 gif.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 controls.UpdateLayout();
                 Require(stop.IsEnabled && gif.Visibility == Visibility.Collapsed &&
-                    stop.Visibility == Visibility.Visible && actions.Children.IndexOf(stop) == gifSlot &&
+                    stop.Visibility == Visibility.Visible && System.Windows.Controls.Grid.GetColumn(stop) == gifSlot &&
                     Math.Abs(stop.ActualWidth - gifWidth) < 1 && video.Visibility == Visibility.Visible &&
                     !video.IsEnabled && indicator.Visibility == Visibility.Visible &&
                     Math.Abs(video.TranslatePoint(new System.Windows.Point(), actions).X - videoX) < 1 &&
@@ -522,6 +633,27 @@ internal static class AreaRecordingTests
         throw new InvalidOperationException("MP4 sample table was not found.");
     }
 
+    private static TimeSpan Mp4Duration(string path)
+    {
+        var bytes = File.ReadAllBytes(path);
+        for (var index = 4; index <= bytes.Length - 32; index++)
+        {
+            if (!bytes.AsSpan(index, 4).SequenceEqual("mvhd"u8)) continue;
+            var boxSize = BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(index - 4, 4));
+            if (boxSize < 32 || (long)index - 4 + boxSize > bytes.Length) continue;
+            var version = bytes[index + 4];
+            var timescaleOffset = version == 0 ? index + 16 : index + 24;
+            if (version is not (0 or 1)) continue;
+            if (version == 1 && (boxSize < 40 || index + 36 > bytes.Length)) continue;
+            var timescale = BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(timescaleOffset, 4));
+            var duration = version == 0
+                ? BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(timescaleOffset + 4, 4))
+                : BinaryPrimitives.ReadUInt64BigEndian(bytes.AsSpan(timescaleOffset + 4, 8));
+            if (timescale > 0) return TimeSpan.FromSeconds((double)duration / timescale);
+        }
+        throw new InvalidOperationException("MP4 duration was not found.");
+    }
+
     private static void Throws<T>(Action action) where T : Exception
     {
         try { action(); }
@@ -548,9 +680,28 @@ internal static class AreaRecordingTests
         Dispatcher.PushFrame(frame);
     }
 
+
     private static void TryClearClipboard()
     {
         try { System.Windows.Clipboard.Clear(); }
         catch (UnauthorizedAccessException) { }
+        catch (COMException) { }
+    }
+
+    private static string ClipboardFilePath()
+    {
+        string? path = null;
+        PumpUntil(() =>
+        {
+            try
+            {
+                if (!System.Windows.Clipboard.ContainsFileDropList()) return false;
+                path = System.Windows.Clipboard.GetFileDropList()[0];
+                return true;
+            }
+            catch (UnauthorizedAccessException) { return false; }
+            catch (COMException) { return false; }
+        });
+        return path!;
     }
 }

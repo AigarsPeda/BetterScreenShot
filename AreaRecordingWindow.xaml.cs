@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -24,6 +25,12 @@ public partial class AreaRecordingWindow : Window
     private bool canExcludeControls;
 
     internal Task<(string FilePath, BitmapSource Preview, RecordingFormat Format)?> Completion => completion.Task;
+    internal VideoQuality SelectedVideoQuality => VideoQualityPicker.SelectedIndex switch
+    {
+        0 => VideoQuality.Standard,
+        2 => VideoQuality.Maximum,
+        _ => VideoQuality.High
+    };
 
     internal AreaRecordingWindow(Rectangle bounds)
     {
@@ -40,7 +47,9 @@ public partial class AreaRecordingWindow : Window
             {
                 VideoButton.IsEnabled = false;
                 GifButton.IsEnabled = false;
-                CaptureStatus.Text = "Windows could not keep these controls out of the recording.";
+                VideoQualityPicker.IsEnabled = false;
+                ModeLabel.Text = "Unavailable";
+                ModeLabel.ToolTip = "Windows could not keep these controls out of the recording.";
             }
         };
         ThemePreferenceService.Changed += ThemePreference_Changed;
@@ -80,28 +89,29 @@ public partial class AreaRecordingWindow : Window
     {
         if (recording is not null || !canExcludeControls) return;
         format = selectedFormat;
+        var videoQuality = SelectedVideoQuality;
         VideoButton.IsEnabled = false;
         GifButton.IsEnabled = false;
-        CaptureStatus.Text = format == RecordingFormat.Video
-            ? "Recording video. Press Stop when finished."
-            : $"Recording GIF (up to {AreaRecordingService.GifSecondsLimit} seconds). Press Stop when finished.";
+        VideoQualityPicker.IsEnabled = false;
+        ModeLabel.Text = "Recording";
+        VideoQualityPicker.Visibility = Visibility.Collapsed;
         try
         {
             DesktopWindowService.FlushPendingUpdates();
-            recording = Task.Run(() => AreaRecordingService.Record(bounds, format, stop.Token, cancel.Token));
+            recording = Task.Run(() => AreaRecordingService.Record(bounds, format, stop.Token, cancel.Token, videoQuality));
         }
         catch (Exception error)
         {
             VideoButton.IsEnabled = true;
             GifButton.IsEnabled = true;
-            CaptureStatus.Text = $"Could not start recording: {error.Message}";
+            VideoQualityPicker.IsEnabled = true;
+            VideoQualityPicker.Visibility = Visibility.Visible;
+            ModeLabel.Text = "Start failed";
+            ModeLabel.ToolTip = error.Message;
             return;
         }
         var selectedButton = format == RecordingFormat.Video ? VideoButton : GifButton;
-        var selectedIndex = ActionsPanel.Children.IndexOf(selectedButton);
-        StopButton.Width = selectedButton.ActualWidth;
-        ActionsPanel.Children.Remove(StopButton);
-        ActionsPanel.Children.Insert(selectedIndex, StopButton);
+        Grid.SetColumn(StopButton, format == RecordingFormat.Video ? 0 : 2);
         selectedButton.Visibility = Visibility.Collapsed;
         StopButton.Visibility = Visibility.Visible;
         StopButton.IsEnabled = true;
@@ -132,7 +142,7 @@ public partial class AreaRecordingWindow : Window
         RecordingDuration.Text = FormatElapsed(recordingClock.Elapsed);
         StopButton.IsEnabled = false;
         RecordingIndicator.Visibility = Visibility.Collapsed;
-        CaptureStatus.Text = "Finishing recording…";
+        ModeLabel.Text = "Finishing";
         try
         {
             var result = await recording;
