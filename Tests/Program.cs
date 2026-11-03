@@ -39,6 +39,14 @@ internal static class Program
             Console.WriteLine($"{passed} passed, {failed} failed.");
             return failed == 0 ? 0 : 1;
         }
+        if (args.Contains("--record-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            AreaRecordingTests.Run(Check);
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--capture-ui-preview")) return CaptureUiPreview.Render();
         if (args.Contains("--context-menu-preview")) return AnnotationContextMenuTests.Preview();
         if (args.Contains("--editor-demo")) return AnnotationTests.Demo();
@@ -263,6 +271,7 @@ internal static class Program
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
             CaptureShortcutTests.Run(Check, directory);
             ScrollingCaptureTests.Run(Check);
+            AreaRecordingTests.Run(Check);
             AnnotationTests.Run(Check, directory);
             TextExtractionTests.Run(Check, directory);
             OverlayPresentationTests.Run(Check);

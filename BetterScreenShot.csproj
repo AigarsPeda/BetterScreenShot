@@ -17,6 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.3" />
     <Compile Remove="Tests\**\*.cs" />
     <EmbeddedResource Include="assets\camera.svg" LogicalName="BetterScreenShot.assets.camera.svg" />
     <EmbeddedResource Include="assets\ocr\*.traineddata" LogicalName="BetterScreenShot.ocr.%(Filename)%(Extension)" />

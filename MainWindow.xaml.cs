@@ -111,6 +111,75 @@ namespace BetterScreenShot
         private async void ScrollingCaptureButton_Click(object sender, RoutedEventArgs e)
             => await CaptureScrollingAsync();
 
+        private async void RecordAreaButton_Click(object sender, RoutedEventArgs e)
+            => await RecordAreaAsync();
+
+        internal async Task RecordAreaAsync()
+        {
+            if (isCapturing || isClosed) return;
+            isCapturing = true;
+            CaptureButton.IsEnabled = false;
+            SelectAreaButton.IsEnabled = false;
+            ScrollingCaptureButton.IsEnabled = false;
+            RecordAreaButton.IsEnabled = false;
+            OpenImageButton.IsEnabled = false;
+            ShortcutsButton.IsEnabled = false;
+            string? pendingFile = null;
+            CaptureAreaOutlineWindow? outline = null;
+            try
+            {
+                SetStatus(StatusTone.Info, "Drag to select the area to record.");
+                ScreenshotToastWindow.HideCurrent();
+                Hide();
+                var bounds = await MonitorSelectionOverlayForm.SelectAreaAsync();
+                if (isClosed) return;
+                if (bounds is null)
+                {
+                    SetStatus(StatusTone.Info, "Area recording cancelled.");
+                    return;
+                }
+                outline = new CaptureAreaOutlineWindow(bounds.Value);
+                outline.Show();
+                if (!outline.CanExcludeFromCapture || !outline.IsClickThrough)
+                    throw new InvalidOperationException("Windows could not display the capture border without including it in the recording.");
+                var controls = new AreaRecordingWindow(bounds.Value);
+                controls.Show();
+                var recording = await controls.Completion;
+                if (isClosed) return;
+                if (recording is null)
+                {
+                    SetStatus(StatusTone.Info, "Area recording cancelled.");
+                    return;
+                }
+                pendingFile = recording.Value.FilePath;
+                ShowLauncher();
+                ScreenshotToastWindow.ShowRecordingToast(pendingFile, bounds.Value, recording.Value.Preview, recording.Value.Format);
+                pendingFile = null;
+                SetStatus(StatusTone.Success, "Recording ready. Use the popup to save or copy it.");
+            }
+            catch (Exception error)
+            {
+                if (!isClosed) SetStatus(StatusTone.Error, $"Area recording failed: {error.Message}");
+            }
+            finally
+            {
+                outline?.Close();
+                if (pendingFile is not null) ScreenshotFileService.TryDelete(pendingFile);
+                isCapturing = false;
+                if (!isClosed)
+                {
+                    CaptureButton.IsEnabled = true;
+                    SelectAreaButton.IsEnabled = true;
+                    ScrollingCaptureButton.IsEnabled = true;
+                    RecordAreaButton.IsEnabled = true;
+                    OpenImageButton.IsEnabled = true;
+                    ShortcutsButton.IsEnabled = true;
+                    ShowLauncher();
+                    ScreenshotToastWindow.RestoreCurrent();
+                }
+            }
+        }
+
         internal async Task CaptureScrollingAsync()
         {
             if (isCapturing || isClosed) return;
@@ -118,6 +187,7 @@ namespace BetterScreenShot
             CaptureButton.IsEnabled = false;
             SelectAreaButton.IsEnabled = false;
             ScrollingCaptureButton.IsEnabled = false;
+            RecordAreaButton.IsEnabled = false;
             OpenImageButton.IsEnabled = false;
             ShortcutsButton.IsEnabled = false;
             string? pendingFile = null;
@@ -172,6 +242,7 @@ namespace BetterScreenShot
                     CaptureButton.IsEnabled = true;
                     SelectAreaButton.IsEnabled = true;
                     ScrollingCaptureButton.IsEnabled = true;
+                    RecordAreaButton.IsEnabled = true;
                     OpenImageButton.IsEnabled = true;
                     ShortcutsButton.IsEnabled = true;
                     ShowLauncher();
@@ -228,6 +299,7 @@ namespace BetterScreenShot
             CaptureButton.IsEnabled = false;
             SelectAreaButton.IsEnabled = false;
             ScrollingCaptureButton.IsEnabled = false;
+            RecordAreaButton.IsEnabled = false;
             OpenImageButton.IsEnabled = false;
             ShortcutsButton.IsEnabled = false;
             string? pendingFile = null;
@@ -286,6 +358,7 @@ namespace BetterScreenShot
                     CaptureButton.IsEnabled = true;
                     SelectAreaButton.IsEnabled = true;
                     ScrollingCaptureButton.IsEnabled = true;
+                    RecordAreaButton.IsEnabled = true;
                     OpenImageButton.IsEnabled = true;
                     ShortcutsButton.IsEnabled = true;
                     if (!fromShortcut) ShowLauncher();

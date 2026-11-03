@@ -2,9 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title=""
-        Height="470"
+        Height="548"
         Width="520"
-        MinHeight="440"
+        MinHeight="518"
         MinWidth="380"
         AllowDrop="True"
         PreviewDragOver="Window_PreviewDragOver"
@@ -214,6 +214,32 @@
                             <TextBlock Text="Scrolling Capture" FontSize="15" FontWeight="SemiBold"
                                        TextTrimming="CharacterEllipsis" Foreground="{DynamicResource PrimaryTextBrush}" />
                             <TextBlock Text="Select an area, then scroll" Margin="0,4,0,0" FontSize="11"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <Border Height="1" Margin="10,0" Background="{DynamicResource DividerBrush}" />
+                <Button x:Name="RecordAreaButton"
+                        Style="{StaticResource CaptureActionStyle}"
+                        Click="RecordAreaButton_Click"
+                        AutomationProperties.Name="Record area">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="24" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Viewbox Width="21" Height="21" Stretch="Uniform" VerticalAlignment="Center">
+                            <Canvas Width="40" Height="40">
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M7 10H29A3 3 0 0 1 32 13V27A3 3 0 0 1 29 30H7A3 3 0 0 1 4 27V13A3 3 0 0 1 7 10Z" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M32 16L37 13V27L32 24" />
+                                <Path Style="{StaticResource CaptureIconStyle}" Data="M14 16L24 20 14 24Z" />
+                            </Canvas>
+                        </Viewbox>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="Record Area" FontSize="15" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource PrimaryTextBrush}" />
+                            <TextBlock Text="Select an area, then choose video or GIF" Margin="0,4,0,0" FontSize="11"
                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                         </StackPanel>
                     </Grid>

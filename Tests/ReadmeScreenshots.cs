@@ -73,7 +73,7 @@ internal static class ReadmeScreenshots
         typeof(MainWindow).GetMethod("ApplyTheme", BindingFlags.Instance | BindingFlags.NonPublic)!
             .Invoke(launcher, [theme]);
         ((System.Windows.Shapes.Path)launcher.FindName("ThemeGlyphPath")).Data = ThemeIconService.ThemeGlyph(theme);
-        RenderOffscreen(launcher, 520, 470, Path.Combine(output, $"launcher-{theme.ToString().ToLowerInvariant()}.png"), theme,
+        RenderOffscreen(launcher, 520, 548, Path.Combine(output, $"launcher-{theme.ToString().ToLowerInvariant()}.png"), theme,
             "BetterScreenShot");
         launcher.Close();
     }

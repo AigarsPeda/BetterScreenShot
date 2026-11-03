@@ -9,13 +9,14 @@
 
 ## Launcher
 
-- Keep the 520 × 470 default window and the 380 × 440 minimum.
-- Show full screen, area, and scrolling capture immediately. Their rows have equal height and share a single raised surface with dividers.
+- Keep the 520 × 548 default window and the 380 × 518 minimum.
+- Show full screen, area, scrolling capture, and area recording immediately. Their rows have equal height and share a single raised surface with dividers.
 - Give each action a small outline icon, a clear label, and its shortcut hint. Do not add icon tiles or trailing chevrons.
 - Place status and the keyboard-shortcuts link in a quiet footer. Status color can change with meaning, but the area should not become a permanent badge.
 - Hover uses a soft surface fill. Keyboard focus has a visible purple outline.
 - Place scrolling capture controls in a draggable floating toolbar beside the selected area, using the viewer's theme colors.
 - Keep a click-through accent outline around the selected area during scrolling capture, excluded from saved pixels.
+- Use the same outline and floating toolbar treatment for area recording. Offer Video and GIF after area selection. Replace the selected format button with an equal-width Stop button so the other controls stay in place. Show a red REC dot only while recording is active.
 
 ## Editor
 
@@ -29,6 +30,7 @@
 ## Capture preview
 
 - Show the captured thumbnail and immediate Copy and Save actions. Keep edit and discard available with accessible names.
+- Recording previews show Copy, Save, and Discard without an editor action.
 - Do not add a title, timestamp, dimensions, or a “screenshot ready” caption.
 - Use a readable light or dark surface based on the Windows app theme. Preview actions must remain legible over light and dark images.
 

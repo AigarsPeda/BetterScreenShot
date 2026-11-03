@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Collections.Specialized;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -14,19 +16,32 @@ namespace BetterScreenShot
         private static ScreenshotToastWindow? currentToast;
         private readonly TemporaryScreenshot screenshot;
         private readonly bool previewIsThumbnail;
+        private readonly RecordingFormat? recordingFormat;
         private bool isAnimatingClose;
         private bool allowImmediateClose;
         private bool preserveTemporaryFileForViewer;
 
         internal ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image,
-            bool previewIsThumbnail = false)
+            bool previewIsThumbnail = false, RecordingFormat? recordingFormat = null)
         {
             InitializeComponent();
             ApplyToastTheme();
 
             screenshot = new TemporaryScreenshot(filePath);
             this.previewIsThumbnail = previewIsThumbnail;
+            this.recordingFormat = recordingFormat;
             PreviewImage.Source = image;
+            if (recordingFormat is { } format)
+            {
+                Title = "Recording ready";
+                EditorButton.Visibility = Visibility.Collapsed;
+                DiscardButton.ToolTip = "Discard recording";
+                DiscardButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "Discard recording");
+                CopyButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty,
+                    format == RecordingFormat.Video ? "Copy video file" : "Copy GIF file");
+                SaveButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty,
+                    format == RecordingFormat.Video ? "Save video" : "Save GIF");
+            }
 
             Loaded += (_, _) => OnToastLoaded(captureBounds);
             Closing += ScreenshotToastWindow_Closing;
@@ -94,6 +109,25 @@ namespace BetterScreenShot
             try
             {
                 toast = new ScreenshotToastWindow(filePath, captureBounds, image, previewIsThumbnail);
+                currentToast?.CloseImmediately();
+                currentToast = toast;
+                toast.Show();
+            }
+            catch
+            {
+                toast?.CloseImmediately();
+                ScreenshotFileService.TryDelete(filePath);
+                throw;
+            }
+        }
+
+        internal static void ShowRecordingToast(string filePath, System.Drawing.Rectangle captureBounds,
+            BitmapSource image, RecordingFormat format)
+        {
+            ScreenshotToastWindow? toast = null;
+            try
+            {
+                toast = new ScreenshotToastWindow(filePath, captureBounds, image, recordingFormat: format);
                 currentToast?.CloseImmediately();
                 currentToast = toast;
                 toast.Show();
@@ -189,12 +223,28 @@ namespace BetterScreenShot
         {
             try
             {
-                System.Windows.Clipboard.SetImage(FullImage());
+                if (recordingFormat is null)
+                    System.Windows.Clipboard.SetImage(FullImage());
+                else
+                {
+                    var copy = ScreenshotFileService.CopyRecordingForClipboard(screenshot.FilePath);
+                    try
+                    {
+                        var files = new StringCollection { copy };
+                        System.Windows.Clipboard.SetFileDropList(files);
+                    }
+                    catch
+                    {
+                        ScreenshotFileService.TryDelete(copy);
+                        throw;
+                    }
+                }
                 Close();
             }
             catch (Exception ex)
             {
-                AppDialog.ShowError(this, "Could not copy screenshot", "Try copying the screenshot again.", ex.Message);
+                AppDialog.ShowError(this, recordingFormat is null ? "Could not copy screenshot" : "Could not copy recording",
+                    recordingFormat is null ? "Try copying the screenshot again." : "Try copying the recording again.", ex.Message);
             }
         }
 
@@ -203,7 +253,11 @@ namespace BetterScreenShot
             try
             {
                 string? savedPath;
-                if (previewIsThumbnail)
+                if (recordingFormat is not null)
+                {
+                    savedPath = ScreenshotFileService.SaveRecordingAs(screenshot.FilePath, this);
+                }
+                else if (previewIsThumbnail)
                 {
                     savedPath = ScreenshotFileService.ChooseSavePath(screenshot.FilePath, this);
                     if (savedPath is not null)
@@ -227,7 +281,8 @@ namespace BetterScreenShot
             }
             catch (Exception ex)
             {
-                AppDialog.ShowError(this, "Could not save screenshot", "Choose another location and try again.", ex.Message);
+                AppDialog.ShowError(this, recordingFormat is null ? "Could not save screenshot" : "Could not save recording",
+                    "Choose another location and try again.", ex.Message);
             }
         }
 

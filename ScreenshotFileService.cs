@@ -13,6 +13,46 @@ namespace BetterScreenShot
             return destination;
         }
 
+        public static string? SaveRecordingAs(string sourceFilePath, System.Windows.Window owner)
+        {
+            var extension = Path.GetExtension(sourceFilePath).ToLowerInvariant();
+            if (extension is not (".mp4" or ".gif"))
+                throw new ArgumentException("Unsupported recording format.", nameof(sourceFilePath));
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Save Recording As",
+                Filter = extension == ".mp4" ? "MP4 Video (*.mp4)|*.mp4" : "Animated GIF (*.gif)|*.gif",
+                FileName = Path.GetFileNameWithoutExtension(sourceFilePath),
+                DefaultExt = extension,
+                AddExtension = true,
+                OverwritePrompt = true
+            };
+            if (dialog.ShowDialog(owner) != true) return null;
+            var destination = Path.GetFullPath(dialog.FileName);
+            if (!Path.GetExtension(destination).Equals(extension, StringComparison.OrdinalIgnoreCase))
+                throw new IOException($"Choose a {extension} file name.");
+            if (string.Equals(Path.GetFullPath(sourceFilePath), destination, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Choose a destination other than the temporary recording file.");
+            var staging = Path.Combine(Path.GetDirectoryName(destination)!, $".{Guid.NewGuid():N}.tmp");
+            try
+            {
+                File.Copy(sourceFilePath, staging);
+                File.Move(staging, destination, overwrite: true);
+            }
+            finally { TryDelete(staging); }
+            return destination;
+        }
+
+        public static string CopyRecordingForClipboard(string sourceFilePath)
+        {
+            // File-drop clipboard entries need a file that outlives the popup.
+            var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot", "Copied Recordings");
+            Directory.CreateDirectory(folder);
+            var copy = Path.Combine(folder, Path.GetFileName(sourceFilePath));
+            File.Copy(sourceFilePath, copy);
+            return copy;
+        }
+
         public static string? ChooseSavePath(string sourceFilePath, System.Windows.Window owner, string? originalPath = null)
         {
             var dialog = new Microsoft.Win32.SaveFileDialog

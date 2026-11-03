@@ -8,6 +8,7 @@ For the code structure, release checks, and development pitfalls, see the [proje
 
 - Choose a monitor or drag an area to capture. Press Esc to cancel.
 - Capture a long page by selecting its scrolling area, scrolling downward, and stopping when finished.
+- Record a selected area as an MP4 video or animated GIF from a floating toolbar.
 - Per-monitor DPI-aware selection overlays. Area selection is clipped to the monitor where the drag starts.
 - Bottom-right preview with Copy, Save, Open Viewer, and Discard actions.
 - Save actual PNG, JPEG, or BMP images.
@@ -30,14 +31,14 @@ Extract text locally and select the matching words on the image and in the resul
 | --- | --- |
 | <img src="docs/screenshots/text-recognition-light.png" alt="Light editor showing text extraction and selected image words" width="620"> | <img src="docs/screenshots/text-recognition-dark.png" alt="Dark editor showing text extraction and selected image words" width="620"> |
 
-The launcher can capture a screen, select an area, capture scrolling content, or open an existing image. The preview offers Copy, Save, Edit, and Discard actions.
+The launcher can capture a screen, select an area, capture scrolling content, record an area, or open an existing image. Screenshot previews offer Copy, Save, Edit, and Discard actions. Recording previews offer Copy, Save, and Discard.
 
 | Light theme | Dark theme |
 | --- | --- |
 | <img src="docs/screenshots/launcher-light.png" alt="Light launcher with scrolling capture and the sun theme button" width="480"> | <img src="docs/screenshots/launcher-dark.png" alt="Dark launcher with scrolling capture and the moon theme button" width="480"> |
 | <img src="docs/screenshots/preview-light.png" alt="Light screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> | <img src="docs/screenshots/preview-dark.png" alt="Dark screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> |
 
-Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. Replacing or closing a preview removes its file. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. Copies saved with Save As remain on disk. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
+Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. Replacing or closing a preview removes its file. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. Copies saved with Save As remain on disk. For video and GIF, Copy places a file on the clipboard and keeps a copy in `%TEMP%/BetterScreenShot/Copied Recordings` so it remains available for pasting. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
 
 ## Install on Windows
 
@@ -54,6 +55,12 @@ Keyboard shortcuts keep both existing selection modes: click a monitor for full-
 Choose **Scrolling Capture** in the launcher or tray menu, then drag around the content you want. The selected area stays outlined while you capture; its border and the floating Start/Stop/Cancel toolbar are excluded from the image. Drag the toolbar by its title if needed. Press **Start capture**, scroll downward through the area, and press **Stop capture**. The app matches distinctive overlapping rows and adds only the new rows to one image, which opens in the usual preview for copying, saving, or editing. A fixed message box at the bottom is included once at the end. Scroll in steps smaller than one screen so consecutive views overlap. If the toolbar reports no overlap, scroll back until the previous view is visible, then continue more slowly. Visually identical repeated rows cannot be aligned reliably and are skipped. Capture is limited to 30 million pixels or 32,000 rows to keep memory use bounded.
 
 This mode captures visible screen pixels. Moving popups, animations, changing sticky controls, horizontal scrolling, and pages that reflow while scrolling can leave seams or repeated content. Select the scrolling content itself where possible. The app does not scroll other applications automatically.
+
+### Area recording
+
+Choose **Record Area** in the launcher or tray menu and drag around the area you want. In the floating toolbar, choose **Record video** for an H.264 MP4 or **Record GIF** for an animated GIF. A red **REC** dot appears while recording, and **Stop** replaces the format button you clicked without shifting the other controls. Press **Stop** to finish or **Cancel** to discard. The selected area stays outlined, and the outline and toolbar are excluded from the recording. The result appears in the usual popup with Save, Copy, and Discard. Recordings cannot be edited in the app.
+
+Video records visible pixels at 15 frames per second without audio. GIF records at 8 frames per second, scales selections larger than 640 × 480 pixels to fit, and stops after 20 seconds to bound memory use. Copy places the recording file on the clipboard for pasting into apps that accept files.
 
 During capture, raw rows are stored in `%TEMP%/BetterScreenShot` and deleted when the capture finishes or is canceled. The temporary file can reach about 120 MiB at the 30-million-pixel limit. Finished captures stream from that file into PNG, and the popup holds only a small thumbnail. Copy and Edit load the full image when selected. Saving as PNG copies the original file; converting to JPEG or BMP loads the full image for that export.
 

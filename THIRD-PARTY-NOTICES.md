@@ -1,5 +1,7 @@
 # Third-party notices
 
+Animated GIF encoding uses SixLabors.ImageSharp 2.1.3, Copyright Six Labors and contributors, under the Apache License 2.0 license in `assets/ocr/LICENSE`.
+
 Text recognition uses the components below. The full Apache License 2.0 is in `assets/ocr/LICENSE`. It and these notices are embedded in the application and extracted beside the OCR libraries on first use.
 
 - Tesseract native engine, distributed by the TesseractOCR 5.5.2 NuGet package. Package source revision: `787ebdb488184f47df3dcad7fe687b0b95d0d98c`. The native engine in this package is Tesseract 5.5.1. Upstream: https://github.com/tesseract-ocr/tesseract. Copyright Google Inc. and contributors.
