@@ -25,8 +25,8 @@ internal static class AnnotationTests
             document.Add(new ImageAnnotation { Tool = AnnotationTool.NumberedArrow, Number = document.NextNumber(),
                 Color = Colors.Red, Width = 4, Points = [new(20, 80), new(100, 80)] });
             Require(document.Items[0].Number == 1 && document.Items[1].Number == 2 && document.NextNumber() == 3);
-            Require(document.Items[1].HitTest(new Point(100, 80), 0));
-            Require(document.Items[1].Bounds.Right > 100);
+            Require(document.Items[1].HitTest(new Point(20, 80), 0));
+            Require(document.Items[1].Bounds.Left < 20);
             var edited = document.Items[1].Clone();
             edited.Number = 7;
             document.Replace(1, document.Items[1], edited);
@@ -36,7 +36,24 @@ internal static class AnnotationTests
             document.Redo();
             Require(document.Items[1].Number == 7);
             var result = document.Render(WhiteImage(140, 120));
-            Require(Pixel(result, 90, 80).R > 200 && Pixel(result, 90, 80).G < 100);
+            Require(Pixel(result, 10, 80).R > 200 && Pixel(result, 10, 80).G < 100);
+            Require(Pixel(result, 37, 80).G == 255);
+            Require(Pixel(result, 110, 80).G == 255);
+        });
+        check("Numbered badge follows Sketch style while keeping a gap from the arrow", () =>
+        {
+            var document = new AnnotationDocument { SketchEnabled = false };
+            document.Add(new ImageAnnotation { Tool = AnnotationTool.NumberedArrow, Number = 3,
+                Color = Colors.Red, Width = 4, SketchSeed = 42, Points = [new(40, 60), new(170, 60)] });
+            var source = WhiteImage(200, 120);
+            var clean = document.Render(source);
+            document.SketchEnabled = true;
+            var sketch = document.Render(source);
+            var badgeChanged = false;
+            for (var y = 44; y <= 76; y++)
+                for (var x = 24; x <= 56; x++)
+                    badgeChanged |= Pixel(clean, x, y) != Pixel(sketch, x, y);
+            Require(badgeChanged && Pixel(clean, 57, 60).G == 255 && Pixel(sketch, 57, 60).G == 255);
         });
         check("Large-image arrow scale enlarges the stroke and arrowhead without changing other tools", () =>
         {
@@ -88,7 +105,8 @@ internal static class AnnotationTests
         check("Sketch geometry is deterministic and the toggle changes rendered exports", () =>
         {
             var document = new AnnotationDocument();
-            Require(document.SketchEnabled);
+            Require(!document.SketchEnabled);
+            document.SketchEnabled = true;
             var line = Line();
             var roughGeometry = SketchGeometry.Create(line.Geometry(), line.SketchSeed, line.Width);
             if (!roughGeometry.StrokeContains(new System.Windows.Media.Pen(Brushes.Red, 8), new Point(50, 20)))
@@ -366,7 +384,7 @@ internal static class AnnotationTests
                     Require(surface.DisplayScale > 0);
                     if (width == 620) Require(surface.ArrowScale > 1);
                     var sketch = (System.Windows.Controls.Primitives.ToggleButton)window.FindName("SketchToggle");
-                    Require(sketch.IsChecked == true);
+                    Require(sketch.IsChecked == EditorSettingsService.Current.SketchEnabled);
                     var copy = (System.Windows.Controls.Button)window.FindName("CopyButton");
                     var copyPosition = copy.TranslatePoint(new Point(), window);
                     Require(copyPosition.X >= 0 && copyPosition.X + copy.ActualWidth < width);

@@ -46,7 +46,7 @@ internal sealed class ImageAnnotation
             if (Tool == AnnotationTool.NumberedArrow)
             {
                 var arrowBounds = Geometry().Bounds;
-                arrowBounds.Union(new Rect(Points[^1].X - BadgeRadius, Points[^1].Y - BadgeRadius, BadgeRadius * 2, BadgeRadius * 2));
+                arrowBounds.Union(new Rect(Points[0].X - BadgeRadius, Points[0].Y - BadgeRadius, BadgeRadius * 2, BadgeRadius * 2));
                 return arrowBounds;
             }
             if (CanBend && Points.Count == 3) return Geometry().Bounds;
@@ -57,6 +57,7 @@ internal sealed class ImageAnnotation
     }
 
     private double BadgeRadius => Math.Clamp(Width * 3.5, 12, 26);
+    private double BadgeGap => Math.Clamp(Width / 2 + 6, 7, 22);
 
     public Geometry Geometry()
     {
@@ -66,21 +67,25 @@ internal sealed class ImageAnnotation
         using (var path = geometry.Open())
         {
             if (Points.Count == 0) return geometry;
-            path.BeginFigure(Points[0], false, false);
-            var tip = Points[^1];
+            var origin = Points[0];
             if (Tool == AnnotationTool.NumberedArrow && Points.Count >= 2)
             {
-                var direction = tip - (Points.Count == 3 ? CurveControl : Points[0]);
-                if (direction.Length < .001) direction = tip - Points[0];
-                if (direction.Length > BadgeRadius) { direction.Normalize(); tip -= direction * BadgeRadius; }
+                var direction = (Points.Count == 3 ? CurveControl : Points[^1]) - origin;
+                if (direction.Length < .001) direction = Points[^1] - origin;
+                if (direction.Length > BadgeRadius + BadgeGap)
+                {
+                    direction.Normalize();
+                    origin += direction * (BadgeRadius + BadgeGap);
+                }
             }
+            path.BeginFigure(origin, false, false);
             if (CanBend && Points.Count == 3)
             {
                 // The curve passes through the handle, rather than merely aiming toward it.
                 var control = Tool == AnnotationTool.NumberedArrow
-                    ? new Point(2 * BendPoint.X - (Points[0].X + tip.X) / 2, 2 * BendPoint.Y - (Points[0].Y + tip.Y) / 2)
+                    ? new Point(2 * BendPoint.X - (origin.X + Points[^1].X) / 2, 2 * BendPoint.Y - (origin.Y + Points[^1].Y) / 2)
                     : CurveControl;
-                path.QuadraticBezierTo(control, tip, true, true);
+                path.QuadraticBezierTo(control, Points[^1], true, true);
             }
             else if (Tool is AnnotationTool.Pen or AnnotationTool.Highlight && Points.Count > 2)
             {
@@ -91,7 +96,7 @@ internal sealed class ImageAnnotation
                 }
                 path.LineTo(Points[^1], true, true);
             }
-            else path.LineTo(tip, true, false);
+            else path.LineTo(Points[^1], true, false);
 
             if (Tool is AnnotationTool.Arrow or AnnotationTool.NumberedArrow && Points.Count >= 2)
             {
@@ -102,9 +107,9 @@ internal sealed class ImageAnnotation
                     var length = Math.Min(direction.Length * .45, Math.Max(14, Width * 4));
                     direction.Normalize();
                     var normal = new Vector(-direction.Y, direction.X);
-                    path.BeginFigure(tip - direction * length + normal * length * .5, false, false);
-                    path.LineTo(tip, true, false);
-                    path.LineTo(tip - direction * length - normal * length * .5, true, false);
+                    path.BeginFigure(Points[^1] - direction * length + normal * length * .5, false, false);
+                    path.LineTo(Points[^1], true, false);
+                    path.LineTo(Points[^1] - direction * length - normal * length * .5, true, false);
                 }
             }
         }
@@ -112,7 +117,7 @@ internal sealed class ImageAnnotation
         return geometry;
     }
 
-    public void Draw(DrawingContext context, bool sketchEnabled = true)
+    public void Draw(DrawingContext context, bool sketchEnabled = false)
     {
         if (Points.Count == 0) return;
         if (Tool == AnnotationTool.Text) { context.DrawText(FormatText(), Points[0]); return; }
@@ -133,9 +138,22 @@ internal sealed class ImageAnnotation
         else context.DrawGeometry(null, pen, geometry);
         if (Tool == AnnotationTool.NumberedArrow)
         {
-            var center = Points[^1];
+            var center = Points[0];
             var radius = BadgeRadius;
-            context.DrawEllipse(brush, new Pen(System.Windows.Media.Brushes.White, Math.Max(2, Width * .55)), center, radius, radius);
+            var outline = new Pen(System.Windows.Media.Brushes.White, Math.Clamp(Width * .55, 2, 4))
+                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            if (sketchEnabled)
+            {
+                var circle = new EllipseGeometry(new Rect(center.X - radius, center.Y - radius, radius * 2, radius * 2));
+                context.DrawEllipse(brush, null, center, radius - 1, radius - 1);
+                outline.Thickness *= .8;
+                context.DrawGeometry(null, outline, SketchGeometry.Create(circle, SketchSeed ^ 0x4B13, Width));
+                outline = outline.Clone();
+                outline.Thickness *= .55;
+                outline.Brush = new SolidColorBrush(Colors.White) { Opacity = .55 };
+                context.DrawGeometry(null, outline, SketchGeometry.Create(circle, SketchSeed ^ 0x67A9, Width));
+            }
+            else context.DrawEllipse(brush, outline, center, radius, radius);
             var text = new FormattedText(Number.ToString(CultureInfo.CurrentUICulture), CultureInfo.CurrentUICulture,
                 System.Windows.FlowDirection.LeftToRight, new Typeface("Segoe UI Semibold"), radius * 1.12,
                 Color.R * .299 + Color.G * .587 + Color.B * .114 > 190 ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.White, 1);
@@ -156,7 +174,7 @@ internal sealed class ImageAnnotation
         bounds.Inflate(Math.Max(tolerance, Width), Math.Max(tolerance, Width));
         if (!bounds.Contains(point)) return false;
         var geometry = Geometry();
-        return Tool == AnnotationTool.Text || Tool == AnnotationTool.NumberedArrow && (point - Points[^1]).Length <= BadgeRadius + tolerance
+        return Tool == AnnotationTool.Text || Tool == AnnotationTool.NumberedArrow && (point - Points[0]).Length <= BadgeRadius + tolerance
             || Tool is AnnotationTool.Rectangle or AnnotationTool.Ellipse && geometry.FillContains(point)
             || geometry.StrokeContains(new Pen(System.Windows.Media.Brushes.Black, Width + tolerance * 2), point);
     }
@@ -193,7 +211,7 @@ internal sealed class AnnotationDocument
     private readonly List<ImageAnnotation> items = [];
     private readonly Stack<Edit> undo = new();
     private readonly Stack<Edit> redo = new();
-    private bool sketchEnabled = true;
+    private bool sketchEnabled;
     public bool SketchEnabled
     {
         get => sketchEnabled;

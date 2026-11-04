@@ -18,7 +18,7 @@ internal sealed record EditorSettings
     public string Color { get; init; } = "#FF453A";
     public double StrokeWidth { get; init; } = 4;
     public double TextSize { get; init; } = 28;
-    public bool SketchEnabled { get; init; } = true;
+    public bool SketchEnabled { get; init; }
     public Dictionary<AnnotationTool, Key> ToolKeys { get; init; } = new()
     {
         [AnnotationTool.Select] = Key.V, [AnnotationTool.Hand] = Key.H,

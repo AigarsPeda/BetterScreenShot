@@ -27,7 +27,7 @@ internal static class CaptureShortcutTests
             var path = Path.Combine(directory, "editor-settings.json");
             var store = new EditorSettingsStore(path);
             var initial = store.Load();
-            Require(initial.OpeningTool == AnnotationTool.Arrow && initial.ValidationError() is null);
+            Require(initial.OpeningTool == AnnotationTool.Arrow && !initial.SketchEnabled && initial.ValidationError() is null);
             var keys = new Dictionary<AnnotationTool, Key>(initial.ToolKeys) { [AnnotationTool.Arrow] = Key.Q };
             var changed = initial with { RememberLastTool = true, LastTool = AnnotationTool.Pen,
                 Color = "#0A84FF", StrokeWidth = 7, TextSize = 40, SketchEnabled = false, ToolKeys = keys };

@@ -358,7 +358,7 @@
                              PreviewKeyDown="NumberPicker_KeyDown" AutomationProperties.Name="Arrow number" />
                 </StackPanel>
                 <StackPanel Name="SketchOptionsGroup" Style="{StaticResource ToolbarGroupStyle}" Margin="0,2,0,2">
-                    <ToggleButton x:Name="SketchToggle" IsChecked="True" Click="SketchToggle_Click" Width="72"
+                    <ToggleButton x:Name="SketchToggle" IsChecked="False" Click="SketchToggle_Click" Width="72"
                                   Style="{StaticResource ToolStyle}" Content="Sketch" ToolTip="Hand-drawn outlines for all shapes. Turn off for precise lines." AutomationProperties.Name="Sketch style" />
                 </StackPanel>
             </WrapPanel>
