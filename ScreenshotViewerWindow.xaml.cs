@@ -18,7 +18,7 @@ namespace BetterScreenShot
         private const double ZoomStep = 0.2;
 
         private readonly TemporaryScreenshot screenshot;
-        private readonly Action<BitmapSource> setClipboardImage;
+        private readonly Action<BitmapSource>? setClipboardImage;
         private bool isDragging;
         private bool isClosing;
         private Point lastDragPoint;
@@ -29,7 +29,7 @@ namespace BetterScreenShot
         {
             InitializeComponent();
             this.screenshot = screenshot;
-            this.setClipboardImage = setClipboardImage ?? System.Windows.Clipboard.SetImage;
+            this.setClipboardImage = setClipboardImage;
             if (screenshot.IsImported)
             {
                 Title = "Image Editor — " + System.IO.Path.GetFileName(screenshot.OriginalPath);
@@ -233,10 +233,16 @@ namespace BetterScreenShot
                 Annotations.CancelGesture();
                 var source = (BitmapSource)ViewerImage.Source;
                 var output = Annotations.Document.Items.Count > 0 ? await Annotations.Document.RenderAsync(source) : source;
+                var clipboardData = setClipboardImage is null ? await ImageClipboardService.CreateDataObjectAsync(output) : null;
                 for (var attempt = 0; ; attempt++)
                 {
                     if (isClosing || !IsLoaded) return;
-                    try { setClipboardImage(output); break; }
+                    try
+                    {
+                        if (clipboardData is not null) System.Windows.Clipboard.SetDataObject(clipboardData, copy: true);
+                        else setClipboardImage!(output);
+                        break;
+                    }
                     catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x800401D0) && attempt < 4)
                     {
                         // Clipboard managers and the destination app can briefly hold the clipboard.

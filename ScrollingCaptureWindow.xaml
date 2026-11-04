@@ -1,7 +1,7 @@
 <Window x:Class="BetterScreenShot.ScrollingCaptureWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Scrolling capture" Width="360" Height="112" ResizeMode="NoResize" WindowStyle="None"
+        Title="Scrolling capture" Width="360" Height="124" ResizeMode="NoResize" WindowStyle="None"
         AllowsTransparency="True" WindowStartupLocation="Manual" ShowInTaskbar="False"
         ShowActivated="False" Topmost="True" FontFamily="Segoe UI" FontSize="12"
         Background="Transparent" Foreground="{DynamicResource ViewerPrimaryTextBrush}">
@@ -25,14 +25,78 @@
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
+                <Border x:Name="ItemChrome" Padding="{TemplateBinding Padding}" Background="Transparent" CornerRadius="4">
+                    <ContentPresenter />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="ItemChrome" Property="Background" Value="{DynamicResource ViewerSelectedBrush}" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{DynamicResource ViewerPrimaryTextBrush}" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+                <Grid>
+                    <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                        <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="PickerChrome" Background="{DynamicResource ViewerSurfaceBrush}"
+                                    BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}"
+                                    BorderThickness="1" CornerRadius="7" />
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="PickerChrome" Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" /></Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate></ToggleButton.Template>
+                    </ToggleButton>
+                    <ContentPresenter Margin="9,0,21,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                      Content="{TemplateBinding SelectionBoxItem}" />
+                    <Path Data="M0 0L4 4 8 0" Width="8" Height="4"
+                          Stroke="{DynamicResource ViewerSecondaryTextBrush}" StrokeThickness="1.3"
+                          HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
+                          IsHitTestVisible="False" />
+                    <Popup Name="PART_Popup" Placement="Top"
+                           PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                           AllowsTransparency="True" Focusable="False" PopupAnimation="None">
+                        <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                Padding="3" Background="{DynamicResource ViewerSurfaceBrush}"
+                                BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}"
+                                BorderThickness="1" CornerRadius="7">
+                            <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                            </ScrollViewer>
+                        </Border>
+                    </Popup>
+                    <Border x:Name="FocusChrome" BorderBrush="Transparent" BorderThickness="2"
+                            CornerRadius="7" IsHitTestVisible="False" />
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="FocusChrome" Property="BorderBrush" Value="{DynamicResource ViewerAccentBrush}" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+            <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5" /></Trigger></Style.Triggers>
+        </Style>
     </Window.Resources>
     <Border Margin="3" CornerRadius="11" BorderThickness="1" BorderBrush="{DynamicResource ViewerSurfaceBorderBrush}"
             Background="{DynamicResource ViewerPageBackgroundBrush}">
         <Border.Effect><DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="3" Opacity="0.28" /></Border.Effect>
         <Grid Margin="11,9">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-            <TextBlock Text="⋮⋮  Scrolling capture" FontSize="11" FontWeight="SemiBold" Cursor="SizeAll"
-                       MouseLeftButtonDown="ToolbarGrip_MouseLeftButtonDown" />
+            <Grid>
+                <TextBlock Text="⋮⋮  Scrolling capture" FontSize="11" FontWeight="SemiBold" Cursor="SizeAll"
+                           VerticalAlignment="Center" MouseLeftButtonDown="ToolbarGrip_MouseLeftButtonDown" />
+                <ComboBox x:Name="DirectionPicker" Width="112" Height="26" SelectedIndex="0"
+                          HorizontalAlignment="Right" FontSize="11" VerticalContentAlignment="Center"
+                          ToolTip="Choose the scrolling direction before starting capture."
+                          AutomationProperties.Name="Scrolling direction">
+                    <ComboBoxItem Content="Vertical" />
+                    <ComboBoxItem Content="Horizontal" />
+                </ComboBox>
+            </Grid>
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,7,0,0">
                 <Button x:Name="StartButton" Content="Start capture" Click="Start_Click" Margin="0,0,7,0" />
                 <Button x:Name="StopButton" Content="Stop capture" Click="Stop_Click" IsEnabled="False" Margin="0,0,7,0" />

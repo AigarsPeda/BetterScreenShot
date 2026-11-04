@@ -188,6 +188,22 @@
         <TextBlock Text="Takes over the Windows Snipping Tool shortcut while BetterScreenShot is running. Turn this off to restore Windows behavior."
                    Margin="2,0,0,14" TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
         <TextBlock Text="Use Ctrl, Alt, or Win with a key, or a function key. Clear disables a shortcut. Saving checks whether another app has reserved it." TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" LineHeight="19" />
+        <TextBlock Text="Image quality" FontSize="19" FontWeight="SemiBold" Margin="0,24,0,12" />
+        <Border Background="{DynamicResource ViewerSurfaceBrush}" CornerRadius="12" Padding="16">
+            <StackPanel>
+                <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="180" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="JPEG export quality" VerticalAlignment="Center" />
+                    <ComboBox x:Name="JpegQualityPicker" Grid.Column="1" AutomationProperties.Name="JPEG export quality"
+                              ToolTip="Higher JPEG quality preserves more detail and makes larger files.">
+                        <ComboBoxItem Content="Standard (85)" Tag="85" />
+                        <ComboBoxItem Content="High (95)" Tag="95" />
+                        <ComboBoxItem Content="Maximum (100)" Tag="100" />
+                    </ComboBox>
+                </Grid>
+                <TextBlock Text="PNG saves and image copies keep full resolution with lossless pixels. JPEG is compressed; higher quality makes larger files."
+                           TextWrapping="Wrap" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+            </StackPanel>
+        </Border>
         <TextBlock Text="Editor shortcuts" FontSize="19" FontWeight="SemiBold" Margin="0,24,0,6" />
         <TextBlock Text="Choose one letter per tool. E stays assigned to Extract text." Foreground="{DynamicResource ViewerSecondaryTextBrush}" Margin="0,0,0,12" />
         <WrapPanel x:Name="EditorShortcutPanel" Margin="0,0,0,6" />

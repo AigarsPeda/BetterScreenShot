@@ -74,7 +74,7 @@ namespace BetterScreenShot
             return dialog.FileName;
         }
 
-        public static void Export(string sourceFilePath, string destinationPath, BitmapSource image, bool imageModified = false)
+        public static void Export(string sourceFilePath, string destinationPath, BitmapSource image, bool imageModified = false, int? jpegQuality = null)
         {
             if (string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
             {
@@ -82,10 +82,12 @@ namespace BetterScreenShot
             }
 
             var extension = Path.GetExtension(destinationPath).ToLowerInvariant();
+            var quality = jpegQuality ?? EditorSettingsService.Current.JpegQuality;
+            if (quality is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(jpegQuality), "JPEG quality must be between 1 and 100.");
             BitmapEncoder? encoder = extension switch
             {
                 ".png" => imageModified ? new PngBitmapEncoder() : null,
-                ".jpg" or ".jpeg" => new JpegBitmapEncoder { QualityLevel = 95 },
+                ".jpg" or ".jpeg" => new JpegBitmapEncoder { QualityLevel = quality },
                 ".bmp" => new BmpBitmapEncoder(),
                 _ => throw new ArgumentException("Choose a PNG, JPEG, or BMP file extension.", nameof(destinationPath))
             };

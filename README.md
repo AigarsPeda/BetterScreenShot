@@ -7,7 +7,7 @@ For the code structure, release checks, and development pitfalls, see the [proje
 ## Features
 
 - Choose a monitor or drag an area to capture. Press Esc to cancel.
-- Capture a long page by selecting its scrolling area, scrolling downward, and stopping when finished.
+- Capture a long or wide page by selecting its scrolling area, choosing Vertical or Horizontal, and stopping when finished.
 - Record a selected area as an MP4 video or animated GIF from a floating toolbar.
 - Per-monitor DPI-aware selection overlays. Area selection is clipped to the monitor where the drag starts.
 - Bottom-right preview with Copy, Save, Open Viewer, and Discard actions.
@@ -67,9 +67,9 @@ Keyboard shortcuts keep both existing selection modes: click a monitor for full-
 
 ### Scrolling capture
 
-Choose **Scrolling Capture** in the launcher or tray menu, then drag around the content you want. The selected area stays outlined while you capture; its border and the floating Start/Stop/Cancel toolbar are excluded from the image. Drag the toolbar by its title if needed. Press **Start capture**, scroll downward through the area, and press **Stop capture**. The app matches distinctive overlapping rows and adds only the new rows to one image, which opens in the usual preview for copying, saving, or editing. A fixed message box at the bottom is included once at the end. Scroll in steps smaller than one screen so consecutive views overlap. If the toolbar reports no overlap, scroll back until the previous view is visible, then continue more slowly. Visually identical repeated rows cannot be aligned reliably and are skipped. Capture is limited to 30 million pixels or 32,000 rows to keep memory use bounded.
+Choose **Scrolling Capture** in the launcher or tray menu, then drag around the content you want. The selected area stays outlined while you capture; its border and the floating Start/Stop/Cancel toolbar are excluded from the image. Drag the toolbar by its title if needed. Choose **Vertical** to scroll downward or **Horizontal** to scroll rightward. Vertical is the default, and the direction is locked after starting. Press **Start capture**, scroll through the area in the chosen direction, and press **Stop capture**. The app matches distinctive overlapping rows or columns and adds only the new content to one image, which opens in the usual preview for copying, saving, or editing. A fixed message box at the bottom or a fixed sidebar at the right is included once at the end. Scroll in steps smaller than one screen so consecutive views overlap. If the toolbar reports no overlap, scroll back until the previous view is visible, then continue more slowly. Visually identical repeated content cannot be aligned reliably and is skipped. Capture is limited to 30 million pixels or 32,000 pixels along the scrolling direction to keep memory use bounded.
 
-This mode captures visible screen pixels. Moving popups, animations, changing sticky controls, horizontal scrolling, and pages that reflow while scrolling can leave seams or repeated content. Select the scrolling content itself where possible. The app does not scroll other applications automatically.
+This mode captures visible screen pixels along one axis per capture. Moving popups, animations, changing sticky controls, and pages that reflow while scrolling can leave seams or repeated content. Select the scrolling content itself where possible. The app does not scroll other applications automatically.
 
 ### Area recording
 
@@ -106,6 +106,8 @@ To use **Shift+Win+S** for Select Area, turn on its separate checkbox in Setting
 
 The settings window also lets you assign a letter to each editor tool. E is reserved for Extract text, and duplicate letters are rejected. Arrow is the starting tool by default. You can choose a different starting tool, or enable **Remember the last-used tool** to reopen the editor with whichever tool you selected most recently. Default annotation color, stroke width, text size, and Sketch outlines apply to new editor windows. Editor preferences are stored in `%LOCALAPPDATA%/BetterScreenShot/editor.json`.
 
+Under **Image quality**, choose **JPEG export quality**: Standard (85), High (95), or Maximum (100). Maximum is the default. Higher values preserve more detail and make larger JPEG files. All choices keep the original pixel dimensions. PNG saves are lossless and are best for sharp text and interface screenshots. Copy provides a full-resolution bitmap and lossless PNG data, including transparency, for applications that support PNG on the clipboard. The receiving application may apply its own compression when pasting or sharing.
+
 The app reports duplicate shortcuts and combinations Windows cannot register, including shortcuts already used by another app. Cancelling the dialog keeps the previous configuration. A shortcut starts the same monitor or area selection as its launcher button; Esc cancels selection.
 
 While a shortcut field is listening, its recorder intercepts key presses and releases before they reach other applications. It stops listening on capture, Escape, Tab, or loss of focus. Ordinary saved shortcuts do not have priority over another app or Windows. If Windows rejects a combination, disable that assignment in the other app or choose a different shortcut. The separate Shift+Win+S option uses a keyboard hook to intercept that Windows shortcut.
@@ -120,6 +122,10 @@ dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release
 ```
 
 The checks cover format decoding, failed overwrites, captured pixel colors, frozen preview images, cached theme icons, temporary-file ownership, real selection cancellation and reuse, overlapping selections, launcher layout, and coordinate mapping at 100%, 125%, 150%, and 200% scaling. Tests briefly create selection overlays and preview/viewer windows and remove their fixtures afterwards.
+
+Append `-- --scroll-tests` to run only the vertical and horizontal scrolling checks. They cover exact stitched pixels, fixed bottom/right controls, gaps and reverse movement, repeated content, tiny and invalid frames, capture limits, bounded export memory, cancellation, direction selection, and live screen captures. Use `-- --scroll-preview` to render both directions in light and dark themes under `obj/scroll-preview`.
+
+Use `-- --image-quality-tests` for JPEG quality and file-size comparisons, lossless save/copy pixel checks, transparency, high-DPI images, and quality-setting persistence and validation.
 
 To compare full-monitor capture plus cropping with direct area capture:
 

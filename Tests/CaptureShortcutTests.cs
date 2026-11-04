@@ -45,7 +45,8 @@ internal static class CaptureShortcutTests
                 new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
             var migrated = store.Load();
             Require(migrated.Color == "#0A84FF" && migrated.ToolKeys[AnnotationTool.Arrow] == Key.Q
-                && migrated.ToolKeys[AnnotationTool.NumberedArrow] == Key.N);
+                && !legacyKeys.Values.Contains(migrated.ToolKeys[AnnotationTool.NumberedArrow])
+                && migrated.ValidationError() is null);
             File.WriteAllText(path, "null");
             Require(store.Load().OpeningTool == AnnotationTool.Arrow);
         });

@@ -18,8 +18,18 @@ internal static class AreaRecordingTests
         {
             var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
             var bounds = new System.Drawing.Rectangle(screen.Left + 20, screen.Top + 20, 121, 101);
-            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(450));
-            var result = AreaRecordingService.Record(bounds, RecordingFormat.Video, stop.Token, CancellationToken.None);
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var captureFrame = typeof(AreaRecordingService).GetMethod("Capture", BindingFlags.Static | BindingFlags.NonPublic)!
+                .CreateDelegate<Func<System.Drawing.Rectangle, int, int, byte[]>>();
+            var frames = 0;
+            var result = AreaRecordingService.Record(bounds, RecordingFormat.Video, stop.Token, CancellationToken.None,
+                (area, width, height) =>
+                {
+                    var pixels = captureFrame(area, width, height);
+                    // Cold encoder startup must not consume the recording's entire test window.
+                    if (++frames == 3) stop.Cancel();
+                    return pixels;
+                });
             try
             {
                 Require(result.Preview.PixelWidth == 122 && result.Preview.PixelHeight == 102);

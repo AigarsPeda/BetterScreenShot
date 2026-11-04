@@ -21,11 +21,17 @@ public partial class ScrollingCaptureWindow : Window
     internal Task<ScrollingStitcher?> Completion => completion.Task;
     internal bool MayHaveGaps { get; private set; }
     internal string? SpoolPath => stitcher?.SpoolPath;
+    private ScrollDirection Direction => DirectionPicker.SelectedIndex == 1 ? ScrollDirection.Horizontal : ScrollDirection.Vertical;
+    private string ScrollInstruction => Direction == ScrollDirection.Horizontal ? "rightward" : "downward";
 
     internal ScrollingCaptureWindow(Rectangle bounds)
     {
         InitializeComponent();
         this.bounds = bounds;
+        DirectionPicker.SelectionChanged += (_, _) =>
+        {
+            if (StartButton.IsEnabled) CaptureStatus.Text = $"Press Start, then scroll {ScrollInstruction}.";
+        };
         timer.Interval = TimeSpan.FromMilliseconds(Math.Clamp((long)bounds.Width * bounds.Height / 10_000, 100, 350));
         ApplyTheme();
         SourceInitialized += (_, _) => canExcludeControls = OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)
@@ -71,23 +77,31 @@ public partial class ScrollingCaptureWindow : Window
 
     private async void Start_Click(object sender, RoutedEventArgs e)
     {
+        if (!StartButton.IsEnabled || isClosed) return;
+        var direction = Direction;
         StartButton.IsEnabled = false;
+        DirectionPicker.IsEnabled = false;
         CaptureStatus.Text = "Starting capture…";
         try
         {
             if ((long)bounds.Width * bounds.Height > 30_000_000)
                 throw new InvalidOperationException("The selected area is too large for a scrolling capture.");
             DesktopWindowService.FlushPendingUpdates();
-            var started = new ScrollingStitcher(await Task.Run(() => ScrollFrame.Capture(bounds)));
+            var started = await Task.Run(() => new ScrollingStitcher(ScrollFrame.Capture(bounds), direction));
             if (isClosed) { started.Dispose(); return; }
             stitcher = started;
             StopButton.IsEnabled = true;
-            CaptureStatus.Text = "Scroll downward. Press Stop capture when finished.";
+            CaptureStatus.Text = $"Scroll {ScrollInstruction}. Press Stop capture when finished.";
             timer.Start();
         }
         catch (Exception error)
         {
-            if (!isClosed) CaptureStatus.Text = $"Could not start capture: {error.Message}";
+            if (!isClosed)
+            {
+                StartButton.IsEnabled = canExcludeControls;
+                DirectionPicker.IsEnabled = true;
+                CaptureStatus.Text = $"Could not start capture: {error.Message}";
+            }
         }
     }
 
@@ -101,7 +115,7 @@ public partial class ScrollingCaptureWindow : Window
             if (result == ScrollFrameResult.Added) MayHaveGaps = false;
             CaptureStatus.Text = result switch
             {
-                ScrollFrameResult.Added => $"Captured {stitcher!.Height:N0} pixels. Keep scrolling downward.",
+                ScrollFrameResult.Added => $"Captured {(Direction == ScrollDirection.Horizontal ? stitcher!.Width : stitcher!.Height):N0} pixels. Keep scrolling {ScrollInstruction}.",
                 ScrollFrameResult.NoOverlap => "No overlap. Scroll back, then continue more slowly.",
                 ScrollFrameResult.LimitReached => "Maximum image length reached. Press Stop capture.",
                 _ => CaptureStatus.Text

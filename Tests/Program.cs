@@ -28,6 +28,16 @@ internal static class Program
         if (args.Contains("--shortcuts-demo")) return CaptureShortcutTests.Demo();
         if (args.Contains("--shortcut-recorder-demo")) return CaptureShortcutTests.RecorderDemo();
         if (args.Contains("--shortcuts-preview")) return CaptureShortcutTests.Preview();
+        if (args.Contains("--image-quality-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            var folder = Path.Combine(Environment.CurrentDirectory, "obj", "image-quality-tests");
+            Directory.CreateDirectory(folder);
+            ImageQualityTests.Run(Check, folder);
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--scroll-preview")) return ScrollingCaptureTests.Preview();
         if (args.Contains("--scroll-benchmark")) return ScrollingCaptureTests.Benchmark();
         if (args.Contains("--record-benchmark")) return RecordingBenchmark.Run();
@@ -299,6 +309,7 @@ internal static class Program
 
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
             CaptureShortcutTests.Run(Check, directory);
+            ImageQualityTests.Run(Check, directory);
             ScrollingCaptureTests.Run(Check);
             AreaRecordingTests.Run(Check);
             AnnotationTests.Run(Check, directory);

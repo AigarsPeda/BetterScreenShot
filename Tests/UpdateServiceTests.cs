@@ -38,11 +38,12 @@ internal static class UpdateServiceTests
             using var client = new HttpClient(new ResponseHandler(payload));
             var updates = new UpdateService(client);
             var release = new AvailableUpdate(new Version(1, 2, 0, 0), payload.Length, new string('0', 64));
-            try { updates.DownloadAsync(release, path, CancellationToken.None).GetAwaiter().GetResult();
+            // Run off the WPF context when this check follows desktop UI tests.
+            try { Task.Run(() => updates.DownloadAsync(release, path, CancellationToken.None)).GetAwaiter().GetResult();
                 throw new InvalidOperationException("Invalid download was saved."); }
             catch (InvalidDataException) { }
             Require(File.ReadAllText(path) == "existing file" && !Directory.GetFiles(directory, "*.download").Any());
-            updates.DownloadAsync(release with { Sha256 = Convert.ToHexString(SHA256.HashData(payload)) }, path, CancellationToken.None)
+            Task.Run(() => updates.DownloadAsync(release with { Sha256 = Convert.ToHexString(SHA256.HashData(payload)) }, path, CancellationToken.None))
                 .GetAwaiter().GetResult();
             Require(File.ReadAllBytes(path).SequenceEqual(payload));
         });

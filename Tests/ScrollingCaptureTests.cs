@@ -373,6 +373,7 @@ internal static class ScrollingCaptureTests
             Require(pixel[0] == 29 && pixel[1] == 71 && pixel[2] == 193);
         });
         check("Live screen scrolling stitches speed changes and pauses exactly", LiveScreenCapture);
+        HorizontalScrollingCaptureTests.Run(check);
     }
 
     private static void LiveScreenCapture()
@@ -483,24 +484,27 @@ internal static class ScrollingCaptureTests
         var folder = Path.Combine(Environment.CurrentDirectory, "obj", "scroll-preview");
         Directory.CreateDirectory(folder);
         foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
+        foreach (var direction in Enum.GetValues<ScrollDirection>())
         {
             var window = new ScrollingCaptureWindow(new Rectangle(0, 0, 300, 300));
+            ((System.Windows.Controls.ComboBox)window.FindName("DirectionPicker")).SelectedIndex = (int)direction;
             ThemeIconService.ApplyViewerTheme(window.Resources, theme);
             var content = (FrameworkElement)window.Content;
-            content.Measure(new System.Windows.Size(360, 112));
-            content.Arrange(new Rect(0, 0, 360, 112));
+            content.Measure(new System.Windows.Size(window.Width, window.Height));
+            content.Arrange(new Rect(0, 0, window.Width, window.Height));
             content.UpdateLayout();
             var drawing = new DrawingVisual();
             using (var context = drawing.RenderOpen())
             {
-                context.DrawRectangle((System.Windows.Media.Brush)window.FindResource("ViewerPageBackgroundBrush"), null, new Rect(0, 0, 360, 112));
-                context.DrawRectangle(new VisualBrush(content), null, new Rect(0, 0, 360, 112));
+                context.DrawRectangle((System.Windows.Media.Brush)window.FindResource("ViewerPageBackgroundBrush"), null, new Rect(0, 0, window.Width, window.Height));
+                context.DrawRectangle(new VisualBrush(content), null, new Rect(0, 0, window.Width, window.Height));
             }
-            var bitmap = new RenderTargetBitmap(360, 112, 96, 96, PixelFormats.Pbgra32);
+            var bitmap = new RenderTargetBitmap((int)window.Width, (int)window.Height, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(drawing);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            var path = Path.Combine(folder, $"controls-{theme.ToString().ToLowerInvariant()}.png");
+            var suffix = direction == ScrollDirection.Horizontal ? "horizontal-" : "";
+            var path = Path.Combine(folder, $"controls-{suffix}{theme.ToString().ToLowerInvariant()}.png");
             using (var output = File.Create(path)) encoder.Save(output);
             Console.WriteLine(path);
             window.Close();

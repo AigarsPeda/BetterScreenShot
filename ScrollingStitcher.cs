@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 namespace BetterScreenShot;
 
 internal enum ScrollFrameResult { Unchanged, Added, NoOverlap, LimitReached }
+internal enum ScrollDirection { Vertical, Horizontal }
 
 internal sealed class ScrollFrame(int width, int height, byte[] pixels)
 {
@@ -12,6 +13,15 @@ internal sealed class ScrollFrame(int width, int height, byte[] pixels)
     internal int Height { get; } = height;
     internal byte[] Pixels { get; } = pixels;
     internal int Stride => Width * 4;
+
+    internal ScrollFrame Transpose()
+    {
+        var pixels = new byte[Pixels.Length];
+        for (var y = 0; y < Height; y++)
+        for (var x = 0; x < Width; x++)
+            Pixels.AsSpan((y * Width + x) * 4, 4).CopyTo(pixels.AsSpan((x * Height + y) * 4, 4));
+        return new ScrollFrame(Height, Width, pixels);
+    }
 
     internal static ScrollFrame Capture(Rectangle bounds)
     {
@@ -38,17 +48,24 @@ internal sealed class ScrollingStitcher : IDisposable
     private ulong[]? lastFingerprints;
     private Dictionary<ulong, int>? lastUniqueRows;
     private int fixedFooterHeight;
-    internal int Width => last.Width;
-    internal int Height { get; private set; }
+    private int length;
+    private byte[]? outputRows;
+    private int outputRowsStart = -1;
+    private int outputRowCount;
+    internal ScrollDirection Direction { get; }
+    internal int Width => Direction == ScrollDirection.Horizontal ? length : last.Width;
+    internal int Height => Direction == ScrollDirection.Horizontal ? last.Width : length;
     internal int AddedFrames { get; private set; }
     internal string SpoolPath => spool.Name;
     internal long SpoolBytes => spool.Length;
 
-    internal ScrollingStitcher(ScrollFrame first)
+    internal ScrollingStitcher(ScrollFrame first, ScrollDirection direction = ScrollDirection.Vertical)
     {
-        if (first.Width <= 0 || first.Height <= 0 || first.Pixels.Length != (long)first.Width * first.Height * 4)
-            throw new ArgumentException("Invalid scroll capture frame.", nameof(first));
+        ValidateFrame(first);
+        if (!Enum.IsDefined(direction)) throw new ArgumentOutOfRangeException(nameof(direction));
         if ((long)first.Width * first.Height > MaxPixels) throw new InvalidOperationException("The selected area is too large for a scrolling capture.");
+        Direction = direction;
+        if (direction == ScrollDirection.Horizontal) first = first.Transpose();
         var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
         Directory.CreateDirectory(folder);
         var path = Path.Combine(folder, $"scroll_{Guid.NewGuid():N}.tmp");
@@ -57,18 +74,22 @@ internal sealed class ScrollingStitcher : IDisposable
         try { spool.Write(first.Pixels); }
         catch { spool.Dispose(); throw; }
         last = first;
-        Height = first.Height;
+        length = first.Height;
     }
 
     internal ScrollFrameResult Add(ScrollFrame next)
     {
-        if (next.Width != Width || next.Height != last.Height) throw new ArgumentException("The capture area changed size.", nameof(next));
+        ValidateFrame(next);
+        var expectedWidth = Direction == ScrollDirection.Horizontal ? last.Height : last.Width;
+        var expectedHeight = Direction == ScrollDirection.Horizontal ? last.Width : last.Height;
+        if (next.Width != expectedWidth || next.Height != expectedHeight) throw new ArgumentException("The capture area changed size.", nameof(next));
+        if (Direction == ScrollDirection.Horizontal) next = next.Transpose();
         var shift = FindShift(next, out var detectedFooter, out var nextFingerprints, out var nextUniqueRows);
         if (shift == 0) return ScrollFrameResult.Unchanged;
         if (shift < 0) return ScrollFrameResult.NoOverlap;
         var footer = AddedFrames == 0 ? detectedFooter : fixedFooterHeight;
         if (shift >= next.Height - footer - 32) return ScrollFrameResult.NoOverlap;
-        if ((long)Width * (Height + shift) > MaxPixels || Height + shift > 32_000) return ScrollFrameResult.LimitReached;
+        if ((long)last.Width * (length + shift) > MaxPixels || length + shift > 32_000) return ScrollFrameResult.LimitReached;
         if (AddedFrames == 0 && footer > 0)
         {
             fixedFooterHeight = footer;
@@ -79,7 +100,8 @@ internal sealed class ScrollingStitcher : IDisposable
         last = next;
         lastFingerprints = nextFingerprints;
         lastUniqueRows = nextUniqueRows;
-        Height += shift;
+        length += shift;
+        outputRowsStart = -1;
         AddedFrames++;
         return ScrollFrameResult.Added;
     }
@@ -112,6 +134,15 @@ internal sealed class ScrollingStitcher : IDisposable
 
     internal void ForEachRow(Action<byte[], int> useRow)
     {
+        if (Direction == ScrollDirection.Horizontal)
+        {
+            for (var row = 0; row < Height; row++)
+            {
+                LoadOutputRows(row);
+                useRow(outputRows!, (row - outputRowsStart) * Width * 4);
+            }
+            return;
+        }
         var stride = Width * 4;
         var buffer = new byte[stride];
         spool.Flush();
@@ -130,6 +161,12 @@ internal sealed class ScrollingStitcher : IDisposable
         if (row < 0 || row >= Height) throw new ArgumentOutOfRangeException(nameof(row));
         var stride = Width * 4;
         if (destination.Length < stride) throw new ArgumentException("Row buffer is too small.", nameof(destination));
+        if (Direction == ScrollDirection.Horizontal)
+        {
+            LoadOutputRows(row);
+            outputRows.AsSpan((row - outputRowsStart) * stride, stride).CopyTo(destination);
+            return;
+        }
         var storedHeight = Height - fixedFooterHeight;
         if (row < storedHeight)
         {
@@ -144,6 +181,44 @@ internal sealed class ScrollingStitcher : IDisposable
     }
 
     public void Dispose() => spool.Dispose();
+
+    private static void ValidateFrame(ScrollFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        if (frame.Width <= 0 || frame.Height <= 0 || frame.Pixels is null
+            || frame.Pixels.Length != (long)frame.Width * frame.Height * 4)
+            throw new ArgumentException("Invalid scroll capture frame.", nameof(frame));
+    }
+
+    private void LoadOutputRows(int row)
+    {
+        if (outputRowsStart >= 0 && row >= outputRowsStart && row < outputRowsStart + outputRowCount) return;
+        // Store horizontal captures as columns so adding a frame remains append-only.
+        // Transpose a bounded batch for row-based PNG export and preview sampling.
+        var rowsPerBatch = Math.Max(1, 4_000_000 / (Width * 4));
+        outputRowsStart = -1;
+        var start = row / rowsPerBatch * rowsPerBatch;
+        outputRowCount = Math.Min(rowsPerBatch, Height - start);
+        var bytes = outputRowCount * Width * 4;
+        if (outputRows is null || outputRows.Length < bytes) outputRows = new byte[bytes];
+        var column = new byte[outputRowCount * 4];
+        for (var x = 0; x < Width; x++)
+        {
+            if (x < length - fixedFooterHeight)
+            {
+                spool.Position = (long)x * last.Stride + start * 4;
+                spool.ReadExactly(column);
+            }
+            else
+            {
+                var sourceColumn = last.Height - fixedFooterHeight + x - (length - fixedFooterHeight);
+                last.Pixels.AsSpan(sourceColumn * last.Stride + start * 4, column.Length).CopyTo(column);
+            }
+            for (var y = 0; y < outputRowCount; y++)
+                column.AsSpan(y * 4, 4).CopyTo(outputRows.AsSpan((y * Width + x) * 4, 4));
+        }
+        outputRowsStart = start;
+    }
 
     private int FindShift(ScrollFrame current, out int fixedFooter,
         out ulong[]? currentFingerprints, out Dictionary<ulong, int>? currentUniqueRows)

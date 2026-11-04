@@ -52,6 +52,10 @@ public partial class CaptureShortcutsWindow : Window
 
     private void InitializeEditorSettings()
     {
+        var quality = EditorDraft.JpegQuality.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (!JpegQualityPicker.Items.Cast<ComboBoxItem>().Any(item => Equals(item.Tag, quality)))
+            JpegQualityPicker.Items.Add(new ComboBoxItem { Content = $"Custom ({quality})", Tag = quality });
+        JpegQualityPicker.SelectedItem = JpegQualityPicker.Items.Cast<ComboBoxItem>().Single(item => Equals(item.Tag, quality));
         foreach (var tool in EditorSettings.Tools)
         {
             DefaultToolPicker.Items.Add(new ComboBoxItem { Content = tool.ToString(), Tag = tool });
@@ -212,6 +216,7 @@ public partial class CaptureShortcutsWindow : Window
             StrokeWidth = double.Parse((string)((ComboBoxItem)DefaultStrokePicker.SelectedItem).Tag, System.Globalization.CultureInfo.InvariantCulture),
             TextSize = double.Parse((string)((ComboBoxItem)DefaultTextSizePicker.SelectedItem).Content, System.Globalization.CultureInfo.InvariantCulture),
             SketchEnabled = DefaultSketchCheck.IsChecked == true,
+            JpegQuality = int.Parse((string)((ComboBoxItem)JpegQualityPicker.SelectedItem).Tag, System.Globalization.CultureInfo.InvariantCulture),
             ToolKeys = editorKeyPickers.ToDictionary(pair => pair.Key, pair => (Key)((ComboBoxItem)pair.Value.SelectedItem).Tag)
         };
         var error = Draft.ValidationError() ?? EditorDraft.ValidationError() ?? save(Draft, EditorDraft);

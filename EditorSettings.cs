@@ -19,6 +19,7 @@ internal sealed record EditorSettings
     public double StrokeWidth { get; init; } = 4;
     public double TextSize { get; init; } = 28;
     public bool SketchEnabled { get; init; }
+    public int JpegQuality { get; init; } = 100;
     public Dictionary<AnnotationTool, Key> ToolKeys { get; init; } = new()
     {
         [AnnotationTool.Select] = Key.V, [AnnotationTool.Hand] = Key.H,
@@ -35,6 +36,7 @@ internal sealed record EditorSettings
         if (!Tools.Contains(DefaultTool) || LastTool is { } last && !Tools.Contains(last)) return "Choose a valid editor tool.";
         if (Color is null || Color.Length != 7 || Color[0] != '#' || !Color.Skip(1).All(Uri.IsHexDigit)) return "Choose a valid annotation color.";
         if (StrokeWidth is not (2 or 4 or 7) || TextSize is not (16 or 24 or 28 or 40 or 64)) return "Choose a valid stroke width and text size.";
+        if (JpegQuality is < 1 or > 100) return "Choose a JPEG quality between 1 and 100.";
         if (ToolKeys is null || ToolKeys.Count != Tools.Length || Tools.Any(tool => !ToolKeys.TryGetValue(tool, out var key) || key is < Key.A or > Key.Z || key == Key.E))
             return "Assign one letter to every editor tool. E is reserved for Extract text.";
         if (ToolKeys.Values.Distinct().Count() != Tools.Length) return "Choose a different letter for each editor tool.";

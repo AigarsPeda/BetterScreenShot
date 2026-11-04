@@ -222,12 +222,18 @@ namespace BetterScreenShot
             Close();
         }
 
-        private void CopyButton_Click(object sender, RoutedEventArgs e)
+        private async void CopyButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!CopyButton.IsEnabled) return;
+            CopyButton.IsEnabled = false;
             try
             {
                 if (recordingFormat is null)
-                    System.Windows.Clipboard.SetImage(FullImage());
+                {
+                    var data = await ImageClipboardService.CreateDataObjectAsync(FullImage());
+                    if (!IsLoaded || isAnimatingClose) return;
+                    System.Windows.Clipboard.SetDataObject(data, copy: true);
+                }
                 else
                 {
                     var copy = ScreenshotFileService.CopyRecordingForClipboard(screenshot.FilePath);
@@ -249,6 +255,7 @@ namespace BetterScreenShot
                 AppDialog.ShowError(this, recordingFormat is null ? "Could not copy screenshot" : "Could not copy recording",
                     recordingFormat is null ? "Try copying the screenshot again." : "Try copying the recording again.", ex.Message);
             }
+            finally { CopyButton.IsEnabled = true; }
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
