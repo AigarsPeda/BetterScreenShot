@@ -1,0 +1,23 @@
+Display: 1536x960 primary monitor
+Command: dotnet Tests/bin/Release/net8.0-windows/BetterScreenShot.RegressionTests.dll --overlay-repeat-benchmark
+Workload: 120 updates, four updates per coordinate, 30 distinct positions.
+One warmup followed by three trials. Both versions include the synchronous repaint fix.
+This synthetic workload has 75% unchanged coordinates; that is not a measured mouse-event distribution.
+
+Before skipping unchanged selections:
+Trial 1: wall 341.9 ms, CPU 390.6 ms, allocated 0.11 MB, move median 2.62 ms, p95 4.46 ms
+Trial 2: wall 400.5 ms, CPU 515.6 ms, allocated 0.11 MB, move median 2.99 ms, p95 5.91 ms
+Trial 3: wall 525.9 ms, CPU 359.4 ms, allocated 0.11 MB, move median 3.86 ms, p95 8.46 ms
+
+After skipping unchanged selections:
+Trial 1: wall 155.0 ms, CPU 93.8 ms, allocated 0.05 MB, move median 0.05 ms, p95 6.20 ms
+Trial 2: wall 150.6 ms, CPU 125.0 ms, allocated 0.05 MB, move median 0.03 ms, p95 5.21 ms
+Trial 3: wall 226.1 ms, CPU 171.9 ms, allocated 0.05 MB, move median 0.05 ms, p95 7.16 ms
+
+Median trial wall time: 400.5 ms before, 155.0 ms after.
+Desktop load varied; this does not establish a speedup for continuously changing coordinates.
+
+Continuous movement after the optimization, using --overlay-benchmark:
+Trial 1: wall 140.9 ms, CPU 125.0 ms, allocated 0.11 MB, move median 0.98 ms, p95 2.29 ms
+Trial 2: wall 170.4 ms, CPU 171.9 ms, allocated 0.11 MB, move median 1.18 ms, p95 2.74 ms
+Trial 3: wall 143.0 ms, CPU 109.4 ms, allocated 0.11 MB, move median 1.02 ms, p95 1.89 ms

@@ -1,0 +1,28 @@
+Display: 1536x960 primary monitor
+Command: dotnet Tests/bin/Release/net8.0-windows/BetterScreenShot.RegressionTests.dll --overlay-benchmark
+Workload: same as overlay-baseline-2026-11-04.txt
+
+First run:
+Trial 1: wall 256.2 ms, CPU 250.0 ms, allocated 0.11 MB, move median 1.83 ms, p95 4.58 ms
+Trial 2: wall 222.6 ms, CPU 265.6 ms, allocated 0.11 MB, move median 1.67 ms, p95 2.87 ms
+Trial 3: wall 225.4 ms, CPU 218.8 ms, allocated 0.11 MB, move median 1.68 ms, p95 3.50 ms
+
+Immediate repeat:
+Trial 1: wall 135.4 ms, CPU 93.8 ms, allocated 0.11 MB, move median 0.94 ms, p95 2.68 ms
+Trial 2: wall 242.5 ms, CPU 171.9 ms, allocated 0.11 MB, move median 1.36 ms, p95 6.60 ms
+Trial 3: wall 160.6 ms, CPU 203.1 ms, allocated 0.11 MB, move median 1.20 ms, p95 2.62 ms
+
+Later repeat:
+Trial 1: wall 134.5 ms, CPU 125.0 ms, allocated 0.11 MB, move median 0.98 ms, p95 1.69 ms
+Trial 2: wall 162.3 ms, CPU 171.9 ms, allocated 0.11 MB, move median 1.12 ms, p95 2.53 ms
+Trial 3: wall 174.6 ms, CPU 234.4 ms, allocated 0.11 MB, move median 1.19 ms, p95 2.77 ms
+
+Final repeat:
+Trial 1: wall 139.1 ms, CPU 140.6 ms, allocated 0.11 MB, move median 1.05 ms, p95 1.91 ms
+Trial 2: wall 267.7 ms, CPU 234.4 ms, allocated 0.11 MB, move median 1.72 ms, p95 4.07 ms
+Trial 3: wall 164.2 ms, CPU 203.1 ms, allocated 0.11 MB, move median 1.23 ms, p95 2.45 ms
+
+Command: dotnet Tests/bin/Release/net8.0-windows/BetterScreenShot.RegressionTests.dll --overlay-probe
+Old edge after first paint: Color [A=255, R=181, G=230, B=255]
+Old edge before next paint: Color [A=255, R=140, G=140, B=140]
+Old edge after next paint: Color [A=255, R=140, G=140, B=140]

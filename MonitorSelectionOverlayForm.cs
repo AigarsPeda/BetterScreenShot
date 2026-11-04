@@ -412,8 +412,13 @@ namespace BetterScreenShot
 
         private void UpdateSelectionPresentation(Rectangle? previousSelection, Rectangle? currentSelection)
         {
+            if (previousSelection == currentSelection)
+                return;
+
             UpdateOverlayRegion(currentSelection);
             InvalidateSelection(previousSelection, currentSelection);
+            // A region change can expose the previous border before the queued paint runs.
+            Update();
         }
 
         private void UpdateOverlayRegion(Rectangle? selection)

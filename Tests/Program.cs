@@ -31,6 +31,16 @@ internal static class Program
         if (args.Contains("--scroll-preview")) return ScrollingCaptureTests.Preview();
         if (args.Contains("--scroll-benchmark")) return ScrollingCaptureTests.Benchmark();
         if (args.Contains("--record-benchmark")) return RecordingBenchmark.Run();
+        if (args.Contains("--overlay-benchmark")) return OverlayBenchmark.Run();
+        if (args.Contains("--overlay-repeat-benchmark")) return OverlayBenchmark.Run(repeatedPositions: true);
+        if (args.Contains("--overlay-probe")) return OverlayBenchmark.Probe();
+        if (args.Contains("--overlay-tests"))
+        {
+            OverlayPresentationTests.Run(Check);
+            MonitorSelectionOverlayForm.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--scroll-stress")) return ScrollingCaptureTests.Stress();
         if (args.Contains("--scroll-tests"))
         {

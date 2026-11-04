@@ -79,6 +79,7 @@ internal static class OverlayPresentationTests
                 Require(shows == overlays.Count * 2, "Both attempts must show every monitor.");
             });
         }
+        check("Area drag clears the previous border before the next paint", () => OverlayBenchmark.Probe());
     }
 
     private static byte ReadAlpha(Forms.Form form)

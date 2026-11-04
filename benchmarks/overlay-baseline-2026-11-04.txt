@@ -1,0 +1,14 @@
+Production commit: 7cf4033
+Display: 1536x960 primary monitor
+Command: dotnet Tests/bin/Release/net8.0-windows/BetterScreenShot.RegressionTests.dll --overlay-benchmark
+Workload: 120 simulated area-drag moves, each followed by a forced paint; one warmup and three measured trials
+
+Overlay area drag: 120 moves, 1536x960 primary monitor
+Trial 1: wall 118.0 ms, CPU 93.8 ms, allocated 0.11 MB, move median 0.88 ms, p95 1.56 ms
+Trial 2: wall 112.2 ms, CPU 109.4 ms, allocated 0.11 MB, move median 0.82 ms, p95 1.45 ms
+Trial 3: wall 116.9 ms, CPU 109.4 ms, allocated 0.11 MB, move median 0.86 ms, p95 1.52 ms
+
+Command: dotnet Tests/bin/Release/net8.0-windows/BetterScreenShot.RegressionTests.dll --overlay-probe
+Old edge after first paint: Color [A=255, R=181, G=230, B=255]
+Old edge before next paint: Color [A=255, R=181, G=230, B=255]
+Old edge after next paint: Color [A=255, R=140, G=140, B=140]

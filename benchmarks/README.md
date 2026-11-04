@@ -26,6 +26,19 @@ On the baseline machine (.NET 8.0.33, Windows 10.0.26200, 16 logical processors)
 
 An immediate repeat on unchanged code measured 1047 ms video CPU and 547 ms GIF CPU, versus 844 ms and 406 ms in the first run. GIF wall time rose from 3186 ms to 3377 ms. Treat a single CPU-time difference of this size as inconclusive; compare several runs under similar machine load. Allocated bytes and output sizes were stable across both runs.
 
+## Selection overlay
+
+```powershell
+dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --overlay-benchmark
+dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --overlay-tests
+```
+
+The benchmark warms the overlay, then measures three 120-move area drags on the primary monitor. It changes the selected rectangle and forces each pending paint, so each sample includes region updates and rendering. It excludes physical mouse input and the recording and scrolling paths. Run it on the same display with other demanding apps idle. The regression checks the first display in area and monitor modes and tests whether a previous border remains visible after shrinking a selection.
+
+The [2026-11-04 baseline](overlay-baseline-2026-11-04.txt) used production commit `7cf4033` on a 1536×960 primary monitor. Median update time across its three trials was 0.82–0.88 ms; all trials allocated 0.11 MB. A pixel on the old border stayed blue after the region changed, then became gray on the next paint. The [post-change samples](overlay-after-2026-11-04.txt) show that the old border becomes gray during the same drag update. Median update time across repeated runs ranged from 0.94 to 1.83 ms, with unchanged allocations. Synchronous painting removes the visible stale border but adds latency and has more variable timing on this machine.
+
+Run `--overlay-repeat-benchmark` to measure 120 updates with four updates per coordinate. Skipping unchanged selections reduced median trial wall time from 400.5 ms to 155.0 ms and allocations from 0.11 MB to 0.05 MB in the [recorded comparison](overlay-repeat-2026-11-04.txt). This synthetic workload has 75% duplicate positions; actual savings depend on the input events. Continuous movement still performs the same region update and synchronous paint. Its final three trials measured 0.98, 1.18, and 1.02 ms median per update with 0.11 MB allocated. Desktop load varied during these measurements, so the duplicate-coordinate result does not establish a general drag speedup.
+
 ## Other paths
 
 Existing benchmark commands, measured on the same machine on 2026-11-03:
