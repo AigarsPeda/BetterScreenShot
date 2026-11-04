@@ -10,11 +10,46 @@ internal sealed record AvailableUpdate(Version Version, long SizeBytes, string S
     public string DisplayVersion => Version.ToString(3);
 }
 
-internal sealed class UpdateService(HttpClient client)
+internal sealed class UpdateCheckThrottledException(TimeSpan retryAfter)
+    : InvalidOperationException("Please wait before checking for a new version again.")
 {
+    internal TimeSpan RetryAfter { get; } = retryAfter;
+}
+
+internal sealed class UpdateService(HttpClient client, TimeProvider? timeProvider = null)
+{
+    internal static UpdateService Shared { get; } = new(new HttpClient { Timeout = Timeout.InfiniteTimeSpan });
+    internal static readonly TimeSpan ManualCheckInterval = TimeSpan.FromMinutes(1);
+    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
+    private readonly object manualCheckLock = new();
+    private long? lastManualCheck;
     internal static readonly Uri ManifestUrl = new("https://www.aigarspeda.com/downloads/betterscreenshot/latest.json");
     internal static readonly Uri DownloadUrl = new("https://www.aigarspeda.com/downloads/betterscreenshot/BetterScreenShot.exe");
     internal static Version CurrentVersion => typeof(UpdateService).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
+
+    internal TimeSpan ManualCheckRetryAfter
+    {
+        get
+        {
+            lock (manualCheckLock) return RemainingManualCheckDelay();
+        }
+    }
+
+    internal Task<AvailableUpdate?> CheckManualAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (manualCheckLock)
+        {
+            var remaining = RemainingManualCheckDelay();
+            if (remaining > TimeSpan.Zero) throw new UpdateCheckThrottledException(remaining);
+            lastManualCheck = clock.GetTimestamp();
+        }
+        return CheckAsync(cancellationToken);
+    }
+
+    private TimeSpan RemainingManualCheckDelay() => lastManualCheck is { } started
+        ? TimeSpan.FromTicks(Math.Max(0, (ManualCheckInterval - clock.GetElapsedTime(started)).Ticks))
+        : TimeSpan.Zero;
 
     internal async Task<AvailableUpdate?> CheckAsync(CancellationToken cancellationToken)
     {

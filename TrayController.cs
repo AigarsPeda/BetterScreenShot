@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Net.Http;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -10,10 +9,10 @@ internal sealed class TrayController : IDisposable
     private readonly Forms.NotifyIcon notifyIcon;
     private readonly Forms.ContextMenuStrip menu = new();
     private readonly Icon icon;
-    private readonly HttpClient updateClient = new() { Timeout = Timeout.InfiniteTimeSpan };
     private readonly CancellationTokenSource updateCancellation = new();
     private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromDays(1) };
     private readonly Forms.ToolStripMenuItem downloadUpdate = new("Download update…") { Visible = false };
+    private readonly Forms.ToolStripMenuItem checkForUpdates = new("Check for updates…");
     private readonly UpdateService updates;
     private AvailableUpdate? availableUpdate;
     private Version? notifiedVersion;
@@ -24,10 +23,11 @@ internal sealed class TrayController : IDisposable
     public TrayController(MainWindow launcher, Action exit)
     {
         icon = CreateIcon();
-        updates = new UpdateService(updateClient);
+        updates = UpdateService.Shared;
         menu.Items.Add("Open BetterScreenShot", null, (_, _) => launcher.ShowLauncher());
         menu.Items.Add("Settings…", null, (_, _) => launcher.ShowSettingsFromTray());
-        menu.Items.Add("Check for updates…", null, async (_, _) => await CheckForUpdatesAsync(manual: true));
+        checkForUpdates.Click += async (_, _) => await CheckForUpdatesAsync(manual: true);
+        menu.Items.Add(checkForUpdates);
         downloadUpdate.Click += async (_, _) => await DownloadUpdateAsync();
         menu.Items.Add(downloadUpdate);
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -46,7 +46,11 @@ internal sealed class TrayController : IDisposable
                 AppDialog.ShowError(launcher, "Could not change startup", "Try again from the tray menu.", error.Message);
             }
         };
-        menu.Opening += (_, _) => startup.Checked = StartupRegistration.IsEnabled(Environment.ProcessPath!);
+        menu.Opening += (_, _) =>
+        {
+            startup.Checked = StartupRegistration.IsEnabled(Environment.ProcessPath!);
+            checkForUpdates.Enabled = !checkingUpdates && updates.ManualCheckRetryAfter == TimeSpan.Zero;
+        };
         menu.Items.Add(startup);
         menu.Items.Add("Exit", null, (_, _) => exit());
         notifyIcon = new Forms.NotifyIcon { Icon = icon, Text = "BetterScreenShot", ContextMenuStrip = menu, Visible = true };
@@ -62,7 +66,9 @@ internal sealed class TrayController : IDisposable
         checkingUpdates = true;
         try
         {
-            availableUpdate = await updates.CheckAsync(updateCancellation.Token);
+            availableUpdate = manual
+                ? await updates.CheckManualAsync(updateCancellation.Token)
+                : await updates.CheckAsync(updateCancellation.Token);
             if (disposed) return;
             downloadUpdate.Visible = availableUpdate is not null;
             if (availableUpdate is { } release)
@@ -80,6 +86,7 @@ internal sealed class TrayController : IDisposable
                     $"You have version {UpdateService.CurrentVersion.ToString(3)}.", Forms.ToolTipIcon.Info);
         }
         catch (OperationCanceledException) when (disposed) { }
+        catch (UpdateCheckThrottledException) { }
         catch (Exception error)
         {
             System.Diagnostics.Debug.WriteLine($"Update check failed: {error.Message}");
@@ -163,7 +170,6 @@ internal sealed class TrayController : IDisposable
         notifyIcon.Dispose();
         menu.Dispose();
         icon.Dispose();
-        updateClient.Dispose();
         updateCancellation.Dispose();
     }
 

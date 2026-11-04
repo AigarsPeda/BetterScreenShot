@@ -76,9 +76,12 @@ internal static class Program
         if (args.Contains("--editor-toolbar-preview")) return AnnotationTests.ToolbarPreview();
         if (args.Contains("--update-tests"))
         {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
             var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot-update-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(folder);
             UpdateServiceTests.Run(Check, folder);
+            UpdateSettingsTests.Run(Check);
+            application.Shutdown();
             Console.WriteLine($"{passed} passed, {failed} failed.");
             return failed == 0 ? 0 : 1;
         }
@@ -314,6 +317,7 @@ internal static class Program
             AreaRecordingTests.Run(Check);
             AnnotationTests.Run(Check, directory);
             UpdateServiceTests.Run(Check, directory);
+            UpdateSettingsTests.Run(Check);
             TextExtractionTests.Run(Check, directory);
             OverlayPresentationTests.Run(Check);
             Check("Real area-selection cancellation releases all overlays", () =>

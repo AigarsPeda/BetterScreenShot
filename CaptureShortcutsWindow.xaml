@@ -241,11 +241,26 @@
     </ScrollViewer>
     <Border Grid.Row="1" Background="{DynamicResource ViewerPageBackgroundBrush}" Padding="22,10,22,16">
         <StackPanel>
+        <Grid Margin="0,0,0,10" TextElement.FontSize="11">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <TextBlock x:Name="CurrentVersionText" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+            <TextBlock Grid.Column="1" Text="Automatically checks every 24 hours." HorizontalAlignment="Right"
+                       Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+        </Grid>
+        <TextBlock x:Name="UpdateCheckStatus" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,0,0,10"
+                   AutomationProperties.LiveSetting="Polite" />
+        <TextBlock x:Name="UpdateDownloadLink" Visibility="Collapsed" Margin="0,0,0,10">
+            <Hyperlink Click="DownloadUpdate_Click" Foreground="{DynamicResource ViewerAccentBrush}">Download latest version</Hyperlink>
+        </TextBlock>
         <TextBlock x:Name="ShortcutError" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,0,0,10" Foreground="{DynamicResource ShortcutErrorBrush}" AutomationProperties.LiveSetting="Polite" />
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <WrapPanel HorizontalAlignment="Right">
+            <Button x:Name="CheckVersionButton" Content="Check for new version" Margin="0,0,16,0"
+                    Style="{StaticResource ShortcutButtonStyle}" Click="CheckVersion_Click"
+                    AutomationProperties.Name="Check for new version"
+                    ToolTip="Manual checks are limited to one per minute." />
             <Button Style="{StaticResource ShortcutButtonStyle}" Content="Cancel" IsCancel="True" MinWidth="80" Margin="0,0,8,0" />
             <Button x:Name="SaveShortcutsButton" Style="{StaticResource ShortcutPrimaryButtonStyle}" Content="Save settings" IsDefault="True" Click="SaveShortcuts_Click" />
-        </StackPanel>
+        </WrapPanel>
         </StackPanel>
     </Border>
     </Grid>

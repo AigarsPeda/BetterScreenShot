@@ -7,6 +7,7 @@ using TextBlock = System.Windows.Controls.TextBlock;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using Button = System.Windows.Controls.Button;
 
@@ -20,16 +21,26 @@ public partial class CaptureShortcutsWindow : Window
     private bool? recordingArea;
     private ShortcutRecordingHook? recordingHook;
     private AppTheme currentTheme;
+    private readonly UpdateService updates;
+    private readonly CancellationTokenSource updateCancellation = new();
+    private readonly DispatcherTimer updateButtonTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private bool checkingUpdates;
+    private bool isClosed;
     internal CaptureShortcutSettings Draft { get; private set; }
     internal EditorSettings EditorDraft { get; private set; }
 
     internal CaptureShortcutsWindow(CaptureShortcutSettings settings, Func<CaptureShortcutSettings, string?> save)
         : this(settings, (capture, _) => save(capture)) { }
 
-    internal CaptureShortcutsWindow(CaptureShortcutSettings settings, Func<CaptureShortcutSettings, EditorSettings, string?> save)
+    internal CaptureShortcutsWindow(CaptureShortcutSettings settings, Func<CaptureShortcutSettings, EditorSettings, string?> save,
+        UpdateService? updateService = null)
     {
         InitializeComponent();
         this.save = save;
+        updates = updateService ?? UpdateService.Shared;
+        CurrentVersionText.Text = $"Version {UpdateService.CurrentVersion.ToString(3)}";
+        updateButtonTimer.Tick += (_, _) => RefreshUpdateButton();
+        RefreshUpdateButton();
         Draft = settings;
         WindowsSnipShortcutCheck.IsChecked = settings.UseWindowsSnipShortcut;
         EditorDraft = EditorSettingsService.Current;
@@ -41,6 +52,10 @@ public partial class CaptureShortcutsWindow : Window
         ThemePreferenceService.Changed += ThemePreference_Changed;
         Closed += (_, _) =>
         {
+            isClosed = true;
+            updateButtonTimer.Stop();
+            updateCancellation.Cancel();
+            updateCancellation.Dispose();
             SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
             ThemePreferenceService.Changed -= ThemePreference_Changed;
             recordingHook?.Dispose();
@@ -48,6 +63,62 @@ public partial class CaptureShortcutsWindow : Window
         };
         UpdateLabels();
         InitializeEditorSettings();
+    }
+
+    private void RefreshUpdateButton()
+    {
+        var seconds = (int)Math.Ceiling(updates.ManualCheckRetryAfter.TotalSeconds);
+        CheckVersionButton.IsEnabled = !checkingUpdates && seconds == 0;
+        CheckVersionButton.Content = checkingUpdates ? "Checking…"
+            : seconds > 0 ? $"Check again in {seconds}s" : "Check for new version";
+        if (seconds > 0) updateButtonTimer.Start();
+        else updateButtonTimer.Stop();
+    }
+
+    private async void CheckVersion_Click(object sender, RoutedEventArgs e)
+    {
+        if (isClosed || checkingUpdates || updates.ManualCheckRetryAfter > TimeSpan.Zero) return;
+        checkingUpdates = true;
+        RefreshUpdateButton();
+        UpdateDownloadLink.Visibility = Visibility.Collapsed;
+        UpdateCheckStatus.Visibility = Visibility.Visible;
+        UpdateCheckStatus.Text = "Checking for a new version…";
+        try
+        {
+            var release = await updates.CheckManualAsync(updateCancellation.Token);
+            if (isClosed) return;
+            UpdateCheckStatus.Text = release is null
+                ? $"You have the latest version ({UpdateService.CurrentVersion.ToString(3)})."
+                : $"Version {release.DisplayVersion} is available.";
+            UpdateDownloadLink.Visibility = release is null ? Visibility.Collapsed : Visibility.Visible;
+        }
+        catch (OperationCanceledException) when (isClosed) { }
+        catch (UpdateCheckThrottledException)
+        {
+            if (!isClosed) UpdateCheckStatus.Text = "Please wait before checking again.";
+        }
+        catch (Exception)
+        {
+            if (!isClosed) UpdateCheckStatus.Text = "Could not check for updates. Check your connection and try again.";
+        }
+        finally
+        {
+            checkingUpdates = false;
+            if (!isClosed) RefreshUpdateButton();
+        }
+    }
+
+    private void DownloadUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(UpdateService.DownloadUrl.AbsoluteUri)
+                { UseShellExecute = true });
+        }
+        catch (Exception)
+        {
+            UpdateCheckStatus.Text = "Could not open the download. Visit www.aigarspeda.com to download the latest version.";
+        }
     }
 
     private void InitializeEditorSettings()
