@@ -73,7 +73,7 @@ internal sealed class TrayController : IDisposable
             downloadUpdate.Visible = availableUpdate is not null;
             if (availableUpdate is { } release)
             {
-                downloadUpdate.Text = $"Download portable version {release.DisplayVersion}…";
+                downloadUpdate.Text = $"Download version {release.DisplayVersion}…";
                 if (manual || notifiedVersion != release.Version)
                 {
                     notifyIcon.ShowBalloonTip(10000, "BetterScreenShot update available",
@@ -115,11 +115,11 @@ internal sealed class TrayController : IDisposable
         try
         {
             notifyIcon.ShowBalloonTip(4000, "Downloading BetterScreenShot",
-                "The portable version is being saved to the folder you chose.", Forms.ToolTipIcon.Info);
+                "The installer is being saved to the folder you chose.", Forms.ToolTipIcon.Info);
             await updates.DownloadAsync(release, dialog.FileName, updateCancellation.Token);
             if (disposed) return;
             notifyIcon.ShowBalloonTip(8000, "BetterScreenShot downloaded",
-                $"Saved {System.IO.Path.GetFileName(dialog.FileName)} to the folder you chose.", Forms.ToolTipIcon.Info);
+                $"Open {System.IO.Path.GetFileName(dialog.FileName)} to install or update automatically.", Forms.ToolTipIcon.Info);
         }
         catch (OperationCanceledException) when (disposed) { }
         catch (Exception error)
@@ -134,7 +134,7 @@ internal sealed class TrayController : IDisposable
             downloadingUpdate = false;
             if (!disposed)
             {
-                downloadUpdate.Text = $"Download portable version {release.DisplayVersion}…";
+                downloadUpdate.Text = $"Download version {release.DisplayVersion}…";
                 downloadUpdate.Enabled = true;
             }
         }

@@ -12,7 +12,7 @@ if (!$releaseRoot.StartsWith($projectRoot + [IO.Path]::DirectorySeparatorChar, [
     throw 'Invalid release folder.'
 }
 dotnet publish (Join-Path $projectRoot 'BetterScreenShot.csproj') -c Release -r win-x64 --self-contained true `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+    -p:AutoInstallOnLaunch=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
     -p:DebugType=embedded -o $releaseRoot
 if ($LASTEXITCODE -ne 0) { throw 'Publishing BetterScreenShot failed.' }
 $executable = Join-Path $releaseRoot 'BetterScreenShot.exe'
