@@ -13,6 +13,13 @@ internal static class Program
     private static int Main(string[] args)
     {
         if (args.Contains("--ocr-smoke")) return TextExtractionTests.Smoke();
+        if (args.Contains("--install-tests"))
+        {
+            var folder = Path.Combine(Environment.CurrentDirectory, "obj", "installation-tests", Guid.NewGuid().ToString("N"));
+            InstallationTests.Run(Check, folder);
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (Array.IndexOf(args, "--ocr-benchmark") is var benchmarkIndex && benchmarkIndex >= 0)
             return OcrBenchmark.Run(args.ElementAtOrDefault(benchmarkIndex + 1));
         if (args.Contains("--ocr-ui-benchmark")) return OcrBenchmark.Viewer();
@@ -100,6 +107,7 @@ internal static class Program
         Directory.CreateDirectory(directory);
         try
         {
+            InstallationTests.Run(Check, directory);
             var source = Path.Combine(directory, "source.png");
             using (var bitmap = new Bitmap(32, 24))
             {

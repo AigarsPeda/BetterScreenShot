@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <Version>1.1.3</Version>
+    <Version>1.1.4</Version>
     <Authors>A. Peda</Authors>
     <Company>A. Peda</Company>
     <Copyright>Copyright © 2026 A. Peda</Copyright>
@@ -17,9 +17,14 @@
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(AutoInstallOnLaunch)' == 'false'">
+    <DefineConstants>$(DefineConstants);PORTABLE_BUILD</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="SixLabors.ImageSharp" Version="2.1.3" />
     <Compile Remove="Tests\**\*.cs" />
+    <EmbeddedResource Include="scripts\Uninstall.ps1" LogicalName="BetterScreenShot.install.Uninstall.ps1" />
     <EmbeddedResource Include="assets\camera.svg" LogicalName="BetterScreenShot.assets.camera.svg" />
     <EmbeddedResource Include="assets\ocr\*.traineddata" LogicalName="BetterScreenShot.ocr.%(Filename)%(Extension)" />
     <EmbeddedResource Include="assets\ocr\LICENSE" LogicalName="BetterScreenShot.ocr.LICENSE" />

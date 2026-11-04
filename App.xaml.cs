@@ -8,9 +8,14 @@ public partial class App : System.Windows.Application
     private TrayController? tray;
     private MainWindow? launcher;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (await ApplicationInstaller.HandleLaunchAsync(e.Args))
+        {
+            Shutdown();
+            return;
+        }
         if (e.Args.Contains("--uninstall"))
         {
             try

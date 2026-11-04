@@ -14,7 +14,7 @@ if (Test-Path -LiteralPath $publishRoot) { Remove-Item -LiteralPath $publishRoot
 $selfContained = (!$FrameworkDependent).ToString().ToLowerInvariant()
 # Compression is supported only for self-contained bundles.
 dotnet publish (Join-Path $projectRoot 'BetterScreenShot.csproj') -c Release -r $Runtime --self-contained $selfContained `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true "-p:EnableCompressionInSingleFile=$selfContained" `
+    -p:AutoInstallOnLaunch=false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true "-p:EnableCompressionInSingleFile=$selfContained" `
     -p:DebugType=embedded -o $publishRoot
 if ($LASTEXITCODE -ne 0) { throw 'Publishing the portable executable failed.' }
 $executable = Join-Path $publishRoot 'BetterScreenShot.exe'
