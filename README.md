@@ -55,6 +55,10 @@ Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreen
 
 Build a self-contained package with `./scripts/Publish-Installer.ps1`. Extract `artifacts/BetterScreenShot-win-x64.zip` and run `Install.cmd`. The installer adds the application to your user profile, creates a Start menu shortcut, enables startup at sign-in, and starts it quietly in the tray. It does not require administrator access or a separately installed .NET runtime. Existing capture shortcuts are preserved.
 
+The tray checks `https://www.aigarspeda.com/downloads/betterscreenshot/latest.json` at startup and once a day while running. A newer version produces a notification and a **Download version…** tray action that saves the portable EXE directly, without opening the portfolio page. **Check for updates…** runs the check on demand. The download is checked against the manifest's byte count and SHA256 hash before replacing a chosen file. Network errors during automatic checks stay quiet. Existing builds without the update checker need a manual download once.
+
+To publish a new downloadable version, update `<Version>` in `BetterScreenShot.csproj` and run `./scripts/Publish-PortfolioRelease.ps1 -PortfolioDirectory C:\path\to\portfolio`. This builds the Windows x64 portable EXE and places it with a matching `latest.json` in the portfolio's `public/downloads/betterscreenshot/` folder. Deploy both files together; the portfolio page already links directly to the EXE. Update the size and version shown on the project page if they changed.
+
 Run `Install.cmd` from File Explorer in your normal Windows desktop. An isolated terminal can redirect registry writes, making an installation entry visible to that terminal while absent from Windows Settings. The normal installation records the version, installation date, size, and an uninstall command that starts the app's dedicated uninstall mode.
 
 Closing the launcher keeps the application running. Use its tray menu to open the launcher, configure settings, turn sign-in startup on or off, or Exit. Launching another copy opens the existing instance instead of competing for the same shortcuts.

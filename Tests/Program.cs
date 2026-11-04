@@ -54,6 +54,14 @@ internal static class Program
         if (args.Contains("--editor-qa")) return AnnotationTests.Demo(qa: true);
         if (args.Contains("--editor-benchmark")) return AnnotationTests.Benchmark();
         if (args.Contains("--editor-toolbar-preview")) return AnnotationTests.ToolbarPreview();
+        if (args.Contains("--update-tests"))
+        {
+            var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot-update-tests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            UpdateServiceTests.Run(Check, folder);
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--annotation-tests"))
         {
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
@@ -284,6 +292,7 @@ internal static class Program
             ScrollingCaptureTests.Run(Check);
             AreaRecordingTests.Run(Check);
             AnnotationTests.Run(Check, directory);
+            UpdateServiceTests.Run(Check, directory);
             TextExtractionTests.Run(Check, directory);
             OverlayPresentationTests.Run(Check);
             Check("Real area-selection cancellation releases all overlays", () =>

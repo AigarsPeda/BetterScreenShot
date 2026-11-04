@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Net.Http;
+using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
 namespace BetterScreenShot;
@@ -8,12 +10,26 @@ internal sealed class TrayController : IDisposable
     private readonly Forms.NotifyIcon notifyIcon;
     private readonly Forms.ContextMenuStrip menu = new();
     private readonly Icon icon;
+    private readonly HttpClient updateClient = new() { Timeout = Timeout.InfiniteTimeSpan };
+    private readonly CancellationTokenSource updateCancellation = new();
+    private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromDays(1) };
+    private readonly Forms.ToolStripMenuItem downloadUpdate = new("Download update…") { Visible = false };
+    private readonly UpdateService updates;
+    private AvailableUpdate? availableUpdate;
+    private Version? notifiedVersion;
+    private bool checkingUpdates;
+    private bool downloadingUpdate;
+    private bool disposed;
 
     public TrayController(MainWindow launcher, Action exit)
     {
         icon = CreateIcon();
+        updates = new UpdateService(updateClient);
         menu.Items.Add("Open BetterScreenShot", null, (_, _) => launcher.ShowLauncher());
         menu.Items.Add("Settings…", null, (_, _) => launcher.ShowSettingsFromTray());
+        menu.Items.Add("Check for updates…", null, async (_, _) => await CheckForUpdatesAsync(manual: true));
+        downloadUpdate.Click += async (_, _) => await DownloadUpdateAsync();
+        menu.Items.Add(downloadUpdate);
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Capture full screen", null, async (_, _) => await launcher.CaptureFromShortcutAsync(false));
         menu.Items.Add("Select area", null, async (_, _) => await launcher.CaptureFromShortcutAsync(true));
@@ -35,6 +51,86 @@ internal sealed class TrayController : IDisposable
         menu.Items.Add("Exit", null, (_, _) => exit());
         notifyIcon = new Forms.NotifyIcon { Icon = icon, Text = "BetterScreenShot", ContextMenuStrip = menu, Visible = true };
         notifyIcon.DoubleClick += (_, _) => launcher.ShowLauncher();
+        updateTimer.Tick += async (_, _) => await CheckForUpdatesAsync(manual: false);
+        updateTimer.Start();
+        _ = CheckForUpdatesAsync(manual: false);
+    }
+
+    private async Task CheckForUpdatesAsync(bool manual)
+    {
+        if (disposed || checkingUpdates) return;
+        checkingUpdates = true;
+        try
+        {
+            availableUpdate = await updates.CheckAsync(updateCancellation.Token);
+            if (disposed) return;
+            downloadUpdate.Visible = availableUpdate is not null;
+            if (availableUpdate is { } release)
+            {
+                downloadUpdate.Text = $"Download portable version {release.DisplayVersion}…";
+                if (manual || notifiedVersion != release.Version)
+                {
+                    notifyIcon.ShowBalloonTip(10000, "BetterScreenShot update available",
+                        $"Version {release.DisplayVersion} is available. Use the tray menu to download it.", Forms.ToolTipIcon.Info);
+                    notifiedVersion = release.Version;
+                }
+            }
+            else if (manual)
+                notifyIcon.ShowBalloonTip(6000, "BetterScreenShot is up to date",
+                    $"You have version {UpdateService.CurrentVersion.ToString(3)}.", Forms.ToolTipIcon.Info);
+        }
+        catch (OperationCanceledException) when (disposed) { }
+        catch (Exception error)
+        {
+            System.Diagnostics.Debug.WriteLine($"Update check failed: {error.Message}");
+            if (manual && !disposed)
+                notifyIcon.ShowBalloonTip(7000, "Could not check for updates",
+                    "Check your connection and try again.", Forms.ToolTipIcon.Warning);
+        }
+        finally { checkingUpdates = false; }
+    }
+
+    private async Task DownloadUpdateAsync()
+    {
+        if (disposed || availableUpdate is not { } release || downloadingUpdate) return;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Download BetterScreenShot",
+            FileName = $"BetterScreenShot-{release.DisplayVersion}.exe",
+            Filter = "Windows application (*.exe)|*.exe",
+            DefaultExt = ".exe",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog() != true) return;
+        downloadingUpdate = true;
+        downloadUpdate.Enabled = false;
+        downloadUpdate.Text = $"Downloading version {release.DisplayVersion}…";
+        try
+        {
+            notifyIcon.ShowBalloonTip(4000, "Downloading BetterScreenShot",
+                "The portable version is being saved to the folder you chose.", Forms.ToolTipIcon.Info);
+            await updates.DownloadAsync(release, dialog.FileName, updateCancellation.Token);
+            if (disposed) return;
+            notifyIcon.ShowBalloonTip(8000, "BetterScreenShot downloaded",
+                $"Saved {System.IO.Path.GetFileName(dialog.FileName)} to the folder you chose.", Forms.ToolTipIcon.Info);
+        }
+        catch (OperationCanceledException) when (disposed) { }
+        catch (Exception error)
+        {
+            System.Diagnostics.Debug.WriteLine($"Update download failed: {error.Message}");
+            if (!disposed)
+                notifyIcon.ShowBalloonTip(8000, "Could not download BetterScreenShot",
+                    "The download was not saved. Try again from the tray menu.", Forms.ToolTipIcon.Warning);
+        }
+        finally
+        {
+            downloadingUpdate = false;
+            if (!disposed)
+            {
+                downloadUpdate.Text = $"Download portable version {release.DisplayVersion}…";
+                downloadUpdate.Enabled = true;
+            }
+        }
     }
 
     private static Icon CreateIcon()
@@ -60,10 +156,15 @@ internal sealed class TrayController : IDisposable
 
     public void Dispose()
     {
+        disposed = true;
+        updateTimer.Stop();
+        updateCancellation.Cancel();
         notifyIcon.Visible = false;
         notifyIcon.Dispose();
         menu.Dispose();
         icon.Dispose();
+        updateClient.Dispose();
+        updateCancellation.Dispose();
     }
 
     [DllImport("user32.dll")]
