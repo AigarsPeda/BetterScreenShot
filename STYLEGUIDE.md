@@ -15,6 +15,7 @@
 - Place status and the keyboard-shortcuts link in a quiet footer. Status color can change with meaning, but the area should not become a permanent badge.
 - Hover uses a soft surface fill. Keyboard focus has a visible purple outline.
 - Place scrolling capture controls in a draggable floating toolbar beside the selected area, using the viewer's theme colors.
+- Align the scrolling and recording toolbars with the same three-column layout: title, option label, and dropdown above equal-width action buttons.
 - Keep a click-through accent outline around the selected area during scrolling capture, excluded from saved pixels.
 - Use the same outline and floating toolbar treatment for area recording. Offer Video and GIF after area selection. Replace the selected format button with an equal-width Stop button so the other controls stay in place. Show a red REC dot only while recording is active.
 

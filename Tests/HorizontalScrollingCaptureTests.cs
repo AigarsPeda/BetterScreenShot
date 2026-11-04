@@ -214,6 +214,92 @@ internal static class HorizontalScrollingCaptureTests
         });
         check("Failed scrolling startup restores the direction selector and Start", FailedStart);
         check("Live horizontal capture stitches screen pixels and exports the final image", LiveCapture);
+        check("Scrolling direction and actions align with the recording toolbar in both themes", ToolbarLayout);
+        check("Scrolling direction menu stays on screen near the bottom edge", DirectionMenu);
+    }
+
+    private static void ToolbarLayout()
+    {
+        var bounds = new Rectangle(0, 0, 120, 100);
+        var scrolling = new ScrollingCaptureWindow(bounds);
+        var recording = new AreaRecordingWindow(bounds);
+        try
+        {
+            foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
+            foreach (var direction in new[] { 0, 1 })
+            {
+                ThemeIconService.ApplyViewerTheme(scrolling.Resources, theme);
+                ThemeIconService.ApplyViewerTheme(recording.Resources, theme);
+                ((System.Windows.Controls.ComboBox)scrolling.FindName("DirectionPicker")).SelectedIndex = direction;
+                Arrange(scrolling);
+                Arrange(recording);
+                Match("DirectionPicker", "VideoQualityPicker");
+                Match("StartButton", "VideoButton");
+                Match("StopButton", "GifButton");
+                Match("CancelButton", "CancelButton");
+                var label = (FrameworkElement)scrolling.FindName("DirectionLabel");
+                var picker = (FrameworkElement)scrolling.FindName("DirectionPicker");
+                var actions = (FrameworkElement)scrolling.FindName("ActionsPanel");
+                var status = (FrameworkElement)scrolling.FindName("CaptureStatus");
+                var root = (FrameworkElement)scrolling.Content;
+                Require(label.TranslatePoint(new System.Windows.Point(label.ActualWidth, 0), root).X
+                    < picker.TranslatePoint(new System.Windows.Point(), root).X);
+                var pickerBottom = picker.TranslatePoint(new System.Windows.Point(0, picker.ActualHeight), root).Y;
+                var actionsTop = actions.TranslatePoint(new System.Windows.Point(), root).Y;
+                var actionsBottom = actions.TranslatePoint(new System.Windows.Point(0, actions.ActualHeight), root).Y;
+                var statusTop = status.TranslatePoint(new System.Windows.Point(), root).Y;
+                var statusBottom = status.TranslatePoint(new System.Windows.Point(0, status.ActualHeight), root).Y;
+                Require(pickerBottom + 4 <= actionsTop && actionsBottom + 4 <= statusTop && statusBottom <= scrolling.Height - 10);
+            }
+        }
+        finally { scrolling.Close(); recording.Close(); }
+
+        static void Arrange(Window window)
+        {
+            var content = (FrameworkElement)window.Content;
+            content.Measure(new System.Windows.Size(window.Width, window.Height));
+            content.Arrange(new Rect(0, 0, window.Width, window.Height));
+            content.UpdateLayout();
+        }
+        void Match(string scrollingName, string recordingName)
+        {
+            var actual = (FrameworkElement)scrolling.FindName(scrollingName);
+            var reference = (FrameworkElement)recording.FindName(recordingName);
+            var point = actual.TranslatePoint(new System.Windows.Point(), (FrameworkElement)scrolling.Content);
+            var referencePoint = reference.TranslatePoint(new System.Windows.Point(), (FrameworkElement)recording.Content);
+            Require(Math.Abs(point.X - referencePoint.X) < 1 && Math.Abs(point.Y - referencePoint.Y) < 1);
+            Require(Math.Abs(actual.ActualWidth - reference.ActualWidth) < 1 && Math.Abs(actual.ActualHeight - reference.ActualHeight) < 1);
+        }
+    }
+
+    private static void DirectionMenu()
+    {
+        var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
+        foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
+        foreach (var direction in new[] { 0, 1 })
+        {
+            var window = new ScrollingCaptureWindow(new Rectangle(screen.Left + 20, screen.Top + 20, 120, 100));
+            try
+            {
+                ThemeIconService.ApplyViewerTheme(window.Resources, theme);
+                window.Show();
+                window.Top = SystemParameters.WorkArea.Bottom - window.ActualHeight - 8;
+                var picker = (System.Windows.Controls.ComboBox)window.FindName("DirectionPicker");
+                picker.SelectedIndex = direction;
+                picker.IsDropDownOpen = true;
+                var popup = (System.Windows.Controls.Primitives.Popup)picker.Template.FindName("PART_Popup", picker);
+                var last = (ComboBoxItem)picker.Items[1];
+                PumpUntil(() => popup.IsOpen && popup.Child is FrameworkElement { ActualHeight: > 0 }
+                    && last.IsVisible && last.ActualHeight > 0, window.Dispatcher);
+                var popupTop = popup.Child.PointToScreen(new System.Windows.Point()).Y;
+                var popupBottom = popup.Child.PointToScreen(new System.Windows.Point(0, ((FrameworkElement)popup.Child).ActualHeight)).Y;
+                var pickerTop = picker.PointToScreen(new System.Windows.Point()).Y;
+                Require(popupTop >= screen.Top && popupBottom <= pickerTop + 1);
+                Require(last.PointToScreen(new System.Windows.Point(0, last.ActualHeight)).Y <= popupBottom + 1);
+                picker.IsDropDownOpen = false;
+            }
+            finally { window.Close(); }
+        }
     }
 
     private static void DirectionSelection()
