@@ -26,6 +26,7 @@ internal static class ReadmeScreenshots
         {
             var suffix = theme.ToString().ToLowerInvariant();
             RenderLauncher(theme, output, fixtures);
+            RenderRecordingViews(theme, output, fixtures, sample);
 
             var toastSource = WriteFixture(fixtures, $"toast-{suffix}", sample);
             var toast = new ScreenshotToastWindow(toastSource, System.Windows.Forms.Screen.PrimaryScreen!.Bounds, sample);
@@ -51,7 +52,7 @@ internal static class ReadmeScreenshots
         }
 
         app.Shutdown();
-        Console.WriteLine($"Generated 10 screenshots in {output}");
+        Console.WriteLine($"Generated 18 screenshots in {output}");
         return 0;
     }
 
@@ -76,6 +77,45 @@ internal static class ReadmeScreenshots
         RenderOffscreen(launcher, 520, 548, Path.Combine(output, $"launcher-{theme.ToString().ToLowerInvariant()}.png"), theme,
             "BetterScreenShot");
         launcher.Close();
+    }
+
+    private static void RenderRecordingViews(AppTheme theme, string output, string fixtures, BitmapSource sample)
+    {
+        var suffix = theme.ToString().ToLowerInvariant();
+        var controls = new AreaRecordingWindow(new System.Drawing.Rectangle(0, 0, sample.PixelWidth, sample.PixelHeight));
+        ThemeIconService.ApplyViewerTheme(controls.Resources, theme);
+        RenderOffscreen(controls, 384, 102, Path.Combine(output, $"record-options-{suffix}.png"), theme);
+        ((System.Windows.Controls.ComboBox)controls.FindName("VideoQualityPicker")).Visibility = Visibility.Collapsed;
+        ((System.Windows.Controls.TextBlock)controls.FindName("ModeLabel")).Text = "Recording";
+        ((FrameworkElement)controls.FindName("RecordingIndicator")).Visibility = Visibility.Visible;
+        ((System.Windows.Controls.TextBlock)controls.FindName("RecordingDuration")).Text = "0:07";
+        ((System.Windows.Controls.Button)controls.FindName("VideoButton")).Visibility = Visibility.Collapsed;
+        ((System.Windows.Controls.Button)controls.FindName("GifButton")).IsEnabled = false;
+        var stop = (System.Windows.Controls.Button)controls.FindName("StopButton");
+        stop.IsEnabled = true;
+        stop.Visibility = Visibility.Visible;
+        RenderOffscreen(controls, 384, 102, Path.Combine(output, $"recording-active-{suffix}.png"), theme);
+        controls.Close();
+
+        var previewPath = WriteFixture(fixtures, $"recording-preview-{suffix}", sample);
+        var toast = new ScreenshotToastWindow(previewPath, System.Windows.Forms.Screen.PrimaryScreen!.Bounds,
+            sample, recordingFormat: RecordingFormat.Video);
+        typeof(ScreenshotToastWindow).GetMethod("ApplyToastTheme", BindingFlags.Instance | BindingFlags.NonPublic,
+                null, [typeof(AppTheme)], null)!.Invoke(toast, [theme]);
+        RenderOffscreen(toast, 310, 215, Path.Combine(output, $"recording-preview-{suffix}.png"), theme);
+        toast.Close();
+
+        var viewerPath = WriteFixture(fixtures, $"recording-viewer-{suffix}", sample);
+        var viewer = new RecordingViewerWindow(new TemporaryScreenshot(viewerPath), RecordingFormat.Video, sample);
+        ThemeIconService.ApplyViewerTheme(viewer.Resources, theme);
+        ((FrameworkElement)viewer.FindName("PlaybackStatus")).Visibility = Visibility.Collapsed;
+        ((System.Windows.Controls.Button)viewer.FindName("PlayPauseButton")).Content = "Pause";
+        ((System.Windows.Controls.Button)viewer.FindName("PlayPauseButton")).IsEnabled = true;
+        ((System.Windows.Controls.Button)viewer.FindName("StopButton")).IsEnabled = true;
+        ((System.Windows.Controls.TextBlock)viewer.FindName("TimeText")).Text = "0:07 / 0:12";
+        RenderOffscreen(viewer, 960, 620, Path.Combine(output, $"recording-viewer-{suffix}.png"), theme,
+            "Video recording");
+        viewer.Close();
     }
 
     private static void AddDemoAnnotations(AnnotationSurface surface)

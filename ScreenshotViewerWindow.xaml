@@ -351,6 +351,12 @@
                         <ComboBoxItem Content="16" /><ComboBoxItem Content="24" /><ComboBoxItem Content="28" /><ComboBoxItem Content="40" /><ComboBoxItem Content="64" />
                     </ComboBox>
                 </StackPanel>
+                <StackPanel Name="NumberOptionsGroup" Style="{StaticResource ToolbarGroupStyle}" Visibility="Collapsed">
+                    <TextBlock Text="Number" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+                    <TextBox Name="NumberPicker" Width="55" MaxLength="4" VerticalContentAlignment="Center" TextAlignment="Center"
+                             GotKeyboardFocus="NumberPicker_GotFocus" LostKeyboardFocus="NumberPicker_LostFocus"
+                             PreviewKeyDown="NumberPicker_KeyDown" AutomationProperties.Name="Arrow number" />
+                </StackPanel>
                 <StackPanel Name="SketchOptionsGroup" Style="{StaticResource ToolbarGroupStyle}" Margin="0,2,0,2">
                     <ToggleButton x:Name="SketchToggle" IsChecked="True" Click="SketchToggle_Click" Width="72"
                                   Style="{StaticResource ToolStyle}" Content="Sketch" ToolTip="Hand-drawn outlines for all shapes. Turn off for precise lines." AutomationProperties.Name="Sketch style" />

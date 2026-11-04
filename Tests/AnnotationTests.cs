@@ -16,6 +16,28 @@ internal static class AnnotationTests
     {
         AnnotationContextMenuTests.Run(check, directory);
         AnnotationRenderingTests.Run(check);
+        check("Numbered arrows advance, keep editable numbers through history, and hit-test the badge", () =>
+        {
+            var document = new AnnotationDocument { SketchEnabled = false };
+            Require(document.NextNumber() == 1);
+            document.Add(new ImageAnnotation { Tool = AnnotationTool.NumberedArrow, Number = document.NextNumber(),
+                Color = Colors.Red, Width = 4, Points = [new(20, 40), new(100, 40)] });
+            document.Add(new ImageAnnotation { Tool = AnnotationTool.NumberedArrow, Number = document.NextNumber(),
+                Color = Colors.Red, Width = 4, Points = [new(20, 80), new(100, 80)] });
+            Require(document.Items[0].Number == 1 && document.Items[1].Number == 2 && document.NextNumber() == 3);
+            Require(document.Items[1].HitTest(new Point(100, 80), 0));
+            Require(document.Items[1].Bounds.Right > 100);
+            var edited = document.Items[1].Clone();
+            edited.Number = 7;
+            document.Replace(1, document.Items[1], edited);
+            Require(document.Items[1].Number == 7 && document.NextNumber() == 8);
+            document.Undo();
+            Require(document.Items[1].Number == 2);
+            document.Redo();
+            Require(document.Items[1].Number == 7);
+            var result = document.Render(WhiteImage(140, 120));
+            Require(Pixel(result, 90, 80).R > 200 && Pixel(result, 90, 80).G < 100);
+        });
         check("Large-image arrow scale enlarges the stroke and arrowhead without changing other tools", () =>
         {
             var surface = new AnnotationSurface { InkWidth = 7, ArrowScale = 4 };
@@ -27,7 +49,7 @@ internal static class AnnotationTests
         });
         check("Line and arrow curves pass through the midpoint handle and keep their endpoints", () =>
         {
-            foreach (var tool in new[] { AnnotationTool.Line, AnnotationTool.Arrow })
+            foreach (var tool in new[] { AnnotationTool.Line, AnnotationTool.Arrow, AnnotationTool.NumberedArrow })
             {
                 var item = new ImageAnnotation { Tool = tool, Points = [new(20, 80), new(180, 80)] };
                 Require(item.BendPoint == new Point(100, 80));
@@ -119,7 +141,7 @@ internal static class AnnotationTests
             document.Add(Line());
             Require(!document.CanRedo);
         });
-        check("Nearly straight mouse strokes snap while intentional curves remain curved", () =>
+        check("Straightened pen strokes keep free-angle line and arrow endpoints", () =>
         {
             var item = new ImageAnnotation { Tool = AnnotationTool.Pen,
                 Points = [new(10, 20), new(30, 20.8), new(60, 19.5), new(110, 21)] };
@@ -130,6 +152,7 @@ internal static class AnnotationTests
             Require(item.Points.Count == 4 && item.Geometry().IsFrozen);
             var endpoint = ImageAnnotation.SnapEnd(new Point(), new Point(100, 80), true);
             Require(Math.Abs(endpoint.X - endpoint.Y) < .001);
+            Require(ImageAnnotation.SnapEnd(new Point(), new Point(100, 8), false) == new Point(100, 8));
         });
         check("Every shape and text can be hit-tested with a zoom-adjusted tolerance", () =>
         {

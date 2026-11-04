@@ -12,7 +12,7 @@ internal static class AnnotationRenderingTests
         check("Incremental annotation visuals match exports through edits, history and style changes", () =>
         {
             var surface = new AnnotationSurface { Width = 240, Height = 160 };
-            foreach (var tool in new[] { AnnotationTool.Rectangle, AnnotationTool.Ellipse, AnnotationTool.Arrow, AnnotationTool.Text })
+            foreach (var tool in new[] { AnnotationTool.Rectangle, AnnotationTool.Ellipse, AnnotationTool.Arrow, AnnotationTool.Text, AnnotationTool.NumberedArrow })
             {
                 surface.Document.Add(new ImageAnnotation
                 {

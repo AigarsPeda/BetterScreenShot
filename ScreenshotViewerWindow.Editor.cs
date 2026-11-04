@@ -21,6 +21,7 @@ public partial class ScreenshotViewerWindow
     private sealed record NativeOwner(IntPtr Handle) : System.Windows.Forms.IWin32Window;
     private bool syncingControls;
     private int editingTextIndex = -1;
+    private int editingNumberIndex = -1;
     private Point textPosition;
     private readonly List<ToggleButton> toolButtons = [];
     private readonly List<MenuItem> colorItems = [];
@@ -42,6 +43,7 @@ public partial class ScreenshotViewerWindow
             (AnnotationTool.Highlight, "Highlight", "M", "M9 11l6-6 5 5-6 6z M4 20l5-9 5 5-9 5z M2 23h20"),
             (AnnotationTool.Line, "Line", "L", "M4 20 20 4"),
             (AnnotationTool.Arrow, "Arrow", "A", "M5 19 19 5 M9 5h10v10"),
+            (AnnotationTool.NumberedArrow, "Numbered arrow", "N", "M3 20 13 10 M8 10h5v5 M19 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6"),
             (AnnotationTool.Rectangle, "Rectangle", "R", "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"),
             (AnnotationTool.Ellipse, "Ellipse", "O", "M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0"),
             (AnnotationTool.Text, "Text", "T", "M4 7V4h16v3 M12 4v16 M9 20h6")
@@ -90,6 +92,7 @@ public partial class ScreenshotViewerWindow
         ColorPaletteMenu.Items.Add(custom);
         Annotations.SelectionChanged += SyncEditor;
         Annotations.TextRequested += BeginText;
+        Annotations.NumberRequested += BeginNumberEdit;
         Annotations.ContextRequested += ShowAnnotationMenu;
         var settings = EditorSettingsService.Current;
         syncingControls = true;
@@ -106,6 +109,7 @@ public partial class ScreenshotViewerWindow
 
     private void ChooseTool(AnnotationTool tool)
     {
+        CommitNumber();
         CommitText();
         CancelOcrSelectionDrag();
         ExtractedTextBox.Select(0, 0);
@@ -171,7 +175,7 @@ public partial class ScreenshotViewerWindow
             var width = selected.Width / (selected.Tool switch
             {
                 AnnotationTool.Highlight => 5,
-                AnnotationTool.Arrow => Annotations.ArrowScale,
+                AnnotationTool.Arrow or AnnotationTool.NumberedArrow => Annotations.ArrowScale,
                 _ => 1
             });
             StrokeWidthPicker.SelectedIndex = width <= 2 ? 0 : width >= 7 ? 2 : 1;
@@ -184,12 +188,14 @@ public partial class ScreenshotViewerWindow
         var activeTool = selected?.Tool ?? Annotations.Tool;
         var drawingTool = activeTool is not (AnnotationTool.Select or AnnotationTool.Hand);
         var strokeTool = activeTool is AnnotationTool.Pen or AnnotationTool.Highlight or AnnotationTool.Line
-            or AnnotationTool.Arrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse;
-        var sketchTool = activeTool is AnnotationTool.Line or AnnotationTool.Arrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse;
+            or AnnotationTool.Arrow or AnnotationTool.NumberedArrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse;
+        var sketchTool = activeTool is AnnotationTool.Line or AnnotationTool.Arrow or AnnotationTool.NumberedArrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse;
         DeleteOptionsGroup.Visibility = selected is null ? Visibility.Collapsed : Visibility.Visible;
         ColorOptionsGroup.Visibility = drawingTool ? Visibility.Visible : Visibility.Collapsed;
         StrokeOptionsGroup.Visibility = strokeTool ? Visibility.Visible : Visibility.Collapsed;
         TextOptionsGroup.Visibility = activeTool == AnnotationTool.Text ? Visibility.Visible : Visibility.Collapsed;
+        NumberOptionsGroup.Visibility = selected?.Tool == AnnotationTool.NumberedArrow ? Visibility.Visible : Visibility.Collapsed;
+        if (!NumberPicker.IsKeyboardFocused) NumberPicker.Text = selected?.Tool == AnnotationTool.NumberedArrow ? selected.Number.ToString() : "";
         SketchOptionsGroup.Visibility = sketchTool ? Visibility.Visible : Visibility.Collapsed;
         AnnotationOptionsTray.Visibility = drawingTool || selected is not null ? Visibility.Visible : Visibility.Collapsed;
         syncingControls = false;
@@ -208,6 +214,53 @@ public partial class ScreenshotViewerWindow
         Annotations.TextSize = double.Parse((string)item.Content, System.Globalization.CultureInfo.InvariantCulture);
         if (InlineText.IsVisible) InlineText.FontSize = Annotations.TextSize;
         else if (Annotations.Selected?.Tool == AnnotationTool.Text) Annotations.ChangeSelected(annotation => annotation.FontSize = Annotations.TextSize);
+    }
+
+    private void BeginNumberEdit()
+    {
+        if (Annotations.Selected?.Tool != AnnotationTool.NumberedArrow) return;
+        editingNumberIndex = Annotations.SelectedIndex;
+        NumberPicker.Focus();
+        NumberPicker.SelectAll();
+    }
+
+    private void NumberPicker_GotFocus(object sender, KeyboardFocusChangedEventArgs e) =>
+        editingNumberIndex = Annotations.Selected?.Tool == AnnotationTool.NumberedArrow ? Annotations.SelectedIndex : -1;
+
+    private void CommitNumber()
+    {
+        if (editingNumberIndex < 0) return;
+        var index = editingNumberIndex;
+        editingNumberIndex = -1;
+        if (index < Annotations.Document.Items.Count && Annotations.Document.Items[index].Tool == AnnotationTool.NumberedArrow
+            && int.TryParse(NumberPicker.Text, out var number) && number > 0 && number != Annotations.Document.Items[index].Number)
+        {
+            var before = Annotations.Document.Items[index];
+            var after = before.Clone();
+            after.Number = number;
+            Annotations.Document.Replace(index, before, after);
+        }
+        NumberPicker.Text = Annotations.Selected?.Tool == AnnotationTool.NumberedArrow ? Annotations.Selected.Number.ToString() : "";
+        SyncEditor();
+    }
+
+    private void NumberPicker_LostFocus(object sender, KeyboardFocusChangedEventArgs e) => CommitNumber();
+
+    private void NumberPicker_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            editingNumberIndex = -1;
+            NumberPicker.Text = Annotations.Selected?.Number.ToString() ?? "";
+            Annotations.Focus();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter)
+        {
+            CommitNumber();
+            Annotations.Focus();
+            e.Handled = true;
+        }
     }
 
     private void BeginText(Point position)

@@ -90,6 +90,34 @@ internal static class AnnotationContextMenuTests
             }
             finally { window.Close(); }
         });
+        check("Numbered arrow menu opens the number field and edits with undo", () =>
+        {
+            var pixels = Enumerable.Repeat((byte)255, 300 * 200 * 4).ToArray();
+            var image = BitmapSource.Create(300, 200, 96, 96, PixelFormats.Bgr32, null, pixels, 300 * 4);
+            image.Freeze();
+            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(Path.Combine(directory, "numbered-arrow.png")), image);
+            try
+            {
+                window.Show();
+                var surface = (AnnotationSurface)window.FindName("Annotations");
+                surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.NumberedArrow, Number = 1,
+                    Points = [new(20, 80), new(180, 80)] });
+                surface.Select(0);
+                var menu = window.CreateAnnotationMenu()!;
+                var edit = menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "Edit number…"));
+                edit.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                var field = (System.Windows.Controls.TextBox)window.FindName("NumberPicker");
+                Require(field.IsKeyboardFocused && field.Text == "1");
+                field.Text = "12";
+                surface.Focus();
+                window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                Require(surface.Document.Items[0].Number == 12);
+                surface.Document.Undo();
+                Require(surface.Document.Items[0].Number == 1);
+            }
+            finally { window.Close(); }
+        });
     }
 
     public static int Preview()

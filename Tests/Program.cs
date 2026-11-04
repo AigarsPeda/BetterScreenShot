@@ -54,6 +54,16 @@ internal static class Program
         if (args.Contains("--editor-qa")) return AnnotationTests.Demo(qa: true);
         if (args.Contains("--editor-benchmark")) return AnnotationTests.Benchmark();
         if (args.Contains("--editor-toolbar-preview")) return AnnotationTests.ToolbarPreview();
+        if (args.Contains("--annotation-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            var folder = Path.Combine(Path.GetTempPath(), "BetterScreenShot-annotation-tests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            AnnotationTests.Run(Check, folder);
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         var fixturesRoot = Path.Combine(AppContext.BaseDirectory, "fixtures");
         var directory = Path.Combine(fixturesRoot, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);

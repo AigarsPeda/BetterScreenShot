@@ -9,7 +9,7 @@ internal sealed record EditorSettings
     internal static readonly AnnotationTool[] Tools =
     [
         AnnotationTool.Select, AnnotationTool.Hand, AnnotationTool.Pen, AnnotationTool.Highlight,
-        AnnotationTool.Line, AnnotationTool.Arrow, AnnotationTool.Rectangle, AnnotationTool.Ellipse, AnnotationTool.Text
+        AnnotationTool.Line, AnnotationTool.Arrow, AnnotationTool.NumberedArrow, AnnotationTool.Rectangle, AnnotationTool.Ellipse, AnnotationTool.Text
     ];
 
     public AnnotationTool DefaultTool { get; init; } = AnnotationTool.Arrow;
@@ -23,7 +23,7 @@ internal sealed record EditorSettings
     {
         [AnnotationTool.Select] = Key.V, [AnnotationTool.Hand] = Key.H,
         [AnnotationTool.Pen] = Key.P, [AnnotationTool.Highlight] = Key.M,
-        [AnnotationTool.Line] = Key.L, [AnnotationTool.Arrow] = Key.A,
+        [AnnotationTool.Line] = Key.L, [AnnotationTool.Arrow] = Key.A, [AnnotationTool.NumberedArrow] = Key.N,
         [AnnotationTool.Rectangle] = Key.R, [AnnotationTool.Ellipse] = Key.O,
         [AnnotationTool.Text] = Key.T
     };
@@ -54,6 +54,12 @@ internal sealed class EditorSettingsStore(string filePath)
         {
             if (!File.Exists(filePath)) return new EditorSettings();
             var settings = JsonSerializer.Deserialize<EditorSettings>(File.ReadAllText(filePath), JsonOptions);
+            if (settings?.ToolKeys is { } keys && !keys.ContainsKey(AnnotationTool.NumberedArrow))
+            {
+                var key = Enumerable.Range((int)Key.A, 26).Select(value => (Key)value)
+                    .First(value => value != Key.E && !keys.Values.Contains(value));
+                settings = settings with { ToolKeys = new Dictionary<AnnotationTool, Key>(keys) { [AnnotationTool.NumberedArrow] = key } };
+            }
             return settings is not null && settings.ValidationError() is null ? settings : new EditorSettings();
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)

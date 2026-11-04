@@ -51,6 +51,7 @@ public partial class ScreenshotViewerWindow
         }
 
         if (target.Tool == AnnotationTool.Text) Add("Edit text…", () => BeginText(target.Points[0]));
+        if (target.Tool == AnnotationTool.NumberedArrow) Add("Edit number…", BeginNumberEdit);
         Add("Duplicate", Annotations.DuplicateSelected, "Ctrl+D");
         Add("Change color…", ChooseCustomColor);
         if (target.CanBend && target.Points.Count == 3)

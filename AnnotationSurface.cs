@@ -31,11 +31,12 @@ public sealed class AnnotationSurface : FrameworkElement
     internal double WidthForTool(AnnotationTool annotationTool) => InkWidth * (annotationTool switch
     {
         AnnotationTool.Highlight => 5,
-        AnnotationTool.Arrow => ArrowScale,
+        AnnotationTool.Arrow or AnnotationTool.NumberedArrow => ArrowScale,
         _ => 1
     });
     internal event Action? SelectionChanged;
     internal event Action<Point>? TextRequested;
+    internal event Action? NumberRequested;
     internal event Action? ContextRequested;
 
     internal AnnotationTool Tool
@@ -201,6 +202,7 @@ public sealed class AnnotationSurface : FrameworkElement
             }
             if (Selected is not { } item) return;
             if (e.ClickCount == 2 && item.Tool == AnnotationTool.Text) { TextRequested?.Invoke(item.Points[0]); return; }
+            if (e.ClickCount == 2 && item.Tool == AnnotationTool.NumberedArrow) { NumberRequested?.Invoke(); return; }
             original = item.Clone();
         }
         else if (Tool == AnnotationTool.Text)
@@ -215,7 +217,8 @@ public sealed class AnnotationSurface : FrameworkElement
             draft = new ImageAnnotation
             {
                 Tool = Tool, Points = [start, start], Color = InkColor,
-                Width = WidthForTool(Tool)
+                Width = WidthForTool(Tool),
+                Number = Tool == AnnotationTool.NumberedArrow ? Document.NextNumber() : 1
             };
             sampleDistance = 1.5 / Math.Max(.05, DisplayScale);
         }
@@ -254,7 +257,7 @@ public sealed class AnnotationSurface : FrameworkElement
                     selected.Points[endpoint] = Clamp(original.Points[endpoint] + delta);
                 }
             }
-            else if (resizeCorner >= 0 && original.Tool is AnnotationTool.Line or AnnotationTool.Arrow)
+            else if (resizeCorner >= 0 && original.Tool is AnnotationTool.Line or AnnotationTool.Arrow or AnnotationTool.NumberedArrow)
             {
                 var handle = Corners(oldBounds)[resizeCorner];
                 var endpoint = (original.Points[0] - handle).Length < (original.Points[^1] - handle).Length ? 0 : original.Points.Count - 1;
@@ -295,7 +298,7 @@ public sealed class AnnotationSurface : FrameworkElement
             else
             {
                 var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
-                if (draft.Tool is AnnotationTool.Line or AnnotationTool.Arrow) point = ImageAnnotation.SnapEnd(start, point, shift);
+                if (draft.Tool is AnnotationTool.Line or AnnotationTool.Arrow or AnnotationTool.NumberedArrow) point = ImageAnnotation.SnapEnd(start, point, shift);
                 else if (shift)
                 {
                     var delta = point - start;

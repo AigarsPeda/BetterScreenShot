@@ -31,12 +31,23 @@ Extract text locally and select the matching words on the image and in the resul
 | --- | --- |
 | <img src="docs/screenshots/text-recognition-light.png" alt="Light editor showing text extraction and selected image words" width="620"> | <img src="docs/screenshots/text-recognition-dark.png" alt="Dark editor showing text extraction and selected image words" width="620"> |
 
-The launcher can capture a screen, select an area, capture scrolling content, record an area, or open an existing image. Screenshot previews offer Copy, Save, Edit, and Discard actions. Recording previews offer Copy, Save, and Discard.
+The launcher can capture a screen, select an area, capture scrolling content, record an area, or open an existing image. Screenshot previews offer Copy, Save, Edit, and Discard actions.
 
 | Light theme | Dark theme |
 | --- | --- |
 | <img src="docs/screenshots/launcher-light.png" alt="Light launcher with scrolling capture and the sun theme button" width="480"> | <img src="docs/screenshots/launcher-dark.png" alt="Dark launcher with scrolling capture and the moon theme button" width="480"> |
 | <img src="docs/screenshots/preview-light.png" alt="Light screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> | <img src="docs/screenshots/preview-dark.png" alt="Dark screenshot preview with Copy, Save, Edit, and Discard actions" width="350"> |
+
+### Record an area
+
+Choose video or GIF after selecting an area. The floating controls show the selected video quality before recording, then show the active timer and Stop button. The finished recording has View, Copy, Save, and Discard actions. View opens a player with no editing tools.
+
+| Light theme | Dark theme |
+| --- | --- |
+| <img src="docs/screenshots/record-options-light.png" alt="Light floating controls for choosing video quality, video, or GIF" width="380"> | <img src="docs/screenshots/record-options-dark.png" alt="Dark floating controls for choosing video quality, video, or GIF" width="380"> |
+| <img src="docs/screenshots/recording-active-light.png" alt="Light recording controls with red indicator, timer, and Stop button" width="380"> | <img src="docs/screenshots/recording-active-dark.png" alt="Dark recording controls with red indicator, timer, and Stop button" width="380"> |
+| <img src="docs/screenshots/recording-preview-light.png" alt="Light recording preview with View, Copy, Save, and Discard actions" width="350"> | <img src="docs/screenshots/recording-preview-dark.png" alt="Dark recording preview with View, Copy, Save, and Discard actions" width="350"> |
+| <img src="docs/screenshots/recording-viewer-light.png" alt="Light video viewer with playback, Copy, and Save controls" width="620"> | <img src="docs/screenshots/recording-viewer-dark.png" alt="Dark video viewer with playback, Copy, and Save controls" width="620"> |
 
 Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. Replacing or closing a preview removes its file. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. Copies saved with Save As remain on disk. For video and GIF, Copy places a file on the clipboard and keeps a copy in `%TEMP%/BetterScreenShot/Copied Recordings` so it remains available for pasting. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
 

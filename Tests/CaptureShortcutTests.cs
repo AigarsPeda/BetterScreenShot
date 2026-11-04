@@ -39,6 +39,13 @@ internal static class CaptureShortcutTests
             Require((loaded with { RememberLastTool = false }).OpeningTool == AnnotationTool.Arrow);
             Require((loaded with { ToolKeys = new Dictionary<AnnotationTool, Key>(loaded.ToolKeys) { [AnnotationTool.Arrow] = Key.P } }).ValidationError() is not null);
             Require((loaded with { ToolKeys = new Dictionary<AnnotationTool, Key>(loaded.ToolKeys) { [AnnotationTool.Arrow] = Key.E } }).ValidationError() is not null);
+            var legacyKeys = new Dictionary<AnnotationTool, Key>(loaded.ToolKeys);
+            legacyKeys.Remove(AnnotationTool.NumberedArrow);
+            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(loaded with { ToolKeys = legacyKeys },
+                new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+            var migrated = store.Load();
+            Require(migrated.Color == "#0A84FF" && migrated.ToolKeys[AnnotationTool.Arrow] == Key.Q
+                && migrated.ToolKeys[AnnotationTool.NumberedArrow] == Key.N);
             File.WriteAllText(path, "null");
             Require(store.Load().OpeningTool == AnnotationTool.Arrow);
         });
