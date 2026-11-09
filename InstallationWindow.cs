@@ -29,4 +29,11 @@ internal sealed class InstallationWindow : Window
     }
 
     internal void SetStatus(string text) => status.Text = text;
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        ThemeIconService.ApplyTitleBarTheme(this, ThemePreferenceService.CurrentTheme);
+    }
+
 }

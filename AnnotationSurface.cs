@@ -218,6 +218,7 @@ public sealed class AnnotationSurface : FrameworkElement
             {
                 Tool = Tool, Points = [start, start], Color = InkColor,
                 Width = WidthForTool(Tool),
+                ArrowMetricScale = Tool is AnnotationTool.Arrow or AnnotationTool.NumberedArrow ? ArrowScale : 1,
                 Number = Tool == AnnotationTool.NumberedArrow ? Document.NextNumber() : 1
             };
             sampleDistance = 1.5 / Math.Max(.05, DisplayScale);

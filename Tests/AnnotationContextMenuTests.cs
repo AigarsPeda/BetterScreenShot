@@ -88,7 +88,7 @@ internal static class AnnotationContextMenuTests
                 var text = (System.Windows.Controls.TextBox)window.FindName("InlineText");
                 Require(text.Visibility == Visibility.Visible && text.Text == "Edit me" && text.IsKeyboardFocused);
             }
-            finally { window.Close(); }
+            finally { window.CloseForTest(); }
         });
         check("Numbered arrow menu opens the number field and edits with undo", () =>
         {
@@ -116,7 +116,7 @@ internal static class AnnotationContextMenuTests
                 surface.Document.Undo();
                 Require(surface.Document.Items[0].Number == 1);
             }
-            finally { window.Close(); }
+            finally { window.CloseForTest(); }
         });
     }
 
@@ -147,7 +147,7 @@ internal static class AnnotationContextMenuTests
             var path = Path.Combine(folder, $"context-menu-{theme.ToString().ToLowerInvariant()}.png");
             using (var output = File.Create(path)) encoder.Save(output);
             Console.WriteLine(path);
-            window.Close();
+            window.CloseForTest();
         }
         application.Shutdown();
         return 0;

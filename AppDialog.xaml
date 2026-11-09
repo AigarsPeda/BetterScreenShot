@@ -19,6 +19,7 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Background" Value="{DynamicResource ViewerSurfaceHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ViewerSurfaceBorderBrush}" />
             <Setter Property="BorderThickness" Value="0" />
@@ -142,17 +143,24 @@
                 </Border>
             </StackPanel>
 
-            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button x:Name="CancelActionButton"
+            <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="SaveActionButton" Style="{StaticResource DialogButtonStyle}" Content="Save copy…" Visibility="Collapsed" Click="SaveButton_Click" />
+                <Button x:Name="CancelActionButton" Grid.Column="2"
                         Style="{StaticResource DialogButtonStyle}"
                         Content="_Cancel" Margin="0,0,8,0"
                         IsCancel="True" IsDefault="True"
                         Click="CancelButton_Click" />
-                <Button x:Name="PrimaryActionButton"
+                <Button x:Name="PrimaryActionButton" Grid.Column="3"
                         Style="{StaticResource DeleteButtonStyle}"
                         Content="_Delete"
                         Click="PrimaryButton_Click" />
-            </StackPanel>
+            </Grid>
         </Grid>
     </Border>
 </Window>

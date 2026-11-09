@@ -31,10 +31,12 @@ public partial class MainWindow
 
     internal Task CaptureFromShortcutAsync(bool area) => CaptureAsync(area, fromShortcut: true);
 
-    internal void ExitBackgroundMode()
+    internal bool ExitBackgroundMode()
     {
         keepRunningInBackground = false;
         Close();
+        if (!isClosed) keepRunningInBackground = true;
+        return isClosed;
     }
 
     protected override void OnClosing(CancelEventArgs e)
@@ -43,6 +45,16 @@ public partial class MainWindow
         {
             e.Cancel = true;
             Hide();
+        }
+        else
+        {
+            if (!ScreenshotToastWindow.ConfirmPendingExit(this)) e.Cancel = true;
+            if (!e.Cancel)
+                foreach (var editor in System.Windows.Application.Current.Windows.OfType<ScreenshotViewerWindow>().ToArray())
+                {
+                    editor.Close();
+                    if (System.Windows.Application.Current.Windows.OfType<ScreenshotViewerWindow>().Contains(editor)) { e.Cancel = true; break; }
+                }
         }
         base.OnClosing(e);
     }

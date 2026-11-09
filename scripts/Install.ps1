@@ -47,6 +47,8 @@ New-ItemProperty -Path $uninstallKey -Name NoModify -Value 1 -PropertyType DWord
 New-ItemProperty -Path $uninstallKey -Name NoRepair -Value 1 -PropertyType DWord -Force | Out-Null
 $installedBytes = (Get-ChildItem -LiteralPath $installRoot -Recurse -File | Measure-Object -Property Length -Sum).Sum
 New-ItemProperty -Path $uninstallKey -Name EstimatedSize -Value ([int][Math]::Ceiling($installedBytes / 1KB)) -PropertyType DWord -Force | Out-Null
+$registration = Start-Process -FilePath $executable -ArgumentList '--register-file-associations' -WindowStyle Hidden -Wait -PassThru
+if ($registration.ExitCode -ne 0) { throw 'Windows image associations could not be registered.' }
 Write-Output "Installed: $executable"
 Write-Output 'Startup at sign-in is enabled. Your existing capture shortcuts are preserved.'
 if (!$NoStart) { Start-Process -FilePath $executable -ArgumentList '--background' -WindowStyle Hidden }

@@ -1,0 +1,864 @@
+{
+  "errors": [],
+  "results": [
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "editor",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "launcher",
+      "appWidth": 520,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "preview",
+      "appWidth": 360,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "scroll",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "record",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "viewer",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "settings",
+      "appWidth": 620,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "editor",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "launcher",
+      "appWidth": 520,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "preview",
+      "appWidth": 360,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "scroll",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "record",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "viewer",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "settings",
+      "appWidth": 620,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "screen": "editor",
+      "appWidth": 728,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "screen": "launcher",
+      "appWidth": 520,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "screen": "preview",
+      "appWidth": 360,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "screen": "scroll",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "screen": "record",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "screen": "viewer",
+      "appWidth": 728,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "screen": "settings",
+      "appWidth": 620,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "screen": "editor",
+      "appWidth": 728,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "screen": "launcher",
+      "appWidth": 520,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "screen": "preview",
+      "appWidth": 360,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "screen": "scroll",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "screen": "record",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "screen": "viewer",
+      "appWidth": 728,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "screen": "settings",
+      "appWidth": 620,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "editor",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "launcher",
+      "appWidth": 520,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "preview",
+      "appWidth": 360,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "scroll",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "record",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "viewer",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "settings",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "editor",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "launcher",
+      "appWidth": 520,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "preview",
+      "appWidth": 360,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "scroll",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "record",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "viewer",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "settings",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "screen": "editor",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "screen": "launcher",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "screen": "preview",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "screen": "scroll",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "screen": "record",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "screen": "viewer",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "screen": "settings",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "screen": "editor",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "screen": "launcher",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "screen": "preview",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "screen": "scroll",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "screen": "record",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "screen": "viewer",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "screen": "settings",
+      "appWidth": 348,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "editor",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "launcher",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "preview",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "scroll",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "record",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "viewer",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "settings",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "editor",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "launcher",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "preview",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "scroll",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "record",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "viewer",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "settings",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "text",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "error",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "empty",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "loading",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "conflict",
+      "appWidth": 620,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "screen": "gap",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "text",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "error",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "empty",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "loading",
+      "appWidth": 992,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "conflict",
+      "appWidth": 620,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "screen": "gap",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "text",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "error",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "empty",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "loading",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "conflict",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "screen": "gap",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "text",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "error",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "empty",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "loading",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "conflict",
+      "appWidth": 588,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "screen": "gap",
+      "appWidth": 460,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "text",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "error",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "empty",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "loading",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "conflict",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "screen": "gap",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "text",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "error",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "empty",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "loading",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "conflict",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "screen": "gap",
+      "appWidth": 288,
+      "overflow": [],
+      "documentOverflow": false
+    }
+  ],
+  "interactions": [
+    "OCR retry returns readable text",
+    "Closing text returns focus to Extract text",
+    "Unsaved close opens guarded dialog",
+    "Safe dialog action receives focus",
+    "Escape restores close-button focus",
+    "Settings validation focuses invalid field",
+    "Valid settings returns to launcher",
+    "Active recording discard requires confirmation",
+    "Stop and keep opens recording preview"
+  ]
+}

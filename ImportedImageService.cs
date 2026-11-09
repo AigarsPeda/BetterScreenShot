@@ -6,15 +6,19 @@ namespace BetterScreenShot;
 
 internal static class ImportedImageService
 {
-    private static readonly HashSet<string> supportedExtensions = new(StringComparer.OrdinalIgnoreCase)
-        { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff" };
+    internal static IReadOnlyList<string> SupportedExtensions { get; } =
+        Array.AsReadOnly(new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff" });
+
+    internal static string[] GetLaunchPaths(string[] args) => args
+        .Where(arg => !arg.StartsWith("--", StringComparison.Ordinal))
+        .Select(Path.GetFullPath).ToArray();
 
     internal static bool TryGetDroppedImage(System.Windows.IDataObject data, out string? path)
     {
         path = null;
         if (!data.GetDataPresent(System.Windows.DataFormats.FileDrop) || data.GetData(System.Windows.DataFormats.FileDrop) is not string[] { Length: 1 } files)
             return false;
-        if (!supportedExtensions.Contains(Path.GetExtension(files[0]))) return false;
+        if (!SupportedExtensions.Contains(Path.GetExtension(files[0]), StringComparer.OrdinalIgnoreCase)) return false;
         path = files[0];
         return true;
     }

@@ -136,7 +136,7 @@ internal static class TextSelectionTests
         }
         public void Dispose()
         {
-            Window.Close();
+            Window.CloseForTest();
             SynchronizationContext.SetSynchronizationContext(previousContext);
         }
     }

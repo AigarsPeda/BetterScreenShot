@@ -12,14 +12,17 @@ namespace BetterScreenShot
     public partial class ScreenshotToastWindow : Window
     {
         private const int ScreenMargin = 16;
-        private const int SlideDurationMs = 180;
+        private const int SlideDurationMs = 240;
         private static ScreenshotToastWindow? currentToast;
+        private static readonly List<ScreenshotToastWindow> pendingToasts = [];
+        internal static int PendingCount => pendingToasts.Count;
         private readonly TemporaryScreenshot screenshot;
         private readonly bool previewIsThumbnail;
         private readonly RecordingFormat? recordingFormat;
         private bool isAnimatingClose;
         private bool allowImmediateClose;
         private bool preserveTemporaryFileForViewer;
+        private bool savedCopy;
 
         internal ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image,
             bool previewIsThumbnail = false, RecordingFormat? recordingFormat = null)
@@ -38,6 +41,7 @@ namespace BetterScreenShot
                 EditorButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "View recording");
                 EditGlyph.Visibility = Visibility.Collapsed;
                 PlayGlyph.Visibility = Visibility.Visible;
+                PreviewActionLabel.Text = "View";
                 DiscardButton.ToolTip = "Discard recording";
                 DiscardButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "Discard recording");
                 CopyButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty,
@@ -61,8 +65,11 @@ namespace BetterScreenShot
 
                 if (ReferenceEquals(currentToast, this))
                 {
-                    currentToast = null;
+                    currentToast = pendingToasts.LastOrDefault(item => item != this);
                 }
+                pendingToasts.Remove(this);
+                RefreshPendingNavigation();
+                RestoreCurrent();
             };
         }
 
@@ -90,6 +97,7 @@ namespace BetterScreenShot
 
         private void ApplyToastTheme(AppTheme theme)
         {
+            ThemeIconService.ApplyToolTipTheme(Resources, theme);
             var dark = theme == AppTheme.Dark;
             SetToastBrush("ToastSurfaceBrush", dark ? "#252833" : "#FFFFFF");
             SetToastBrush("ToastImageBrush", dark ? "#171922" : "#E3E3EA");
@@ -98,6 +106,11 @@ namespace BetterScreenShot
             SetToastBrush("ToastAccentBrush", dark ? "#B9B5FF" : "#625FC6");
             SetToastBrush("ToastAccentTextBrush", dark ? "#222345" : "#FFFFFF");
             SetToastBrush("ToastFocusBrush", dark ? "#B9B5FF" : "#625FC6");
+            if (SystemParameters.HighContrast)
+            {
+                foreach (var key in new[] { "ToastSurfaceBrush", "ToastImageBrush", "ToastSecondarySurfaceBrush", "ToastAccentTextBrush" }) Resources[key] = System.Windows.SystemColors.WindowBrush;
+                foreach (var key in new[] { "ToastPrimaryTextBrush", "ToastAccentBrush", "ToastFocusBrush" }) Resources[key] = System.Windows.SystemColors.WindowTextBrush;
+            }
         }
 
         private void SetToastBrush(string key, string hex)
@@ -112,8 +125,10 @@ namespace BetterScreenShot
             try
             {
                 toast = new ScreenshotToastWindow(filePath, captureBounds, image, previewIsThumbnail);
-                currentToast?.CloseImmediately();
+                currentToast?.Hide();
+                pendingToasts.Add(toast);
                 currentToast = toast;
+                RefreshPendingNavigation();
                 toast.Show();
             }
             catch
@@ -131,8 +146,10 @@ namespace BetterScreenShot
             try
             {
                 toast = new ScreenshotToastWindow(filePath, captureBounds, image, recordingFormat: format);
-                currentToast?.CloseImmediately();
+                currentToast?.Hide();
+                pendingToasts.Add(toast);
                 currentToast = toast;
+                RefreshPendingNavigation();
                 toast.Show();
             }
             catch
@@ -145,7 +162,41 @@ namespace BetterScreenShot
 
         public static void HideCurrent() => currentToast?.Hide();
 
-        public static void CloseCurrent() => currentToast?.CloseImmediately();
+        public static void CloseCurrent()
+        {
+            currentToast = null;
+            var closing = pendingToasts.ToArray();
+            pendingToasts.Clear();
+            foreach (var toast in closing) toast.CloseImmediately();
+        }
+
+        internal static bool ConfirmPendingExit(Window owner)
+        {
+            var unsaved = pendingToasts.Count(toast => !toast.savedCopy);
+            return unsaved == 0 || AppDialog.ConfirmDiscard(owner, "Discard pending captures?",
+                $"You have {unsaved} unsaved capture(s). Choose Keep to review and save them before exiting.");
+        }
+
+        private static void RefreshPendingNavigation()
+        {
+            for (var i = 0; i < pendingToasts.Count; i++)
+            {
+                var toast = pendingToasts[i];
+                toast.PendingNavigation.Visibility = pendingToasts.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+                toast.PendingLabel.Text = $"Capture {i + 1} of {pendingToasts.Count}";
+            }
+        }
+
+        private void PreviousCapture_Click(object sender, RoutedEventArgs e) => NavigatePending(-1);
+        private void NextCapture_Click(object sender, RoutedEventArgs e) => NavigatePending(1);
+        private void NavigatePending(int direction)
+        {
+            if (pendingToasts.Count < 2) return;
+            var index = (pendingToasts.IndexOf(this) + direction + pendingToasts.Count) % pendingToasts.Count;
+            Hide();
+            currentToast = pendingToasts[index];
+            currentToast.Show();
+        }
 
         public static void RestoreCurrent()
         {
@@ -186,7 +237,14 @@ namespace BetterScreenShot
 
         private void BeginSlideAnimation(double fromLeft, double toLeft, double fromOpacity, double toOpacity, Action? completed)
         {
-            var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+            if (!SystemParameters.ClientAreaAnimation)
+            {
+                SlideTransform.X = toLeft;
+                Opacity = toOpacity;
+                completed?.Invoke();
+                return;
+            }
+            var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
             var duration = TimeSpan.FromMilliseconds(SlideDurationMs);
 
             var leftAnimation = new DoubleAnimation
@@ -225,6 +283,7 @@ namespace BetterScreenShot
         private async void CopyButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CopyButton.IsEnabled) return;
+            ActionButtonFeedback.Reset(CopyButton);
             CopyButton.IsEnabled = false;
             try
             {
@@ -248,7 +307,7 @@ namespace BetterScreenShot
                         throw;
                     }
                 }
-                Close();
+                ActionButtonFeedback.Show(CopyButton, "Copied");
             }
             catch (Exception ex)
             {
@@ -260,6 +319,7 @@ namespace BetterScreenShot
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
+            ActionButtonFeedback.Reset(SaveButton);
             try
             {
                 string? savedPath;
@@ -287,7 +347,8 @@ namespace BetterScreenShot
                     return;
                 }
 
-                Close();
+                savedCopy = true;
+                ActionButtonFeedback.Show(SaveButton);
             }
             catch (Exception ex)
             {

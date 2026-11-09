@@ -12,7 +12,23 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Contains("--ux-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            UxReviewTests.Run(Check, Path.Combine(Environment.CurrentDirectory, "obj", "ux-review-tests"));
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--ocr-smoke")) return TextExtractionTests.Smoke();
+        if (args.Contains("--image-open-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            ImageOpenTests.Run(Check, Path.Combine(Environment.CurrentDirectory, "obj", "image-open-tests", Guid.NewGuid().ToString("N")));
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--install-tests"))
         {
             var folder = Path.Combine(Environment.CurrentDirectory, "obj", "installation-tests", Guid.NewGuid().ToString("N"));
@@ -319,6 +335,7 @@ internal static class Program
             });
 
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            ImageOpenTests.Run(Check, directory);
             CaptureShortcutTests.Run(Check, directory);
             ImageQualityTests.Run(Check, directory);
             ScrollingCaptureTests.Run(Check);
@@ -361,7 +378,7 @@ internal static class Program
                 toast.Close();
                 Assert(!File.Exists(copy));
             });
-            Check("Replacing a toast deletes the previous temporary screenshot", () =>
+            Check("New previews preserve previous temporary screenshots", () =>
             {
                 var first = Path.Combine(directory, "first-toast.png");
                 var second = Path.Combine(directory, "second-toast.png");
@@ -372,7 +389,7 @@ internal static class Program
                 {
                     ScreenshotToastWindow.ShowToast(first, bounds, fixtureImage);
                     ScreenshotToastWindow.ShowToast(second, bounds, fixtureImage);
-                    Assert(!File.Exists(first) && File.Exists(second));
+                    Assert(File.Exists(first) && File.Exists(second) && ScreenshotToastWindow.PendingCount == 2);
                 }
                 finally
                 {
@@ -395,7 +412,7 @@ internal static class Program
                 }
                 finally
                 {
-                    viewer.Close();
+                    viewer.DiscardAndClose();
                 }
                 Assert(!File.Exists(copy));
             });

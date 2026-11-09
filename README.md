@@ -10,9 +10,10 @@ For the code structure, release checks, and development pitfalls, see the [proje
 - Capture a long or wide page by selecting its scrolling area, choosing Vertical or Horizontal, and stopping when finished.
 - Record a selected area as an MP4 video or animated GIF from a floating toolbar.
 - Per-monitor DPI-aware selection overlays. Area selection is clipped to the monitor where the drag starts.
-- Bottom-right preview with Copy, Save, Open Viewer, and Discard actions.
+- Bottom-right preview with Copy, Save copy, Edit, and Discard actions, plus navigation between pending captures.
 - Save actual PNG, JPEG, or BMP images.
 - Screenshot editor with smoothed pen strokes, translucent highlights, underlines, arrows, rectangles, circles, and text. Open or drag a PNG, JPEG, BMP, GIF, or TIFF image onto the launcher or editor to annotate it without changing the original file.
+- Open images from File Explorer with **Open with → BetterScreenShot**, including while the app is running in the tray.
 - Click annotations to move, resize, recolor, or delete them. Double-click text to edit it; undo and redo work across edits.
 - Extract English, Latvian, Lithuanian, Estonian, Swedish, Finnish, and Russian text locally with Tesseract, then select a passage or copy all text.
 - Use the sun or moon button in the launcher footer to switch between light and dark themes. Its icon animates when Windows allows motion. The editor's More menu has the same theme switch and can restore the system theme. The manual choice is saved.
@@ -49,11 +50,13 @@ Choose video or GIF after selecting an area. The floating controls show the sele
 | <img src="docs/screenshots/recording-preview-light.png" alt="Light recording preview with View, Copy, Save, and Discard actions" width="350"> | <img src="docs/screenshots/recording-preview-dark.png" alt="Dark recording preview with View, Copy, Save, and Discard actions" width="350"> |
 | <img src="docs/screenshots/recording-viewer-light.png" alt="Light video viewer with playback, Copy, and Save controls" width="620"> | <img src="docs/screenshots/recording-viewer-dark.png" alt="Dark video viewer with playback, Copy, and Save controls" width="620"> |
 
-Captures are temporary until you choose Save. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. Replacing or closing a preview removes its file. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. Copies saved with Save As remain on disk. For video and GIF, Copy places a file on the clipboard and keeps a copy in `%TEMP%/BetterScreenShot/Copied Recordings` so it remains available for pasting. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
+Captures are temporary until you choose Save copy. Files live in `%TEMP%/BetterScreenShot` while their preview or viewer is open. New captures preserve earlier previews; use Previous and Next to return to them. Closing a capture notification dismisses it directly without a confirmation and removes its temporary capture; saved copies stay on disk. Opening the viewer transfers ownership to it; closing the viewer removes the temporary file. The screenshot editor closes untouched images directly. If annotations differ from the opening or last successfully saved/copied state, it offers Save copy, Keep editing, and Discard changes. Saved exports remain on disk. For video and GIF, Copy places a file on the clipboard and keeps a copy in `%TEMP%/BetterScreenShot/Copied Recordings` so it remains available for pasting. Cleanup failures are written to the debug output; a crash or a locked file can leave temporary files behind.
 
 ## Install on Windows
 
 Download **BetterScreenShot.exe** from the portfolio and double-click it. The executable installs or updates BetterScreenShot in your user profile and opens the installed app. It creates a Start menu shortcut and an Installed apps entry without requiring administrator access or a separate .NET runtime. Existing settings and startup preferences are preserved. A first installation enables startup at sign-in.
+
+Installation registers PNG, JPEG, BMP, GIF, and TIFF images for **Open with**. Right-click an image in File Explorer and choose **Open with → BetterScreenShot**. If needed, select **Choose another app** first. The image opens directly in the editor; the original stays unchanged. To open an image type with a left double-click, choose BetterScreenShot and **Always** in the Windows app picker. Registration keeps your current default image app until you choose to change it. Uninstalling removes BetterScreenShot's Open with entries.
 
 Opening a newer downloaded EXE replaces the older installed version automatically, even if it is running in the tray. The installer waits for open screenshots or recordings to close so they are not discarded. Opening an equal or older installer launches the installed version without downgrading it. You can close the setup window to cancel before replacement. A failed replacement restores the previous executable.
 
@@ -131,6 +134,8 @@ Append `-- --scroll-tests` to run only the vertical and horizontal scrolling che
 
 Use `-- --image-quality-tests` for JPEG quality and file-size comparisons, lossless save/copy pixel checks, transparency, high-DPI images, and quality-setting persistence and validation.
 
+Use `-- --image-open-tests` for Open with registration in an isolated registry subtree, command-line paths with spaces and Unicode, image forwarding to the resident instance, disconnected senders, and editor import cleanup.
+
 To compare full-monitor capture plus cropping with direct area capture:
 
 ```powershell
@@ -149,17 +154,23 @@ Capture uses a compositor flush instead of fixed sleeps, then copies the capture
 
 Use the markup toolbar or the shortcuts V (select), H (pan), P (pen), M (highlight), L (underline/line), A (arrow), R (rectangle), O (circle/oval), and T (text). Click any annotation to select it, including while another tool is active. Drag it to move it, drag a corner to resize, choose a color or stroke width, or press Delete. Double-click text to edit it. Enter commits text; Shift+Enter adds a line; Esc cancels the current operation.
 
-The floating icon dock sits over the image with drawing tools and Extract Text (E). Color, stroke width, text size, Sketch, and delete controls appear below it when needed. Click **Color** to open the menu, including custom colors; selecting an annotation updates the current color. Zoom, undo, and redo remain at the top. New arrows scale their stroke and arrowhead to stay readable when a large image is fitted into the editor. Light and dark toolbar previews can be rendered with `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --editor-toolbar-preview`; images are written under `obj/editor-toolbar-preview`.
+The centered floating tool dock shares one row with Extract text, Copy, and Save copy when the window is wide enough. In narrower windows, the tool dock moves to a second row. Active tools use a filled state without a border; keyboard focus retains a visible outline. Zoom, undo, and redo sit at the bottom left.
+
+The image canvas fills the window behind the floating controls, without reserved toolbar rows or a left sidebar gutter. Opening or closing properties does not move or rescale the image. Contextual properties float on the left and span the available height between the top and bottom controls. Stroke color, stroke width, text size, numbering, and line style appear in labeled groups as needed, with Delete selection anchored at the bottom. Color swatches provide quick choices; **More colors…** includes custom colors. In compact windows, use the Properties button to open the panel over the image. The properties scroll when vertical space is limited. New arrows scale their stroke and arrowhead to stay readable when a large image is fitted into the editor. Run `dotnet run --project Tests/BetterScreenShot.RegressionTests.csproj -c Release -- --ux-tests` to check responsive layouts and unsaved-work behavior and render light/dark fixtures under `obj/ux-review-tests`.
 
 Hold Shift while drawing for squares, circles, or 45-degree lines. Hold Space to pan or Alt to draw over an existing annotation. Ctrl+Z undoes an operation; Ctrl+Shift+Z or Ctrl+Y redoes it. Scroll to zoom and click the zoom percentage to fit the image.
 
 Selected arrows and lines have circular endpoint handles and a purple midpoint. Drag the midpoint to bend the stroke into a curve, or drag either endpoint to change its direction. Curves remain editable and support undo/redo. The Sketch toggle starts enabled and gives shape outlines a hand-drawn style. Turn it off for precise outlines. The setting applies to the whole image, including exports, without changing annotation positions or colors.
 
+New arrows keep the same visible stroke, arrowhead, and number-badge size regardless of the current zoom. Once placed, their dimensions belong to the image and scale with it. Changing zoom alone never changes existing annotations.
+
+The last square in the stroke-color row opens a floating color picker beside the properties panel. Choose a palette color or shade, or enter a six-digit hex code and press Enter or the checkmark. Color changes to a selected annotation support undo. Escape or clicking outside closes the picker.
+
 Right-click an annotation for Delete, Duplicate, and Change Color. Bent lines and arrows also offer Straighten, and text offers Edit Text. Right-click selects the annotation under the pointer. Ctrl+D duplicates the selection; these editing actions support undo/redo.
 
 Click Copy or press Ctrl+C with the canvas focused to copy the image with all current annotations at its original pixel dimensions. Paste it into another application with Ctrl+V without saving a file first. Copy finishes any text being entered and keeps the editor open for further changes. While editing text, Ctrl+C copies the selected text as usual.
 
-Save As exports the image and annotations together at the original pixel dimensions to PNG, JPEG, or BMP. The open editor keeps its editable objects after exporting. Compositing and encoding run off the UI thread using an independent snapshot, so editing can continue during export. Closing the editor discards its temporary image and editing session.
+Save copy exports the image and annotations together at the original pixel dimensions to PNG, JPEG, or BMP. Successful copy and save actions turn their button green. The editor uses a checkmark in its icon-only buttons; previews and recording viewers show a checkmark and Copied or Saved label. A short slide and fade eases in, pauses for three seconds to remain readable, then eases back to the original label. Button dimensions stay constant, and no success dialog opens. This feedback appears in the editor, capture previews, recording viewer, and text-copy action. Windows reduced-motion preferences disable movement and fades while preserving the reading pause. The open editor keeps its editable objects after exporting. Compositing and encoding run off the UI thread using an independent snapshot, so editing can continue during export. New edits made during a save remain unsaved. Closing an editor with actual changes offers Save copy, Keep editing, and Discard changes; cancelling the file picker keeps it open. Untouched captures, tool/zoom changes, and undoing back to the opening or saved content close without a prompt. Successfully copying the image also allows closing without a prompt. Changes made during or after copying still require another copy or save, or a discard decision.
 
 Run the synthetic 4K annotation benchmark with:
 
@@ -181,7 +192,7 @@ Drag the blue handle at either end of a text selection to include adjacent words
 | --- | --- |
 | <img src="docs/screenshots/text-selection-light.png" alt="Light editor with a two-line text selection synchronized with the extraction panel" width="620"> | <img src="docs/screenshots/text-selection-dark.png" alt="Dark editor with a two-line text selection synchronized with the extraction panel" width="620"> |
 
-You can also click the **Extract text** icon in the floating toolbar, or press **E** or **Ctrl+Shift+T** with the canvas focused. The button toggles the results panel open and closed, including while recognition is running. Reopening uses cached results when available. The X button also closes the panel.
+You can also click **Extract text**, or press **E** or **Ctrl+Shift+T** with the canvas focused. The button toggles the results panel open and closed, including while recognition is running. Reopening uses cached results when available. In compact windows the text workspace replaces the canvas; **Back to image** returns to editing. Empty results and recognition errors offer Retry. The copy action follows the selection, showing Copy selected text or Copy all text.
 
 Recognition starts in **Auto** mode. For a manual override, expand **Advanced options** below the results and choose English, Latvian, Lithuanian, Estonian, Swedish, Finnish, Russian, or English + Latvian. Choose Auto to restore automatic recognition. The advanced controls start collapsed in each new editor. Double-click a word in the panel or drag to select a passage and use Ctrl+C, or click **Copy all text**. The editor's existing Copy button still copies the image with annotations.
 
@@ -230,7 +241,7 @@ Run the separate `--ocr-ui-benchmark` mode to measure the editor's dispatcher he
 
 ## Runtime assets
 
-The app draws its window icons and interface icons in code or XAML. `assets/BetterScreenShot.ico` supplies the embedded executable icon used by Windows for shortcuts and Installed apps. It includes sizes from 16 to 256 pixels and can be regenerated with `./scripts/Generate-AppIcon.ps1`. `assets/camera.svg`, used for the capture cursor, is embedded in the assembly. No loose image assets are required. The other SVGs, `scan.png`, and `render-icon.html` are design references retained in the repository.
+The app draws its window icons and interface icons in code or XAML. `assets/BetterScreenShot.ico` supplies the embedded executable icon used by Windows for shortcuts and Installed apps. It includes sizes from 16 to 256 pixels and can be regenerated with `./scripts/Generate-AppIcon.ps1`. `assets/camera.svg`, used for the capture cursor, is embedded in the assembly. No loose image assets are required.
 
 ## Manual display checks
 
@@ -243,7 +254,7 @@ Coordinate tests do not replace checks on physical monitors with different scale
 | Drag in every direction and past the starting monitor's edges | The captured pixels match the clipped selection. |
 | Place 100%, 150%, and 200% monitors left, right, or above the primary monitor | The selection matches physical pixels and the preview appears inside the chosen monitor's working area. |
 | Change resolution, scaling, or connected monitors between captures | The next selection uses the updated monitor geometry. |
-| Capture repeatedly, open a viewer, then close it | Replaced previews are cleaned up; the viewer retains its file until it closes. |
+| Capture repeatedly, open a viewer, then close it | Earlier previews remain accessible; the viewer retains its file until it closes, with a prompt for unsaved screenshot work. |
 | Save with each format, copy, zoom, and pan | Saved formats match their extensions, copied images retain full resolution, and viewer controls work. |
 
 Windows DPI awareness is declared in the manifest before windows are created. Toast placement uses physical monitor coordinates and the target window's DPI, following Microsoft's [desktop DPI guidance](https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows).

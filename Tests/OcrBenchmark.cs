@@ -125,7 +125,7 @@ internal static class OcrBenchmark
         finally
         {
             timer.Stop();
-            window.Close();
+            window.CloseForTest();
             SynchronizationContext.SetSynchronizationContext(previousContext);
             app.Shutdown();
         }

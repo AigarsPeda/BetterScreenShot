@@ -67,7 +67,7 @@ internal static class TextExtractionTests
                 encoder.Save(output);
                 Console.WriteLine(path);
             }
-            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            finally { window.CloseForTest(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         }
         app.Shutdown();
         return 0;
@@ -243,7 +243,7 @@ internal static class TextExtractionTests
                 Complete(window.SelectImageWordAsync(new System.Windows.Point(800, 230)));
                 Require(textBox.SelectionLength == 0 && highlight.Visibility == Visibility.Collapsed, "Double-clicking blank space should clear the word selection.");
             }
-            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            finally { window.CloseForTest(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
         check("Panel selections highlight every overlapping image word across lines and reveal zoomed selections", () =>
         {
@@ -281,7 +281,7 @@ internal static class TextExtractionTests
                 textBox.Select(5, 1);
                 Require(highlight.Visibility == Visibility.Collapsed, "Selecting only a space should clear image highlights.");
             }
-            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            finally { window.CloseForTest(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
         check("Extract text toggles the panel during recognition and reopens cached results", () =>
         {
@@ -310,7 +310,7 @@ internal static class TextExtractionTests
                 Complete(Task.Delay(250));
                 Require(host.Visibility == Visibility.Visible && textBox.Text.Contains("Screenshot text"), "The cached text should reappear when reopened.");
             }
-            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            finally { window.CloseForTest(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
         check("Text panel transitions settle correctly when opening and closing are interrupted", () =>
         {
@@ -331,7 +331,7 @@ internal static class TextExtractionTests
                 Complete(Task.Delay(250));
                 Require(host.Visibility == Visibility.Collapsed && host.Width == 0, "Closing should reclaim all panel space.");
             }
-            finally { window.Close(); }
+            finally { window.CloseForTest(); }
         });
         check("The narrow OCR scrollbar supports paging and dragging without changing the theme", () =>
         {
@@ -364,7 +364,7 @@ internal static class TextExtractionTests
                     Require(viewer.VerticalOffset > before, "Dragging the thumb must scroll the extracted text.");
                 }
             }
-            finally { window.Close(); }
+            finally { window.CloseForTest(); }
         });
         check("Editor OCR uses the original image, caches results, switches language and keeps text copy separate", () =>
         {
@@ -407,7 +407,7 @@ internal static class TextExtractionTests
                 Require(System.Windows.Input.ApplicationCommands.Copy.CanExecute(null, textBox), "Normal text selection should support Copy.");
                 Require(surface.Document.Items.Count == 1 && surface.Document.CanUndo, "OCR should preserve editable annotations.");
             }
-            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            finally { window.CloseForTest(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
         check("Closing the editor during OCR ignores the pending result", () =>
         {
@@ -418,11 +418,11 @@ internal static class TextExtractionTests
                 window.Show();
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(window.Dispatcher));
                 var pending = window.ExtractTextAsync();
-                window.Close();
+                window.CloseForTest();
                 Complete(pending);
                 Require(((System.Windows.Controls.TextBox)window.FindName("ExtractedTextBox")).Text == "", "Closed editor should ignore pending OCR.");
             }
-            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            finally { window.CloseForTest(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
     }
 

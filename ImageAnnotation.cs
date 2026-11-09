@@ -16,6 +16,7 @@ internal sealed class ImageAnnotation
     public List<Point> Points { get; set; } = [];
     public Color Color { get; set; } = Colors.Red;
     public double Width { get; set; } = 4;
+    public double ArrowMetricScale { get; init; } = 1;
     public double FontSize { get; set; } = 28;
     public string Text { get; set; } = "Text";
     public int Number { get; set; } = 1;
@@ -27,7 +28,7 @@ internal sealed class ImageAnnotation
 
     public ImageAnnotation Clone() => new()
     {
-        Tool = Tool, Points = [.. Points], Color = Color, Width = Width, FontSize = FontSize, Text = Text, Number = Number, SketchSeed = SketchSeed
+        Tool = Tool, Points = [.. Points], Color = Color, Width = Width, ArrowMetricScale = ArrowMetricScale, FontSize = FontSize, Text = Text, Number = Number, SketchSeed = SketchSeed
     };
 
     public FormattedText FormatText() => new(Text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight,
@@ -56,8 +57,8 @@ internal sealed class ImageAnnotation
         }
     }
 
-    private double BadgeRadius => Math.Clamp(Width * 3.5, 12, 26);
-    private double BadgeGap => Math.Clamp(Width / 2 + 6, 7, 22);
+    private double BadgeRadius => Math.Clamp(Width * 3.5, 12 * ArrowMetricScale, 26 * ArrowMetricScale);
+    private double BadgeGap => Math.Clamp(Width / 2 + 6 * ArrowMetricScale, 7 * ArrowMetricScale, 22 * ArrowMetricScale);
 
     public Geometry Geometry()
     {
@@ -104,7 +105,7 @@ internal sealed class ImageAnnotation
                 if (direction.Length < .001) direction = Points[^1] - Points[0];
                 if (direction.Length > 0)
                 {
-                    var length = Math.Min(direction.Length * .45, Math.Max(14, Width * 4));
+                    var length = Math.Min(direction.Length * .45, Math.Max(14 * ArrowMetricScale, Width * 4));
                     direction.Normalize();
                     var normal = new Vector(-direction.Y, direction.X);
                     path.BeginFigure(Points[^1] - direction * length + normal * length * .5, false, false);
@@ -128,30 +129,30 @@ internal sealed class ImageAnnotation
         if (sketchEnabled && Tool is AnnotationTool.Line or AnnotationTool.Arrow or AnnotationTool.NumberedArrow or AnnotationTool.Rectangle or AnnotationTool.Ellipse)
         {
             pen.Thickness = Width * .8;
-            context.DrawGeometry(null, pen, SketchGeometry.Create(geometry, SketchSeed, Width));
+            context.DrawGeometry(null, pen, SketchGeometry.Create(geometry, SketchSeed, Width, ArrowMetricScale));
             pen = pen.Clone();
             pen.Thickness = Width * .45;
             // Brush opacity avoids a full offscreen compositing layer for every outline.
             pen.Brush = new SolidColorBrush(Color) { Opacity = .55 };
-            context.DrawGeometry(null, pen, SketchGeometry.Create(geometry, SketchSeed ^ 0x59A7, Width));
+            context.DrawGeometry(null, pen, SketchGeometry.Create(geometry, SketchSeed ^ 0x59A7, Width, ArrowMetricScale));
         }
         else context.DrawGeometry(null, pen, geometry);
         if (Tool == AnnotationTool.NumberedArrow)
         {
             var center = Points[0];
             var radius = BadgeRadius;
-            var outline = new Pen(System.Windows.Media.Brushes.White, Math.Clamp(Width * .55, 2, 4))
+            var outline = new Pen(System.Windows.Media.Brushes.White, Math.Clamp(Width * .55, 2 * ArrowMetricScale, 4 * ArrowMetricScale))
                 { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
             if (sketchEnabled)
             {
                 var circle = new EllipseGeometry(new Rect(center.X - radius, center.Y - radius, radius * 2, radius * 2));
-                context.DrawEllipse(brush, null, center, radius - 1, radius - 1);
+                context.DrawEllipse(brush, null, center, radius - ArrowMetricScale, radius - ArrowMetricScale);
                 outline.Thickness *= .8;
-                context.DrawGeometry(null, outline, SketchGeometry.Create(circle, SketchSeed ^ 0x4B13, Width));
+                context.DrawGeometry(null, outline, SketchGeometry.Create(circle, SketchSeed ^ 0x4B13, Width, ArrowMetricScale));
                 outline = outline.Clone();
                 outline.Thickness *= .55;
                 outline.Brush = new SolidColorBrush(Colors.White) { Opacity = .55 };
-                context.DrawGeometry(null, outline, SketchGeometry.Create(circle, SketchSeed ^ 0x67A9, Width));
+                context.DrawGeometry(null, outline, SketchGeometry.Create(circle, SketchSeed ^ 0x67A9, Width, ArrowMetricScale));
             }
             else context.DrawEllipse(brush, outline, center, radius, radius);
             var text = new FormattedText(Number.ToString(CultureInfo.CurrentUICulture), CultureInfo.CurrentUICulture,

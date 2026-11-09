@@ -1,0 +1,29 @@
+{
+  "links": [
+    "preview.html",
+    "#principles",
+    "#findings",
+    "#proposal",
+    "#iterations",
+    "#score",
+    "#delivery",
+    "#validation",
+    "https://www.nngroup.com/articles/ten-usability-heuristics/",
+    "https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/buttons",
+    "https://www.w3.org/WAI/WCAG22/quickref/",
+    "https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md",
+    "https://excalidraw.com/",
+    "iterations/v1.html",
+    "iterations/v2.html",
+    "iterations/v3.html",
+    "iterations/v4.html",
+    "evidence/floating-checks.json",
+    "verify-floating.cjs",
+    "evidence/layout-checks.json",
+    "verify.cjs"
+  ],
+  "brokenImages": [],
+  "missingAnchors": [],
+  "missingFiles": [],
+  "mobileOverflow": false
+}

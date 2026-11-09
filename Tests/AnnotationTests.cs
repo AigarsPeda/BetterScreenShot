@@ -64,6 +64,47 @@ internal static class AnnotationTests
             var large = new ImageAnnotation { Tool = AnnotationTool.Arrow, Width = surface.WidthForTool(AnnotationTool.Arrow), Points = [new(20, 100), new(220, 100)] };
             Require(large.Geometry().Bounds.Height > small.Geometry().Bounds.Height * 3);
         });
+        check("New arrows keep screen size across zoom while placed arrows retain image dimensions", () =>
+        {
+            var path = Path.Combine(directory, "arrow-zoom.png");
+            var source = WhiteImage(1200, 700);
+            SavePng(path, source);
+            var window = new ScreenshotViewerWindow(new TemporaryScreenshot(path), source);
+            try
+            {
+                window.Show(); window.UpdateLayout();
+                var surface = (AnnotationSurface)window.FindName("Annotations");
+                var placed = new ImageAnnotation { Tool = AnnotationTool.Arrow, Width = 4, Points = [new(100, 100), new(400, 100)] };
+                surface.Document.Add(placed);
+                var originalBounds = placed.Bounds;
+                var zoom = typeof(ScreenshotViewerWindow).GetMethod("ChangeZoom", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                double previousScale = 0;
+                foreach (var step in new[] { 0d, 1d, 2d, -3d })
+                {
+                    zoom.Invoke(window, [step]); window.UpdateLayout();
+                    var scale = surface.DisplayScale;
+                    Require(Math.Abs(surface.ArrowScale * scale - 1) < .0001);
+                    if (step > 0) Require(scale > previousScale);
+                    previousScale = scale;
+                    foreach (var tool in new[] { AnnotationTool.Arrow, AnnotationTool.NumberedArrow })
+                    foreach (var width in new[] { 2d, 4d, 7d })
+                    {
+                        surface.InkWidth = width;
+                        var arrow = new ImageAnnotation { Tool = tool, Width = surface.WidthForTool(tool), ArrowMetricScale = surface.ArrowScale,
+                            Points = [new(100 / scale, 100 / scale), new(400 / scale, 100 / scale)] };
+                        var expectedHeight = tool == AnnotationTool.Arrow ? Math.Max(14, width * 4) : Math.Clamp(width * 3.5, 12, 26) * 2;
+                        Require(Math.Abs(arrow.Width * scale - width) < .0001);
+                        Require(Math.Abs(arrow.Bounds.Height * scale - expectedHeight) < .0001 || tool == AnnotationTool.Arrow && Math.Abs(arrow.Geometry().Bounds.Height * scale - expectedHeight) < .0001);
+                        Require(arrow.Clone().ArrowMetricScale == arrow.ArrowMetricScale);
+                        surface.Document.Add(arrow); surface.Document.Undo(); surface.Document.Redo();
+                        Require(surface.Document.Items[^1].ArrowMetricScale == arrow.ArrowMetricScale);
+                        surface.Document.Undo();
+                    }
+                    Require(placed.Width == 4 && placed.ArrowMetricScale == 1 && placed.Bounds == originalBounds);
+                }
+            }
+            finally { window.DiscardAndClose(); }
+        });
         check("Line and arrow curves pass through the midpoint handle and keep their endpoints", () =>
         {
             foreach (var tool in new[] { AnnotationTool.Line, AnnotationTool.Arrow, AnnotationTool.NumberedArrow })
@@ -288,12 +329,12 @@ internal static class AnnotationTests
                 Require(surface.Document.Items.Count == 1);
                 Complete(window.CopyImageAsync(), window.Dispatcher);
                 Require(copied.PixelWidth == 240);
-                window.Close();
+                window.CloseForTest();
                 Require(Pixel(copied, 50, 20).R > 245);
             }
             finally
             {
-                window.Close();
+                window.CloseForTest();
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
@@ -316,18 +357,22 @@ internal static class AnnotationTests
                 edited.Color = Colors.Blue;
                 surface.Document.Replace(0, surface.Document.Items[0], edited);
                 Complete(first, window.Dispatcher);
-                Require(copyButton.IsEnabled && (string)copyButton.Content == "Copy");
+                Require(copyButton.IsEnabled && copyButton.Content is System.Windows.Shapes.Path);
                 Require(Pixel(copied!, 50, 20).R > 245);
                 Require(surface.Document.Items[0].Color == Colors.Blue);
+                Require(window.HasUnsavedChanges);
+                surface.Document.Undo();
+                Require(!window.HasUnsavedChanges);
+                surface.Document.Redo();
                 var closing = window.CopyImageAsync();
                 var beforeClose = copied;
-                window.Close();
+                window.CloseForTest();
                 Complete(closing, window.Dispatcher);
                 Require(ReferenceEquals(copied, beforeClose));
             }
             finally
             {
-                window.Close();
+                window.CloseForTest();
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
@@ -352,15 +397,17 @@ internal static class AnnotationTests
                 Require(attempts == 3 && ReferenceEquals(copied, source));
                 attempts = 0;
                 failAll = true;
+                ((AnnotationSurface)window.FindName("Annotations")).Document.Add(Line());
                 var failed = false;
                 try { Complete(window.CopyImageAsync(), window.Dispatcher); }
                 catch (System.Runtime.InteropServices.COMException error) { failed = error.ErrorCode == unchecked((int)0x800401D0); }
                 var button = (System.Windows.Controls.Button)window.FindName("CopyButton");
-                Require(failed && attempts == 5 && button.IsEnabled && (string)button.Content == "Copy");
+                Require(failed && attempts == 5 && button.IsEnabled && button.Content is System.Windows.Shapes.Path);
+                Require(window.HasUnsavedChanges);
             }
             finally
             {
-                window.Close();
+                window.CloseForTest();
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
@@ -390,9 +437,9 @@ internal static class AnnotationTests
                     Require(copyPosition.X >= 0 && copyPosition.X + copy.ActualWidth < width);
                     var viewport = (FrameworkElement)window.FindName("ImageViewport");
                     var dock = (FrameworkElement)window.FindName("ToolDock");
-                    var dockPosition = dock.TranslatePoint(new Point(), viewport);
-                    Require(dockPosition.X >= 0 && dockPosition.X + dock.ActualWidth < viewport.ActualWidth);
-                    Require(dockPosition.Y >= 0 && dockPosition.Y + dock.ActualHeight < viewport.ActualHeight);
+                    var dockPosition = dock.TranslatePoint(new Point(), window);
+                    Require(dockPosition.X >= 0 && dockPosition.X + dock.ActualWidth < window.ActualWidth);
+                    Require(dockPosition.Y >= 0 && dockPosition.Y + dock.ActualHeight < window.ActualHeight);
                     if (width >= 1100)
                         Require(Math.Abs(dock.TranslatePoint(new Point(0, dock.ActualHeight / 2), window).Y
                             - copy.TranslatePoint(new Point(0, copy.ActualHeight / 2), window).Y) < 8);
@@ -408,11 +455,11 @@ internal static class AnnotationTests
                         Complete(Task.Delay(250), window.Dispatcher);
                         window.UpdateLayout();
                     }
-                    var toolButtons = ((WrapPanel)window.FindName("ToolsPanel")).Children.OfType<System.Windows.Controls.Control>();
+                    var toolButtons = ((System.Windows.Controls.Panel)window.FindName("ToolsPanel")).Children.OfType<System.Windows.Controls.Control>();
                     foreach (var control in toolButtons)
                     {
-                        if (control.ActualHeight < 32 || control.ActualHeight > 35)
-                            throw new InvalidOperationException($"Toolbar control {control.Name} has height {control.ActualHeight} at window width {width}.");
+                        if (control.RenderSize != copy.RenderSize || control.ActualWidth != control.ActualHeight)
+                            throw new InvalidOperationException($"Toolbar control {control.Name} has size {control.RenderSize} at window width {width}.");
                         var controlPosition = control.TranslatePoint(new Point(), window);
                         Require(controlPosition.X >= 0 && controlPosition.X + control.ActualWidth < width);
                     }
@@ -424,7 +471,7 @@ internal static class AnnotationTests
                     }
                     var options = (FrameworkElement)window.FindName("AnnotationOptionsTray");
                     if (theme == AppTheme.Light && width == 620)
-                        Require(surface.Tool == AnnotationTool.Arrow && options.Visibility == Visibility.Visible);
+                        Require(surface.Tool == AnnotationTool.Arrow && options.Visibility == Visibility.Collapsed);
                     else Require(options.Visibility == Visibility.Collapsed);
                     var chooseTool = typeof(ScreenshotViewerWindow).GetMethod("ChooseTool", BindingFlags.Instance | BindingFlags.NonPublic)!;
                     foreach (var (tool, visibleControls) in new[]
@@ -436,14 +483,17 @@ internal static class AnnotationTests
                     {
                         chooseTool.Invoke(window, [tool]);
                         window.UpdateLayout();
+                        if (width == 620)
+                            ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("PropertiesButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                        window.UpdateLayout();
                         Require(options.Visibility == Visibility.Visible);
-                        var optionsPosition = options.TranslatePoint(new Point(), viewport);
-                        Require(optionsPosition.X >= 0 && optionsPosition.X + options.ActualWidth < viewport.ActualWidth);
-                        Require(optionsPosition.Y > dockPosition.Y && optionsPosition.Y + options.ActualHeight < viewport.ActualHeight);
+                        var optionsPosition = options.TranslatePoint(new Point(), window);
+                        Require(optionsPosition.X >= 0 && optionsPosition.X + options.ActualWidth < window.ActualWidth);
+                        Require(optionsPosition.Y > dockPosition.Y && optionsPosition.Y + options.ActualHeight < window.ActualHeight);
                         foreach (var name in visibleControls)
                         {
                             var control = (System.Windows.Controls.Control)window.FindName(name);
-                            Require(control.ActualHeight >= 31 && control.ActualHeight <= 35);
+                            Require(name == "ColorPickerButton" ? control.ActualHeight == 24 : control.ActualHeight >= 31 && control.ActualHeight <= 35);
                             var controlPosition = control.TranslatePoint(new Point(), window);
                             Require(controlPosition.X >= 0 && controlPosition.X + control.ActualWidth < width);
                         }
@@ -454,12 +504,11 @@ internal static class AnnotationTests
                     Require(options.Visibility == Visibility.Collapsed);
                     Require(((FrameworkElement)window.FindName("ImageViewport")).ActualHeight > 300);
                 }
-                var palette = ((System.Windows.Controls.Button)window.FindName("ColorPickerButton")).ContextMenu;
-                Require(palette.Items.Count == 9 && !palette.IsOpen);
-                var blue = palette.Items.OfType<System.Windows.Controls.MenuItem>().Single(item => System.Windows.Automation.AutomationProperties.GetName(item) == "Blue");
-                blue.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
-                Require(((AnnotationSurface)window.FindName("Annotations")).InkColor == (Color)blue.Tag && blue.IsChecked);
-                Require(((SolidColorBrush)((System.Windows.Shapes.Ellipse)window.FindName("CurrentColorSwatch")).Fill).Color == (Color)blue.Tag);
+                var palette = (System.Windows.Controls.Panel)window.FindName("ColorSwatches");
+                var blue = palette.Children.OfType<System.Windows.Controls.Primitives.ToggleButton>().Single(item => System.Windows.Automation.AutomationProperties.GetName(item) == "Blue stroke");
+                blue.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Require(((AnnotationSurface)window.FindName("Annotations")).InkColor == (Color)blue.Tag && blue.IsChecked == true);
+                Require(((SolidColorBrush)((System.Windows.Controls.Border)window.FindName("CurrentColorSwatch")).Background).Color == (Color)blue.Tag);
                 var beginText = typeof(ScreenshotViewerWindow).GetMethod("BeginText", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 var commit = typeof(ScreenshotViewerWindow).GetMethod("CommitText", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 beginText.Invoke(window, [new Point(30, 50)]);
@@ -475,7 +524,7 @@ internal static class AnnotationTests
                 annotations.Document.Undo();
                 Require(annotations.Document.Items[0].Text == "Editable note");
             }
-            finally { window.Close(); }
+            finally { window.CloseForTest(); }
         });
     }
 
@@ -633,7 +682,7 @@ internal static class AnnotationTests
             Console.WriteLine(path);
             if (width is 620 or 1100)
             {
-                var tools = (WrapPanel)window.FindName("ToolsPanel");
+                var tools = (System.Windows.Controls.Panel)window.FindName("ToolsPanel");
                 var arrow = tools.Children.OfType<System.Windows.Controls.Primitives.ToggleButton>()
                     .Single(button => Equals(button.Tag, AnnotationTool.Arrow));
                 arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
@@ -674,7 +723,7 @@ internal static class AnnotationTests
                     Console.WriteLine(narrowPath);
                 }
             }
-            window.Close();
+            window.CloseForTest();
         }
         app.Shutdown();
         return 0;

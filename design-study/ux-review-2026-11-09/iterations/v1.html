@@ -1,0 +1,134 @@
+<div id="bss-review">
+  <div class="review-controls">
+    <label>Screen <select id="review-screen"><option value="editor">Screenshot editor</option><option value="launcher">Launcher</option><option value="preview">Capture preview</option><option value="scroll">Scrolling capture</option><option value="record">Area recording</option><option value="viewer">Recording viewer</option><option value="settings">Settings</option></select></label>
+    <label>Appearance <select id="review-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    <span class="review-note">Interactive proposal · simulated actions</span>
+  </div>
+  <div class="review-stage"><div id="bss-product" class="bss" aria-label="BetterScreenShot proposal"></div></div>
+  <div id="review-announcement" class="review-note" role="status" aria-live="polite"></div>
+</div>
+<style>
+#bss-review { font-family:'Segoe UI Variable','Segoe UI',sans-serif; color:light-dark(#252735,#f0f0f6); }
+#bss-review * {box-sizing:border-box}
+#bss-review [hidden] {display:none!important}
+#bss-review .review-controls {display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px;font-size:13px;padding-right:90px}
+#bss-review .review-controls label {display:flex;align-items:center;gap:7px}
+#bss-review .review-controls select {font:inherit;color:inherit;background:light-dark(#fff,#252833);border:1px solid light-dark(#767b8b,#818797);border-radius:6px;padding:7px}
+#bss-review .review-note {font-size:12px;color:light-dark(#555c6c,#b1b5c4)}
+#bss-review .review-stage {min-height:580px;display:flex;align-items:flex-start;justify-content:center}
+#bss-review .bss {--paper:light-dark(#f7f7f3,#171922);--surface:light-dark(#fff,#252833);--ink:light-dark(#252735,#f0f0f6);--muted:light-dark(#636978,#b1b5c4);--line:light-dark(#dcdde5,#414657);--field-line:light-dark(#797d8c,#818797);--accent:light-dark(#625fc6,#b9b5ff);--on-accent:light-dark(#fff,#222345);--selected:light-dark(#ecebff,#403e6b);--hover:light-dark(#efeff6,#343849);--danger:light-dark(#ac2937,#ff9aa3);--canvas:light-dark(#eaeae7,#101219);width:100%;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px;line-height:1.45;position:relative;container-type:inline-size}
+#bss-review .bss[data-theme=light] {color-scheme:light}
+#bss-review .bss[data-theme=dark] {color-scheme:dark}
+#bss-review .bss button,#bss-review .bss input,#bss-review .bss select,#bss-review .bss textarea {font:inherit;color:inherit}
+#bss-review .bss button {border:1px solid transparent;background:var(--surface);border-radius:7px;min-height:36px;padding:6px 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:var(--cursor-interaction,pointer);white-space:nowrap}
+#bss-review .bss button:hover {background:var(--hover)}
+#bss-review .bss button:active {transform:translateY(1px)}
+#bss-review .bss button:focus-visible,#bss-review .bss input:focus-visible,#bss-review .bss select:focus-visible,#bss-review .bss textarea:focus-visible {outline:2px solid var(--ink);outline-offset:2px}
+#bss-review .bss button.primary {background:var(--accent);color:var(--on-accent);font-weight:600}
+#bss-review .bss button.quiet {background:transparent}
+#bss-review .bss button.danger {color:var(--danger)}
+#bss-review .bss button[aria-pressed=true] {background:var(--selected);color:var(--accent);box-shadow:inset 0 -3px var(--accent)}
+#bss-review .bss button:disabled {opacity:.45;cursor:default;transform:none}
+#bss-review .bss .icon-button {width:36px;padding:6px}
+#bss-review .bss svg {width:18px;height:18px;flex-shrink:0}
+#bss-review .bss .titlebar {height:36px;display:flex;gap:8px;align-items:center;padding:0 12px;font-size:12px;background:var(--paper)}
+#bss-review .bss .titlebar .window-controls {margin-left:auto;display:flex;gap:18px;align-items:center;color:var(--muted)}
+#bss-review .bss .titlebar button {min-height:28px;height:28px;width:32px;padding:4px;background:transparent}
+#bss-review .bss .commands {display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+#bss-review .bss .commands .exports {display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+#bss-review .bss .tools {display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:3px;padding:8px;background:var(--paper)}
+#bss-review .bss .tools button {background:transparent}
+#bss-review .bss .tools button[aria-pressed=true] {background:var(--selected)}
+#bss-review .bss .tool-divider {width:1px;height:22px;margin:0 5px;background:var(--line)}
+#bss-review .bss .options {display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:4px 12px 12px;font-size:12px}
+#bss-review .bss label {display:flex;align-items:center;gap:7px}
+#bss-review .bss select,#bss-review .bss input[type=text] {min-height:34px;border:1px solid var(--field-line);border-radius:6px;background:var(--surface);padding:5px 9px;max-width:100%}
+#bss-review .bss input[type=checkbox] {accent-color:var(--accent);width:18px;height:18px}
+#bss-review .bss .workspace {display:grid;grid-template-columns:minmax(0,1fr);gap:0;background:var(--canvas);min-height:365px}
+#bss-review .bss .workspace.has-text {grid-template-columns:minmax(0,1fr) 292px}
+#bss-review .bss .canvas {padding:24px;display:grid;place-items:center;min-width:0}
+#bss-review .bss .sample {width:100%;max-width:680px;background:#fff;color:#252735;padding:32px;border-radius:2px;box-shadow:0 4px 14px #00000014;position:relative;min-width:0}
+#bss-review .bss .sample h2 {font-size:26px;line-height:1.2;margin:0 0 8px;font-weight:600}
+#bss-review .bss .sample p {margin:0 0 24px;font-size:14px;color:#555c6c}
+#bss-review .bss .sample .sample-grid {display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+#bss-review .bss .sample .sample-cell {background:#f3f4f8;min-height:104px;padding:16px 12px;border-radius:10px;font-size:14px}
+#bss-review .bss .sample .sample-cell:first-child {outline:2px solid #625fc6;outline-offset:4px}
+#bss-review .bss .sample .sample-cell small {display:block;color:#555c6c;font-size:12px;margin-top:10px}
+#bss-review .bss .sample .sample-footer {border-top:1px solid #dcdde5;margin-top:28px;padding-top:12px;font-size:12px;color:#555c6c}
+#bss-review .bss .text-panel {padding:16px;background:var(--surface);border-left:1px solid var(--line);min-width:0;display:flex;flex-direction:column;gap:12px}
+#bss-review .bss .panel-title {display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600}
+#bss-review .bss .text-panel textarea {width:100%;min-height:190px;flex:1;resize:vertical;border:1px solid var(--field-line);background:var(--paper);border-radius:7px;padding:12px;line-height:1.7}
+#bss-review .bss .muted {color:var(--muted);font-size:12px}
+#bss-review .bss .statusbar {display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:40px;padding:5px 12px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+#bss-review .bss .statusbar .zoom {margin-left:auto;display:flex;align-items:center;gap:2px}
+#bss-review .bss .statusbar button {min-height:28px;padding:3px 9px;font-size:12px}
+#bss-review .bss .launcher-list {margin:20px;background:var(--surface);border-radius:12px;padding:4px}
+#bss-review .bss .capture-row {width:100%;justify-content:flex-start;text-align:left;min-height:72px;padding:12px 16px;border-radius:8px;white-space:normal}
+#bss-review .bss .capture-row+.capture-row {border-top:1px solid var(--line)}
+#bss-review .bss .capture-row svg {color:var(--accent);margin-right:9px}
+#bss-review .bss .capture-row small {display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:4px}
+#bss-review .bss .launcher-footer {display:flex;gap:8px;align-items:center;justify-content:space-between;padding:0 20px 18px;font-size:12px;color:var(--muted)}
+#bss-review .bss .preview-content {padding:14px}
+#bss-review .bss .preview-content .sample {padding:20px;box-shadow:none;margin-bottom:12px}
+#bss-review .bss .preview-content .sample h2 {font-size:20px}
+#bss-review .bss .preview-content .sample-grid {gap:8px}
+#bss-review .bss .preview-content .sample-cell {font-size:12px;padding:9px;min-height:60px}
+#bss-review .bss .preview-content .sample-cell small {display:none}
+#bss-review .bss .preview-actions {display:flex;gap:8px}
+#bss-review .bss .preview-actions button {flex:1}
+#bss-review .bss .preview-secondary {display:flex;justify-content:space-between;margin-top:8px}
+#bss-review .bss .settings-nav {display:flex;flex-wrap:wrap;gap:5px;padding:8px 18px;border-bottom:1px solid var(--line)}
+#bss-review .bss .settings-content {padding:22px;min-height:330px}
+#bss-review .bss h3 {font-size:18px;font-weight:600;margin:0 0 8px}
+#bss-review .bss .setting-row {display:grid;grid-template-columns:minmax(100px,1fr) minmax(160px,220px);gap:14px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
+#bss-review .bss .setting-row .field {display:flex;gap:6px;flex-wrap:wrap}
+#bss-review .bss .setting-row .field input {width:100%}
+#bss-review .bss .settings-footer {padding:14px 22px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;border-top:1px solid var(--line)}
+#bss-review .bss .capture-toolbar {padding:18px}
+#bss-review .bss .capture-toolbar .capture-heading {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+#bss-review .bss .capture-toolbar .capture-actions {display:flex;flex-wrap:wrap;gap:8px}
+#bss-review .bss .capture-toolbar .capture-actions button {flex:1}
+#bss-review .bss .capture-toolbar .capture-status {margin:14px 0 0;color:var(--muted);font-size:13px}
+#bss-review .bss .record-dot {display:inline-block;width:8px;height:8px;background:var(--danger);border-radius:50%;margin-right:6px}
+#bss-review .bss .time {font-variant-numeric:tabular-nums}
+#bss-review .bss .modal-cover {position:absolute;inset:36px 0 0;background:#0006;display:grid;place-items:center;padding:20px;z-index:5}
+#bss-review .bss .dialog {background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;width:min(100%,440px);box-shadow:0 12px 40px #0003}
+#bss-review .bss .dialog p {margin:8px 0 22px;color:var(--muted)}
+#bss-review .bss .dialog-actions {display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+#bss-review .bss .notice {padding:12px;border-left:3px solid var(--danger);background:var(--paper);font-size:13px}
+#bss-review .bss .notice p {margin:0 0 10px}
+#bss-review .bss .playback {padding:12px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+#bss-review .bss .playback input {flex:1;min-width:80px;accent-color:var(--accent)}
+@container (max-width:760px) {#bss-review .bss .workspace.has-text {grid-template-columns:minmax(0,1fr)}#bss-review .bss .workspace.has-text .canvas {display:none}#bss-review .bss .text-panel {border-left:0;min-height:320px}#bss-review .bss .commands .exports {margin-left:auto}#bss-review .bss .sample {padding:24px}}
+@container (max-width:440px) {#bss-review .bss .commands .exports {width:100%;margin:0}#bss-review .bss .commands .exports button {flex:1}#bss-review .bss .tools {gap:1px}#bss-review .bss .tools .tool-divider {display:none}#bss-review .bss .sample-grid {grid-template-columns:1fr}#bss-review .bss .sample-cell {min-height:50px}#bss-review .bss .sample-cell small {display:none}#bss-review .bss .canvas {padding:16px}#bss-review .bss .setting-row {grid-template-columns:1fr}#bss-review .bss .options {justify-content:flex-start}#bss-review .bss .modal-cover {padding:12px}#bss-review .bss .dialog {padding:18px}}
+@media (pointer:coarse) {#bss-review .bss button {min-height:44px}#bss-review .bss .icon-button {width:44px}}
+@media (prefers-reduced-motion:reduce) {#bss-review .bss button:active {transform:none}}
+</style>
+<script>
+(() => {
+const root=document.getElementById('bss-review'), app=document.getElementById('bss-product');
+const initial={screen:'editor',theme:'system',compact:false,tool:'Arrow',ocr:false,tab:'Capture',recording:false,scrolling:false,status:'Unsaved changes',zoom:100,playing:false};
+const state={...initial};
+const icon=name=>`<i data-lucide="${name}" aria-hidden="true"></i>`;
+const btn=(label,action,cls='',symbol='')=>`<button type="button" class="${cls}" data-action="${action}">${symbol?icon(symbol):''}${label}</button>`;
+const iconBtn=(label,action,symbol,extra='')=>`<button type="button" class="icon-button quiet" data-action="${action}" aria-label="${label}" data-tooltip="${label}" ${extra}>${icon(symbol)}</button>`;
+const title=(name,close='close')=>`<div class="titlebar">${icon('scan')}<span>${name}</span><div class="window-controls" aria-hidden="true">− □</div>${iconBtn('Close',close,'x')}</div>`;
+const sample=()=>`<div class="sample" role="img" aria-label="Sample screenshot of a launch review, with a rectangle around the Design step"><h2>Launch review</h2><p>A clear plan. A confident team.</p><div class="sample-grid"><div class="sample-cell">01 Design<small>Review the details</small></div><div class="sample-cell">02 Build<small>Make it work</small></div><div class="sample-cell">03 Ship<small>Ready to share</small></div></div><div class="sample-footer">Ready for the next step</div></div>`;
+const toolList=[['Select','mouse-pointer-2','V'],['Pan','hand','H'],['Pen','pencil','P'],['Highlight','highlighter','M'],['Line','slash','L'],['Arrow','arrow-up-right','A'],['Numbered arrow','list-ordered','N'],['Rectangle','square','R'],['Ellipse','circle','O'],['Text','type','T']];
+function textPanel(){return `<aside class="text-panel" aria-label="Extracted text"><div class="panel-title">Extracted text ${iconBtn('Back to image','ocr-close','x')}</div><label class="muted">Language <select aria-label="Recognition language"><option>Auto detect</option><option>English</option><option>Latvian</option></select></label><textarea aria-label="Extracted text" spellcheck="false">Launch review\nA clear plan. A confident team.\n\n01 Design\n02 Build\n03 Ship\n\nReady for the next step</textarea>${btn('Copy all text','copy-text','primary','copy')}</aside>`}
+function editor(){return `${title('Screenshot editor · Unsaved changes')}<div class="commands"><div>${iconBtn('Undo · Ctrl+Z','undo','undo-2')}${iconBtn('Redo · Ctrl+Shift+Z','redo','redo-2')}</div><div class="exports">${btn('Extract text','ocr',state.ocr?'active':'','scan-text')}${btn('Copy','copy','','copy')}${btn('Save copy…','save','primary','save')}</div></div><div class="tools" aria-label="Annotation tools">${toolList.map(([name,i,key],n)=>`${n===2||n===9?'<span class="tool-divider"></span>':''}<button type="button" class="icon-button" data-tool="${name}" aria-label="${name}" aria-pressed="${state.tool===name}" data-tooltip="${name} · ${key}">${icon(i)}</button>`).join('')}</div><div class="options"><span>${state.tool}</span><label>Color <select aria-label="Annotation color"><option>Purple</option><option>Red</option><option>Blue</option><option>Black</option></select></label><label>Stroke <select aria-label="Stroke width"><option>Medium</option><option>Thin</option><option>Thick</option></select></label><label><input type="checkbox" checked>Sketch</label>${iconBtn('Delete selected annotation','delete-annotation','trash-2')}</div><div class="workspace ${state.ocr?'has-text':''}"><div class="canvas">${sample()}</div>${state.ocr?textPanel():''}</div><div class="statusbar"><span role="status" aria-live="polite" id="bss-status">${state.status}</span><div class="zoom">${iconBtn('Zoom out','zoom-out','minus')}${btn(state.zoom+'% · Fit','fit','quiet')}${iconBtn('Zoom in','zoom-in','plus')}</div></div>`}
+function launcher(){return `${title('BetterScreenShot','launcher-close')}<div class="launcher-list">${[['Capture full screen','Choose a monitor','monitor','preview'],['Capture area','Drag to select an area','scan','preview'],['Scrolling capture','Select an area, then scroll','gallery-vertical-end','scroll'],['Record area','Select an area, then choose a format','video','record'],['Open image…','Edit an existing image','image-plus','editor']].map(([a,b,c,d])=>`<button type="button" class="capture-row" data-screen="${d}">${icon(c)}<span>${a}<small>${b}</small></span></button>`).join('')}</div><div class="launcher-footer"><span>Ready</span>${btn('Settings','settings','quiet','settings-2')}</div>`}
+function preview(){return `${title('Capture preview','discard')}<div class="preview-content">${sample()}<div class="preview-actions">${btn('Copy','copy','','copy')}${btn('Save copy…','save','primary','save')}</div><div class="preview-secondary">${btn('Edit','edit','quiet','pencil')}${btn('Discard','discard','quiet danger','trash-2')}</div><div class="muted" role="status" aria-live="polite">${state.status==='Unsaved changes'?'':state.status}</div></div>`}
+function capture(kind){const rec=kind==='record',running=rec?state.recording:state.scrolling;return `${title(rec?'Record area':'Scrolling capture','cancel-capture')}<div class="capture-toolbar"><div class="capture-heading"><strong>${rec?(running?'<span class="record-dot"></span>Recording · <span class="time">0:07</span>':'Ready to record'):(running?'Capturing':'Ready to capture')}</strong>${!running?`<label>${rec?'Quality':'Direction'}<select aria-label="${rec?'Video quality':'Scroll direction'}">${rec?'<option>High</option><option>Standard</option>':'<option>Down</option><option>Right</option>'}</select></label>`:''}</div><div class="capture-actions">${running?btn('Stop and keep',rec?'stop-record':'stop-scroll','primary','square'):rec?btn('Record video','start-record','primary','video')+btn('Record GIF','start-record','','film'):btn('Start capture','start-scroll','primary','scan')}${btn(running?'Discard…':'Cancel','cancel-capture','quiet '+(running?'danger':''))}</div><p class="capture-status" role="status">${rec?(running?'The selected area is being recorded.':'Choose a format to start recording.'):(running?'2,460 pixels captured. Keep scrolling slowly.':'Press Start capture, then scroll downward.')}</p></div>`}
+function viewer(){return `${title('Recording preview','discard')}<div class="commands"><span>Video recording</span><div class="exports">${btn('Copy file','copy-file','','copy')}${btn('Save copy…','save','primary','save')}</div></div><div class="workspace"><div class="canvas">${sample()}</div></div><div class="playback">${btn(state.playing?'Pause':'Play','play','','play')}<input type="range" min="0" max="12" value="7" aria-label="Playback position"><span class="time">0:07 / 0:12</span></div><div class="statusbar" role="status">${state.status==='Unsaved changes'?'Ready to preview':state.status}</div>`}
+function settings(){let content='';if(state.tab==='Capture')content=`<h3>Capture shortcuts</h3><div class="muted">Select a shortcut field, then press your preferred keys.</div><div class="setting-row"><label for="full-shortcut">Full screen</label><div class="field"><input id="full-shortcut" type="text" placeholder="Set shortcut" aria-label="Full screen shortcut"></div></div><div class="setting-row"><label for="area-shortcut">Capture area</label><div class="field"><input id="area-shortcut" type="text" value="Ctrl + Shift + A" aria-label="Capture area shortcut"></div></div><label style="margin-top:20px"><input type="checkbox">Use Shift+Win+S for capture area</label><p class="muted">Replaces Windows Snipping Tool while BetterScreenShot is running.</p>`;else if(state.tab==='Editor')content=`<h3>Editor defaults</h3>${[['Starting tool','Select'],['Annotation color','Purple'],['Stroke width','Medium'],['Text size','28 px']].map(([a,b])=>`<div class="setting-row"><label for="setting-${a.replaceAll(' ','-')}">${a}</label><select id="setting-${a.replaceAll(' ','-')}"><option>${b}</option></select></div>`).join('')}<label style="margin-top:16px"><input type="checkbox" checked>Remember the last used tool</label>`;else if(state.tab==='Export')content=`<h3>Image quality</h3><div class="setting-row"><label for="jpeg-quality">JPEG quality</label><select id="jpeg-quality"><option>High · 95</option><option>Standard · 85</option><option>Maximum · 100</option></select></div><p class="muted">PNG and clipboard images preserve full resolution. JPEG trades file size for image detail.</p>`;else content=`<h3>BetterScreenShot</h3><p>Version 1.1.6</p><p class="muted">Automatically checks for updates every 24 hours.</p>${btn('Check for updates','updates')}`;return `${title('Settings','settings-cancel')}<nav class="settings-nav" aria-label="Settings categories">${['Capture','Editor','Export','About'].map(t=>`<button type="button" data-tab="${t}" aria-pressed="${state.tab===t}">${t}</button>`).join('')}</nav><div class="settings-content">${content}</div><div class="settings-footer">${btn('Cancel','settings-cancel')}${btn('Save settings','settings-save','primary')}</div>`}
+function render(){app.dataset.theme=state.theme;app.style.maxWidth=state.compact?'620px':({launcher:'520px',preview:'360px',scroll:'460px',record:'460px',settings:'620px'}[state.screen]||'100%');app.innerHTML=({editor,launcher,preview,scroll:()=>capture('scroll'),record:()=>capture('record'),viewer,settings}[state.screen]||editor)();root.querySelector('#review-screen').value=state.screen;root.querySelector('#review-theme').value=state.theme;if(globalThis.lucide)lucide.createIcons();}
+function announce(text){root.querySelector('#review-announcement').textContent=text;}
+function status(text){state.status=text;render();}
+function navigate(screen){state.screen=screen;state.status='Unsaved changes';render();}
+root.querySelector('#review-screen').addEventListener('change',e=>navigate(e.target.value));root.querySelector('#review-theme').addEventListener('change',e=>{state.theme=e.target.value;render()});
+app.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.screen){navigate(b.dataset.screen);return;}if(b.dataset.tool){state.tool=b.dataset.tool;status(state.tool+' selected');return;}if(b.dataset.tab){state.tab=b.dataset.tab;render();return;}const a=b.dataset.action;switch(a){case 'ocr':state.ocr=!state.ocr;render();break;case 'ocr-close':state.ocr=false;render();break;case 'copy':status('Copied image');break;case 'copy-text':status('Copied all text');break;case 'copy-file':status('Copied video file');break;case 'save':status('Saved copy · launch-review.png');break;case 'settings':navigate('settings');break;case 'edit':navigate('editor');break;case 'undo':status('Undid last annotation');break;case 'redo':status('Restored annotation');break;case 'delete-annotation':status('Annotation deleted · Ctrl+Z to undo');break;case 'zoom-in':state.zoom=Math.min(200,state.zoom+10);render();break;case 'zoom-out':state.zoom=Math.max(20,state.zoom-10);render();break;case 'fit':state.zoom=100;render();break;case 'start-record':state.recording=true;render();break;case 'start-scroll':state.scrolling=true;render();break;case 'stop-record':state.recording=false;navigate('viewer');break;case 'stop-scroll':state.scrolling=false;navigate('preview');break;case 'play':state.playing=!state.playing;render();break;case 'settings-save':announce('Settings saved in this preview.');navigate('launcher');break;case 'settings-cancel':navigate('launcher');break;case 'updates':announce('Update check simulated. No network request was made.');break;default:announce('This action is a design preview.');}});
+render();
+if(globalThis.Tweak){const tweak=new Tweak({container:app,onChange:render});tweak.addToggle(state,'compact',{label:'Compact editor · 620 px'});}
+})();
+</script>

@@ -20,9 +20,10 @@ internal static class UpdateServiceTests
             var payload = Encoding.UTF8.GetBytes("portable release");
             var hash = Convert.ToHexString(SHA256.HashData(payload));
             byte[] Manifest(string version) => Encoding.UTF8.GetBytes($"{{\"version\":\"{version}\",\"sizeBytes\":{payload.Length},\"sha256\":\"{hash}\"}}");
-            using var newerClient = new HttpClient(new ResponseHandler(Manifest("1.2.0.0")));
+            var nextVersion = new Version(UpdateService.CurrentVersion.Major + 1, 0, 0, 0);
+            using var newerClient = new HttpClient(new ResponseHandler(Manifest(nextVersion.ToString())));
             var newer = new UpdateService(newerClient).CheckAsync(CancellationToken.None).GetAwaiter().GetResult();
-            Require(newer is { DisplayVersion: "1.2.0" } && newer.SizeBytes == payload.Length);
+            Require(newer is not null && newer.DisplayVersion == nextVersion.ToString(3) && newer.SizeBytes == payload.Length);
             using var currentClient = new HttpClient(new ResponseHandler(Manifest(UpdateService.CurrentVersion.ToString())));
             Require(new UpdateService(currentClient).CheckAsync(CancellationToken.None).GetAwaiter().GetResult() is null);
             Require(UpdateService.ParseManifest(Manifest("1.2.0.0")).Sha256 == hash);

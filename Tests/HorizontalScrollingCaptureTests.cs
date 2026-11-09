@@ -203,7 +203,7 @@ internal static class HorizontalScrollingCaptureTests
             var window = new ScrollingCaptureWindow(new Rectangle(screen.Left + 20, screen.Top + 20, 150, 100));
             WithContext(window, () =>
             {
-                window.Show();
+                window.ShowForTest();
                 ((System.Windows.Controls.ComboBox)window.FindName("DirectionPicker")).SelectedIndex = 1;
                 Click(window, "StartButton");
                 PumpUntil(() => window.SpoolPath is not null, window.Dispatcher);
@@ -282,7 +282,7 @@ internal static class HorizontalScrollingCaptureTests
             try
             {
                 ThemeIconService.ApplyViewerTheme(window.Resources, theme);
-                window.Show();
+                window.ShowForTest();
                 window.Top = SystemParameters.WorkArea.Bottom - window.ActualHeight - 8;
                 var picker = (System.Windows.Controls.ComboBox)window.FindName("DirectionPicker");
                 picker.SelectedIndex = direction;
@@ -325,7 +325,7 @@ internal static class HorizontalScrollingCaptureTests
         var window = new ScrollingCaptureWindow(bounds);
         WithContext(window, () =>
         {
-            window.Show();
+            window.ShowForTest();
             var picker = (System.Windows.Controls.ComboBox)window.FindName("DirectionPicker");
             picker.SelectedIndex = 1;
             Click(window, "StartButton");
@@ -344,7 +344,7 @@ internal static class HorizontalScrollingCaptureTests
         var window = new ScrollingCaptureWindow(new Rectangle(0, 0, 6000, 6000));
         WithContext(window, () =>
         {
-            window.Show();
+            window.ShowForTest();
             Click(window, "StartButton");
             Require(((System.Windows.Controls.Button)window.FindName("StartButton")).IsEnabled);
             Require(((System.Windows.Controls.ComboBox)window.FindName("DirectionPicker")).IsEnabled);
@@ -370,7 +370,7 @@ internal static class HorizontalScrollingCaptureTests
             form.Show();
             form.Update();
             DesktopWindowService.FlushPendingUpdates();
-            window.Show();
+            window.ShowForTest();
             ((System.Windows.Controls.ComboBox)window.FindName("DirectionPicker")).SelectedIndex = 1;
             Click(window, "StartButton");
             PumpUntil(() => ((System.Windows.Controls.Button)window.FindName("StopButton")).IsEnabled, window.Dispatcher);

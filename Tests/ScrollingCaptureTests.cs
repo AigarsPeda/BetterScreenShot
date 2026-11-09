@@ -92,7 +92,7 @@ internal static class ScrollingCaptureTests
                     var fullImage = (BitmapSource)((System.Windows.Controls.Image)viewer.FindName("ViewerImage")).Source;
                     Require(fullImage.PixelWidth == bounds.Width && fullImage.PixelHeight == bounds.Height);
                 }
-                finally { viewer.Close(); }
+                finally { viewer.DiscardAndClose(); }
             }
             finally
             {
@@ -111,7 +111,7 @@ internal static class ScrollingCaptureTests
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(window.Dispatcher));
             try
             {
-                window.Show();
+                window.ShowForTest();
                 var start = (System.Windows.Controls.Button)window.FindName("StartButton");
                 var stop = (System.Windows.Controls.Button)window.FindName("StopButton");
                 Require(start.IsEnabled && !stop.IsEnabled);
@@ -132,7 +132,7 @@ internal static class ScrollingCaptureTests
         {
             var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
             var window = new ScrollingCaptureWindow(new Rectangle(screen.Left + 20, screen.Top + 20, 120, 100));
-            window.Show();
+            window.ShowForTest();
             ((System.Windows.Controls.Button)window.FindName("CancelButton"))
                 .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             Require(window.Completion.IsCompleted && window.Completion.GetAwaiter().GetResult() is null);
@@ -145,7 +145,7 @@ internal static class ScrollingCaptureTests
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(window.Dispatcher));
             try
             {
-                window.Show();
+                window.ShowForTest();
                 ((System.Windows.Controls.Button)window.FindName("StartButton"))
                     .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 PumpUntil(() => window.SpoolPath is not null, window.Dispatcher);
@@ -174,12 +174,12 @@ internal static class ScrollingCaptureTests
             CaptureAreaOutlineWindow? outline = null;
             try
             {
-                backdrop.Show();
+                backdrop.ShowForTest();
                 DesktopWindowService.PositionCaptureOutline(backdrop, bounds);
                 DesktopWindowService.FlushPendingUpdates();
                 var before = ScrollFrame.Capture(bounds);
                 outline = new CaptureAreaOutlineWindow(bounds);
-                outline.Show();
+                outline.ShowForTest();
                 DesktopWindowService.FlushPendingUpdates();
                 Require(outline.IsVisible && outline.CanExcludeFromCapture && outline.IsClickThrough);
                 Require(GetWindowRect(new System.Windows.Interop.WindowInteropHelper(outline).Handle, out var actualBounds)
@@ -411,9 +411,9 @@ internal static class ScrollingCaptureTests
             DesktopWindowService.FlushPendingUpdates();
             var frames = new List<(int Offset, ScrollFrame Image)> { (0, ScrollFrame.Capture(bounds)) };
             outline = new CaptureAreaOutlineWindow(bounds);
-            outline.Show();
+            outline.ShowForTest();
             controls = new ScrollingCaptureWindow(bounds);
-            controls.Show();
+            controls.ShowForTest();
             Require(outline.CanExcludeFromCapture && outline.IsClickThrough);
             ((System.Windows.Controls.Button)controls.FindName("StartButton"))
                 .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));

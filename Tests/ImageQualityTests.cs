@@ -144,7 +144,7 @@ internal static class ImageQualityTests
                 }
                 finally
                 {
-                    window.Close();
+                    window.CloseForTest();
                     SynchronizationContext.SetSynchronizationContext(previousContext);
                 }
             }
@@ -179,7 +179,7 @@ internal static class ImageQualityTests
                 var decoded = new PngBitmapDecoder(png, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames[0];
                 Require(decoded.PixelWidth == 1900 && decoded.PixelHeight == 120 && Pixels(decoded).AsSpan().SequenceEqual(Pixels(source)));
             }
-            finally { toast.Close(); }
+            finally { toast.CloseForTest(); }
         });
         check("Settings quality choices save the selected value and Cancel leaves preferences alone", () =>
         {
@@ -199,13 +199,13 @@ internal static class ImageQualityTests
                 }
                 Require(EditorSettingsService.Current == current);
             }
-            finally { window.Close(); }
+            finally { window.CloseForTest(); }
             var cancelled = new CaptureShortcutsWindow(CaptureShortcutSettings.Disabled, (_, _) => throw new InvalidOperationException("Cancel saved preferences."));
             try
             {
                 ((System.Windows.Controls.ComboBox)cancelled.FindName("JpegQualityPicker")).SelectedIndex = 0;
             }
-            finally { cancelled.Close(); }
+            finally { cancelled.CloseForTest(); }
             Require(EditorSettingsService.Current == current);
         });
     }

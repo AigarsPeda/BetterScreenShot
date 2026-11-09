@@ -2,7 +2,6 @@ using System.Windows.Media.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Interop;
 using Microsoft.Win32;
 using Point = System.Windows.Point;
 using WpfCursors = System.Windows.Input.Cursors;
@@ -12,7 +11,6 @@ namespace BetterScreenShot
 {
     public partial class ScreenshotViewerWindow : Window
     {
-        private const int DwmwaUseImmersiveDarkMode = 20;
         private const double MinZoom = 1.0;
         private const double MaxZoom = 5.0;
         private const double ZoomStep = 0.2;
@@ -37,6 +35,7 @@ namespace BetterScreenShot
             }
             ViewerImage.Source = image;
             InitializeEditor(image);
+            InitializeUnsavedState();
             ApplyThemeFromSystem();
             UpdateZoomState();
             Closed += ScreenshotViewerWindow_Closed;
@@ -55,7 +54,7 @@ namespace BetterScreenShot
 
         private void ScreenshotViewerWindow_SourceInitialized(object? sender, EventArgs e)
         {
-            ApplyTitleBarTheme(currentTheme ?? AppTheme.Light);
+            ThemeIconService.ApplyTitleBarTheme(this, currentTheme ?? AppTheme.Light);
         }
 
         private void Editor_PreviewDragOver(object sender, System.Windows.DragEventArgs e)
@@ -81,27 +80,12 @@ namespace BetterScreenShot
             ThemeMenuItem.Header = theme == AppTheme.Dark ? "Switch to light theme" : "Switch to dark theme";
             ThemeMenuIcon.Data = ThemeIconService.ThemeGlyph(theme);
             FollowSystemThemeMenuItem.Visibility = ThemePreferenceService.FollowsSystem ? Visibility.Collapsed : Visibility.Visible;
-            if (currentTheme == theme)
-            {
-                return;
-            }
             currentTheme = theme;
             ThemeIconService.ApplyViewerTheme(Resources, theme);
             Icon = ThemeIconService.CreateScanIcon(theme);
-            ApplyTitleBarTheme(theme);
+            ThemeIconService.ApplyTitleBarTheme(this, theme);
         }
 
-        private void ApplyTitleBarTheme(AppTheme theme)
-        {
-            var helper = new WindowInteropHelper(this);
-            if (helper.Handle == IntPtr.Zero)
-            {
-                return;
-            }
-
-            var darkModeEnabled = theme == AppTheme.Dark ? 1 : 0;
-            DwmSetWindowAttribute(helper.Handle, DwmwaUseImmersiveDarkMode, ref darkModeEnabled, sizeof(int));
-        }
 
         private void UpdateZoomState()
         {
@@ -225,12 +209,15 @@ namespace BetterScreenShot
         internal async Task CopyImageAsync()
         {
             if (!CopyButton.IsEnabled) return;
+            ActionButtonFeedback.Reset(CopyButton);
+            var originalContent = CopyButton.Content;
             CopyButton.IsEnabled = false;
-            CopyButton.Content = "Copying…";
+            CopyButton.Content = "…";
             try
             {
                 CommitText();
                 Annotations.CancelGesture();
+                var stateBeingCopied = CaptureDocumentState();
                 var source = (BitmapSource)ViewerImage.Source;
                 var output = Annotations.Document.Items.Count > 0 ? await Annotations.Document.RenderAsync(source) : source;
                 var clipboardData = setClipboardImage is null ? await ImageClipboardService.CreateDataObjectAsync(output) : null;
@@ -241,6 +228,10 @@ namespace BetterScreenShot
                     {
                         if (clipboardData is not null) System.Windows.Clipboard.SetDataObject(clipboardData, copy: true);
                         else setClipboardImage!(output);
+                        retainedState = stateBeingCopied;
+                        RefreshUnsavedState();
+                        SetEditorStatus("Copied image");
+                        ActionButtonFeedback.Show(CopyButton, "Copied", iconOnly: true);
                         break;
                     }
                     catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x800401D0) && attempt < 4)
@@ -253,41 +244,51 @@ namespace BetterScreenShot
             finally
             {
                 CopyButton.IsEnabled = true;
-                CopyButton.Content = "Copy";
+                CopyButton.Content = originalContent;
             }
         }
 
         private async void SaveAsButton_Click(object sender, RoutedEventArgs e)
+            => await SaveCopyAsync();
+
+        internal async Task<bool> SaveCopyAsync()
         {
-            if (!SaveButton.IsEnabled) return;
+            if (!SaveButton.IsEnabled) return false;
+            ActionButtonFeedback.Reset(SaveButton);
+            var originalContent = SaveButton.Content;
             CommitText();
             Annotations.CancelGesture();
             try
             {
-                var savedPath = ScreenshotFileService.ChooseSavePath(screenshot.FilePath, this, screenshot.OriginalPath);
+                var savedPath = SelectSaveCopyPath is null ? ScreenshotFileService.ChooseSavePath(screenshot.FilePath, this, screenshot.OriginalPath) : SelectSaveCopyPath();
                 if (savedPath is null)
                 {
-                    return;
+                    return false;
                 }
 
                 SaveButton.IsEnabled = false;
-                SaveButton.Content = "Saving…";
+                SaveButton.Content = "…";
+                var stateBeingSaved = CaptureDocumentState();
                 var modified = Annotations.Document.Items.Count > 0;
                 var output = modified ? await Annotations.Document.RenderAsync((BitmapSource)ViewerImage.Source) : (BitmapSource)ViewerImage.Source;
                 // Encoding the frozen image also lets an export finish if the editor closes.
                 await Task.Run(() => ScreenshotFileService.Export(screenshot.FilePath, savedPath, output, imageModified: true));
-                if (!IsLoaded) return;
-                AppDialog.ShowSaved(this, savedPath, screenshot.IsImported);
+                if (!IsLoaded) return false;
+                retainedState = stateBeingSaved;
+                RefreshUnsavedState();
+                ActionButtonFeedback.Show(SaveButton, iconOnly: true);
+                return true;
             }
             catch (Exception ex)
             {
-                if (!IsLoaded) return;
+                if (!IsLoaded) return false;
                 AppDialog.ShowError(this, "Could not save screenshot", "Choose another location and try again.", ex.Message);
+                return false;
             }
             finally
             {
                 SaveButton.IsEnabled = true;
-                SaveButton.Content = "Save As…";
+                SaveButton.Content = originalContent;
             }
         }
 
@@ -301,7 +302,7 @@ namespace BetterScreenShot
             try
             {
                 ScreenshotFileService.DeleteIfExists(screenshot.FilePath);
-                Close();
+                DiscardAndClose();
             }
             catch (Exception ex)
             {
@@ -324,6 +325,18 @@ namespace BetterScreenShot
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            CommitText();
+            if (!allowDiscardClose && IsLoaded && HasUnsavedChanges)
+            {
+                var choice = savingToClose ? UnsavedChoice.KeepEditing : ConfirmUnsavedChanges?.Invoke() ?? AppDialog.ConfirmUnsaved(this);
+                if (choice != UnsavedChoice.Discard)
+                {
+                    e.Cancel = true;
+                    base.OnClosing(e);
+                    if (choice == UnsavedChoice.Save) _ = SaveAndCloseAsync();
+                    return;
+                }
+            }
             isClosing = true;
             base.OnClosing(e);
             if (e.Cancel) isClosing = false;
@@ -334,7 +347,5 @@ namespace BetterScreenShot
             }
         }
 
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
     }
 }

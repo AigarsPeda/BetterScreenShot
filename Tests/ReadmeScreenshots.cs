@@ -33,7 +33,7 @@ internal static class ReadmeScreenshots
             typeof(ScreenshotToastWindow).GetMethod("ApplyToastTheme", BindingFlags.Instance | BindingFlags.NonPublic,
                     null, [typeof(AppTheme)], null)!.Invoke(toast, [theme]);
             RenderOffscreen(toast, 310, 215, Path.Combine(output, $"preview-{suffix}.png"), theme);
-            toast.Close();
+            toast.CloseForTest();
 
             var editorSource = WriteFixture(fixtures, $"editor-{suffix}", sample);
             var editor = new ScreenshotViewerWindow(new TemporaryScreenshot(editorSource), sample);
@@ -43,7 +43,7 @@ internal static class ReadmeScreenshots
             RenderOffscreen(editor, 1360, 800, Path.Combine(output, $"editor-{suffix}.png"), theme,
                 "Screenshot Editor",
                 afterLayout: () => surface.Select(2));
-            editor.Close();
+            editor.CloseForTest();
 
             RenderTextView(theme, sample, fixtures, Path.Combine(output, $"text-recognition-{suffix}.png"),
                 "clear plan", "confident team.");
@@ -76,7 +76,7 @@ internal static class ReadmeScreenshots
         ((System.Windows.Shapes.Path)launcher.FindName("ThemeGlyphPath")).Data = ThemeIconService.ThemeGlyph(theme);
         RenderOffscreen(launcher, 520, 548, Path.Combine(output, $"launcher-{theme.ToString().ToLowerInvariant()}.png"), theme,
             "BetterScreenShot");
-        launcher.Close();
+        launcher.CloseForTest();
     }
 
     private static void RenderRecordingViews(AppTheme theme, string output, string fixtures, BitmapSource sample)
@@ -95,7 +95,7 @@ internal static class ReadmeScreenshots
         stop.IsEnabled = true;
         stop.Visibility = Visibility.Visible;
         RenderOffscreen(controls, 384, 102, Path.Combine(output, $"recording-active-{suffix}.png"), theme);
-        controls.Close();
+        controls.CloseForTest();
 
         var previewPath = WriteFixture(fixtures, $"recording-preview-{suffix}", sample);
         var toast = new ScreenshotToastWindow(previewPath, System.Windows.Forms.Screen.PrimaryScreen!.Bounds,
@@ -103,7 +103,7 @@ internal static class ReadmeScreenshots
         typeof(ScreenshotToastWindow).GetMethod("ApplyToastTheme", BindingFlags.Instance | BindingFlags.NonPublic,
                 null, [typeof(AppTheme)], null)!.Invoke(toast, [theme]);
         RenderOffscreen(toast, 310, 215, Path.Combine(output, $"recording-preview-{suffix}.png"), theme);
-        toast.Close();
+        toast.CloseForTest();
 
         var viewerPath = WriteFixture(fixtures, $"recording-viewer-{suffix}", sample);
         var viewer = new RecordingViewerWindow(new TemporaryScreenshot(viewerPath), RecordingFormat.Video, sample);
@@ -115,7 +115,7 @@ internal static class ReadmeScreenshots
         ((System.Windows.Controls.TextBlock)viewer.FindName("TimeText")).Text = "0:07 / 0:12";
         RenderOffscreen(viewer, 960, 620, Path.Combine(output, $"recording-viewer-{suffix}.png"), theme,
             "Video recording");
-        viewer.Close();
+        viewer.CloseForTest();
     }
 
     private static void AddDemoAnnotations(AnnotationSurface surface)
@@ -162,7 +162,7 @@ internal static class ReadmeScreenshots
             editor.UpdateLayout();
             RenderContent(editor, output, theme, "Screenshot Editor");
         }
-        finally { editor.Close(); }
+        finally { editor.CloseForTest(); }
     }
 
     private static string WriteFixture(string folder, string name, BitmapSource image)

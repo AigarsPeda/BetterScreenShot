@@ -328,7 +328,7 @@ internal static class AreaRecordingTests
             {
                 toast = new ScreenshotToastWindow(result.FilePath, bounds, result.Preview,
                     recordingFormat: RecordingFormat.Gif);
-                toast.Show();
+                toast.ShowForTest();
                 ((System.Windows.Controls.Button)toast.FindName("EditorButton"))
                     .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 viewer = Application.Current.Windows.OfType<RecordingViewerWindow>().Single(window => window.IsVisible);
@@ -389,7 +389,7 @@ internal static class AreaRecordingTests
             {
                 toast = new ScreenshotToastWindow(result.FilePath, bounds, result.Preview,
                     recordingFormat: RecordingFormat.Video);
-                toast.Show();
+                toast.ShowForTest();
                 viewer = toast.OpenRecordingViewer();
                 var player = (System.Windows.Controls.MediaElement)viewer.FindName("VideoPlayer");
                 var playback = (System.Windows.Controls.Button)viewer.FindName("PlayPauseButton");
@@ -443,7 +443,7 @@ internal static class AreaRecordingTests
             string? path = null;
             try
             {
-                controls.Show();
+                controls.ShowForTest();
                 var indicator = (System.Windows.FrameworkElement)controls.FindName("RecordingIndicator");
                 var duration = (System.Windows.Controls.TextBlock)controls.FindName("RecordingDuration");
                 var qualityPicker = (System.Windows.Controls.ComboBox)controls.FindName("VideoQualityPicker");
@@ -508,7 +508,7 @@ internal static class AreaRecordingTests
             var controls = new AreaRecordingWindow(bounds);
             try
             {
-                controls.Show();
+                controls.ShowForTest();
                 var picker = (System.Windows.Controls.ComboBox)controls.FindName("VideoQualityPicker");
                 var toolbar = (System.Windows.Controls.Grid)controls.FindName("ToolbarLayout");
                 var actions = (System.Windows.Controls.Grid)controls.FindName("ActionsPanel");
@@ -546,7 +546,7 @@ internal static class AreaRecordingTests
                 var controls = new AreaRecordingWindow(bounds);
                 try
                 {
-                    controls.Show();
+                    controls.ShowForTest();
                     var start = (System.Windows.Controls.Button)controls.FindName(
                         format == RecordingFormat.Video ? "VideoButton" : "GifButton");
                     start.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));

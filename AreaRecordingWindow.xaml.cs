@@ -23,6 +23,7 @@ public partial class AreaRecordingWindow : Window
     private RecordingFormat format;
     private bool isClosed;
     private bool canExcludeControls;
+    internal Func<bool>? ConfirmDiscardCapture { get; set; }
 
     internal Task<(string FilePath, BitmapSource Preview, RecordingFormat Format)?> Completion => completion.Task;
     internal VideoQuality SelectedVideoQuality => VideoQualityPicker.SelectedIndex switch
@@ -53,6 +54,11 @@ public partial class AreaRecordingWindow : Window
             }
         };
         ThemePreferenceService.Changed += ThemePreference_Changed;
+        Closing += (_, e) =>
+        {
+            if (recording is not null && !completion.Task.IsCompleted && !(ConfirmDiscardCapture?.Invoke() ?? AppDialog.ConfirmDiscard(this,
+                "Discard this recording?", "The temporary recording will be removed. Choose Keep, then Stop and keep to review it."))) e.Cancel = true;
+        };
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         Closed += (_, _) =>
         {
@@ -115,6 +121,7 @@ public partial class AreaRecordingWindow : Window
         selectedButton.Visibility = Visibility.Collapsed;
         StopButton.Visibility = Visibility.Visible;
         StopButton.IsEnabled = true;
+        CancelButton.Content = "Discard…";
         RecordingDuration.Text = "0:00";
         recordingClock.Restart();
         durationTimer.Start();

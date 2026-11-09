@@ -175,7 +175,7 @@ internal static class UpdateSettingsTests
                 Require(Status(window).Text == previousStatus && pendingHandler.Requests == 1);
             });
         });
-        check("The Settings update button stays visible at short window heights in both themes", () =>
+        check("The About update button stays visible at short window heights in both themes", () =>
         {
             using var handler = new Handler(_ => Task.FromResult(Response()));
             using var client = new HttpClient(handler);
@@ -208,7 +208,12 @@ internal static class UpdateSettingsTests
         var window = new CaptureShortcutsWindow(CaptureShortcutSettings.Disabled,
             (_, _) => throw new InvalidOperationException("Checking for updates saved preferences."), updates);
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(window.Dispatcher));
-        try { window.Show(); action(window); }
+        try
+        {
+            window.Show();
+            typeof(CaptureShortcutsWindow).GetMethod("SelectCategory", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, ["About"]);
+            action(window);
+        }
         finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
     }
 

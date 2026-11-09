@@ -11,17 +11,6 @@ namespace BetterScreenShot;
 
 public partial class ScreenshotViewerWindow
 {
-    private void ChooseCustomColor()
-    {
-        using var picker = new System.Windows.Forms.ColorDialog
-        {
-            FullOpen = true,
-            Color = System.Drawing.Color.FromArgb(Annotations.InkColor.R, Annotations.InkColor.G, Annotations.InkColor.B)
-        };
-        if (picker.ShowDialog(new NativeOwner(new System.Windows.Interop.WindowInteropHelper(this).Handle)) == System.Windows.Forms.DialogResult.OK)
-            ChooseColor(Color.FromRgb(picker.Color.R, picker.Color.G, picker.Color.B));
-    }
-
     internal ContextMenu? CreateAnnotationMenu()
     {
         if (Annotations.Selected is not { } target) return null;

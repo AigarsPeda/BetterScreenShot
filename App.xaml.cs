@@ -11,6 +11,20 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains("--register-file-associations"))
+        {
+            try
+            {
+                FileAssociationRegistration.Register(Environment.ProcessPath!);
+                Shutdown();
+            }
+            catch (Exception error)
+            {
+                System.Windows.MessageBox.Show(error.Message, "Could not register BetterScreenShot", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown(1);
+            }
+            return;
+        }
         if (await ApplicationInstaller.HandleLaunchAsync(e.Args))
         {
             Shutdown();
@@ -42,7 +56,8 @@ public partial class App : System.Windows.Application
         }
         instance = new BackgroundInstance(
             () => Dispatcher.BeginInvoke(new Action(() => launcher?.ShowLauncher())),
-            () => Dispatcher.BeginInvoke(new Action(ExitApplication)));
+            () => Dispatcher.BeginInvoke(new Action(ExitApplication)),
+            openImages: paths => Dispatcher.BeginInvoke(new Action(() => OpenImages(paths))));
         if (e.Args.Contains("--exit"))
         {
             if (!instance.IsPrimary) instance.RequestExit();
@@ -51,7 +66,16 @@ public partial class App : System.Windows.Application
         }
         if (!instance.IsPrimary)
         {
-            if (!e.Args.Contains("--background")) instance.RequestShow();
+            try
+            {
+                var paths = ImportedImageService.GetLaunchPaths(e.Args);
+                if (paths.Length > 0) await instance.RequestOpenImagesAsync(paths);
+                else if (!e.Args.Contains("--background")) instance.RequestShow();
+            }
+            catch (Exception error)
+            {
+                System.Windows.MessageBox.Show(error.Message, "Could not open image", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             Shutdown();
             return;
         }
@@ -60,12 +84,27 @@ public partial class App : System.Windows.Application
         MainWindow = launcher;
         launcher.EnableBackgroundMode();
         tray = new TrayController(launcher, ExitApplication);
-        if (!e.Args.Contains("--background")) launcher.ShowLauncher();
+        try
+        {
+            var paths = ImportedImageService.GetLaunchPaths(e.Args);
+            if (paths.Length > 0) OpenImages(paths);
+            else if (!e.Args.Contains("--background")) launcher.ShowLauncher();
+        }
+        catch (Exception error)
+        {
+            launcher.ShowLauncher();
+            AppDialog.ShowError(launcher, "Could not open image", "The image path is invalid.", error.Message);
+        }
+    }
+
+    private void OpenImages(string[] paths)
+    {
+        foreach (var path in paths) launcher?.OpenImage(path);
     }
 
     private void ExitApplication()
     {
-        launcher?.ExitBackgroundMode();
+        if (launcher is not null && !launcher.ExitBackgroundMode()) return;
         Shutdown();
     }
 

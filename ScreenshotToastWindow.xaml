@@ -1,9 +1,10 @@
 <Window x:Class="BetterScreenShot.ScreenshotToastWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:BetterScreenShot"
         Title="Screenshot Saved"
         Width="310"
-        Height="215"
+        Height="249"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -34,7 +35,7 @@
                                 BorderBrush="Transparent"
                                 BorderThickness="0"
                                 CornerRadius="9">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter x:Name="ActionContent" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -44,8 +45,13 @@
                                 <Setter TargetName="ActionSurface" Property="Opacity" Value="0.72" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ActionSurface" Property="BorderBrush" Value="{DynamicResource ToastFocusBrush}" />
+                                <Setter TargetName="ActionSurface" Property="BorderBrush" Value="{DynamicResource ToastPrimaryTextBrush}" />
                                 <Setter TargetName="ActionSurface" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                            <Trigger Property="local:ActionButtonFeedback.IsActive" Value="True">
+                                <Setter TargetName="ActionSurface" Property="Background" Value="#187846" />
+                                <Setter TargetName="ActionContent" Property="Content" Value="{Binding Path=(local:ActionButtonFeedback.Message), RelativeSource={RelativeSource TemplatedParent}}" />
+                                <Setter TargetName="ActionContent" Property="TextElement.Foreground" Value="White" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -73,7 +79,7 @@
                                 <Setter TargetName="CornerSurface" Property="Opacity" Value="0.8" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="CornerSurface" Property="BorderBrush" Value="{DynamicResource ToastFocusBrush}" />
+                                <Setter TargetName="CornerSurface" Property="BorderBrush" Value="{DynamicResource ToastPrimaryTextBrush}" />
                                 <Setter TargetName="CornerSurface" Property="BorderThickness" Value="2" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -105,7 +111,7 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
@@ -128,14 +134,14 @@
                             </Canvas>
                         </Viewbox>
                     </Button>
-                    <Button x:Name="EditorButton" Style="{StaticResource ToastCornerStyle}"
+                    <Button x:Name="EditorButton" Width="70" Style="{StaticResource ToastCornerStyle}"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Bottom"
                             Margin="0,0,7,7"
                             ToolTip="Open editor"
                             AutomationProperties.Name="Open editor"
                             Click="PreviewButton_Click">
-                        <Grid Width="16" Height="16">
+                        <StackPanel Orientation="Horizontal"><TextBlock Name="PreviewActionLabel" Text="Edit" Foreground="{DynamicResource ToastPrimaryTextBrush}" Margin="0,0,6,0" /><Grid Width="16" Height="16">
                             <Viewbox x:Name="EditGlyph">
                                 <Canvas Width="24" Height="24">
                                     <Path Style="{StaticResource LucideStrokeStyle}"
@@ -148,42 +154,47 @@
                                     <Path Style="{StaticResource LucideStrokeStyle}" Data="M8 5L19 12 8 19Z" />
                                 </Canvas>
                             </Viewbox>
-                        </Grid>
+                        </Grid></StackPanel>
                     </Button>
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="1" Margin="0,9,0,0">
+            <DockPanel Name="PendingNavigation" Grid.Row="1" Visibility="Collapsed" Margin="0,6,0,0">
+                <Button DockPanel.Dock="Left" Content="Previous" Click="PreviousCapture_Click" Style="{StaticResource ToastActionStyle}" Padding="5" AutomationProperties.Name="Previous capture" />
+                <Button DockPanel.Dock="Right" Content="Next" Click="NextCapture_Click" Style="{StaticResource ToastActionStyle}" Padding="5" AutomationProperties.Name="Next capture" />
+                <TextBlock Name="PendingLabel" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ToastPrimaryTextBrush}" FontSize="12" />
+            </DockPanel>
+            <Grid Grid.Row="2" Margin="0,9,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="8" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Button x:Name="CopyButton" Grid.Column="0"
+                <Button x:Name="CopyButton" AutomationProperties.LiveSetting="Polite" Grid.Column="0"
                         Style="{StaticResource ToastActionStyle}"
-                        Background="{DynamicResource ToastAccentBrush}"
-                        Foreground="{DynamicResource ToastAccentTextBrush}"
+                        Background="{DynamicResource ToastSecondarySurfaceBrush}"
+                        Foreground="{DynamicResource ToastPrimaryTextBrush}"
                         AutomationProperties.Name="Copy screenshot"
                         Click="CopyButton_Click">
                     <StackPanel Orientation="Horizontal">
                         <Viewbox Width="16" Height="16" Margin="0,0,7,0">
                             <Canvas Width="24" Height="24">
                                 <Rectangle Style="{StaticResource LucideStrokeStyle}"
-                                           Stroke="{DynamicResource ToastAccentTextBrush}"
+                                           Stroke="{DynamicResource ToastPrimaryTextBrush}"
                                            Width="14" Height="14" RadiusX="2" RadiusY="2"
                                            Canvas.Left="8" Canvas.Top="8" />
                                 <Path Style="{StaticResource LucideStrokeStyle}"
-                                      Stroke="{DynamicResource ToastAccentTextBrush}"
+                                      Stroke="{DynamicResource ToastPrimaryTextBrush}"
                                       Data="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
                             </Canvas>
                         </Viewbox>
                         <TextBlock Text="Copy" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="SaveButton" Grid.Column="2"
+                <Button x:Name="SaveButton" AutomationProperties.LiveSetting="Polite" Grid.Column="2"
                         Style="{StaticResource ToastActionStyle}"
-                        Background="{DynamicResource ToastSecondarySurfaceBrush}"
-                        Foreground="{DynamicResource ToastPrimaryTextBrush}"
+                        Background="{DynamicResource ToastAccentBrush}"
+                        Foreground="{DynamicResource ToastAccentTextBrush}"
                         AutomationProperties.Name="Save screenshot"
                         Click="SaveButton_Click">
                     <StackPanel Orientation="Horizontal">
@@ -196,7 +207,7 @@
                                 <Path Style="{StaticResource LucideStrokeStyle}" Data="M7 3v4a1 1 0 0 0 1 1h7" />
                             </Canvas>
                         </Viewbox>
-                        <TextBlock Text="Save" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Text="Save copy…" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </Grid>

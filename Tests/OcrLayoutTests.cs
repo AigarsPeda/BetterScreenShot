@@ -64,7 +64,7 @@ internal static class OcrLayoutTests
                 Require(highlight.Visibility == Visibility.Visible && highlight.Data.Bounds.Top is >= 272 and <= 283,
                     $"Panel selection must highlight the original zip filename: {highlight.Data.Bounds}");
             }
-            finally { window.Close(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            finally { window.CloseForTest(); SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
     }
 

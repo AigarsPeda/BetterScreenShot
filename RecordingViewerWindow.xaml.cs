@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -13,7 +11,6 @@ namespace BetterScreenShot;
 
 public partial class RecordingViewerWindow : Window
 {
-    private const int DwmwaUseImmersiveDarkMode = 20;
     private const double HorizontalWindowPadding = 32;
     private const double VerticalWindowPadding = 176;
     private readonly TemporaryScreenshot recording;
@@ -72,19 +69,12 @@ public partial class RecordingViewerWindow : Window
         var theme = ThemePreferenceService.CurrentTheme;
         ThemeIconService.ApplyViewerTheme(Resources, theme);
         Icon = ThemeIconService.CreateScanIcon(theme);
-        ApplyTitleBarTheme(theme);
+        ThemeIconService.ApplyTitleBarTheme(this, theme);
     }
 
     private void RecordingViewerWindow_SourceInitialized(object? sender, EventArgs e) =>
-        ApplyTitleBarTheme(ThemePreferenceService.CurrentTheme);
+        ThemeIconService.ApplyTitleBarTheme(this, ThemePreferenceService.CurrentTheme);
 
-    private void ApplyTitleBarTheme(AppTheme theme)
-    {
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero) return;
-        var darkModeEnabled = theme == AppTheme.Dark ? 1 : 0;
-        DwmSetWindowAttribute(handle, DwmwaUseImmersiveDarkMode, ref darkModeEnabled, sizeof(int));
-    }
     private void ThemePreference_Changed() => Dispatcher.BeginInvoke(new Action(ApplyTheme));
     private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
@@ -255,11 +245,14 @@ public partial class RecordingViewerWindow : Window
 
     private void Copy_Click(object sender, RoutedEventArgs e)
     {
+        ActionButtonFeedback.Reset(CopyButton);
         string? copy = null;
         try
         {
             copy = ScreenshotFileService.CopyRecordingForClipboard(recording.FilePath);
             System.Windows.Clipboard.SetFileDropList(new StringCollection { copy });
+            ExportStatus.Text = "Copied recording file";
+            ActionButtonFeedback.Show(CopyButton, "Copied");
         }
         catch (Exception error)
         {
@@ -270,7 +263,15 @@ public partial class RecordingViewerWindow : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        try { ScreenshotFileService.SaveRecordingAs(recording.FilePath, this); }
+        ActionButtonFeedback.Reset(SaveButton);
+        try
+        {
+            if (ScreenshotFileService.SaveRecordingAs(recording.FilePath, this) is not null)
+            {
+                ExportStatus.Text = "";
+                ActionButtonFeedback.Show(SaveButton);
+            }
+        }
         catch (Exception error)
         {
             AppDialog.ShowError(this, "Could not save recording", "Choose another location and try again.", error.Message);
@@ -301,6 +302,4 @@ public partial class RecordingViewerWindow : Window
         recording.Dispose();
     }
 
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 }

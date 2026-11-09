@@ -22,6 +22,13 @@ public partial class ScreenshotViewerWindow
 
     private async void ExtractTextButton_Click(object sender, RoutedEventArgs e) => await ToggleTextPanelAsync();
 
+    private async void RetryText_Click(object sender, RoutedEventArgs e)
+    {
+        var language = (string)((ComboBoxItem)OcrLanguagePicker.SelectedItem).Tag;
+        extractedText.Remove(language);
+        await ExtractTextAsync();
+    }
+
     internal async Task ToggleTextPanelAsync()
     {
         if (textPanelOpen)
@@ -68,6 +75,7 @@ public partial class ScreenshotViewerWindow
         UpdateOcrSelectionHandles();
         OcrSelectionHighlight.Visibility = Visibility.Collapsed;
         CopyExtractedTextButton.IsEnabled = false;
+        RetryTextButton.Visibility = Visibility.Collapsed;
         SetOcrStatus(language == TextExtractionService.AutomaticLanguage ? "Recognizing text automatically…" : "Recognizing text…");
         try
         {
@@ -82,6 +90,7 @@ public partial class ScreenshotViewerWindow
             if (isClosing || cancellation.IsCancellationRequested) return;
             pendingWordSelection = null;
             SetOcrStatus("Could not extract text. " + error.Message);
+            RetryTextButton.Visibility = Visibility.Visible;
         }
         finally
         {
@@ -100,6 +109,7 @@ public partial class ScreenshotViewerWindow
         ExtractedTextBox.Text = text;
         UpdateOcrTextSelection();
         CopyExtractedTextButton.IsEnabled = !string.IsNullOrWhiteSpace(text);
+        RetryTextButton.Visibility = string.IsNullOrWhiteSpace(text) ? Visibility.Visible : Visibility.Collapsed;
         SetOcrStatus(string.IsNullOrWhiteSpace(text)
             ? "No text found. Try a closer capture or choose a language in Advanced options."
             : null);
@@ -160,6 +170,7 @@ public partial class ScreenshotViewerWindow
         if (OcrSelectionHighlight is null) return;
         var start = ExtractedTextBox.SelectionStart;
         var end = start + ExtractedTextBox.SelectionLength;
+        CopyExtractedTextButton.Content = end > start ? "Copy selected text" : "Copy all text";
         var geometry = new GeometryGroup { FillRule = FillRule.Nonzero };
         firstSelectedOcrWord = lastSelectedOcrWord = -1;
         if (end > start && currentTextResult is { } result)
@@ -221,7 +232,8 @@ public partial class ScreenshotViewerWindow
         var transition = ++textPanelTransition;
         var fromWidth = ExtractedTextHost.Width;
         var fromSlide = ExtractedTextSlide.X;
-        var targetWidth = open ? 312d : 0;
+        var compact = EditorContent.ActualWidth < 760;
+        var targetWidth = open ? compact ? EditorContent.ActualWidth : 312d : 0;
         var targetSlide = open ? 0 : 312d;
         ExtractedTextHost.BeginAnimation(WidthProperty, null);
         ExtractedTextSlide.BeginAnimation(TranslateTransform.XProperty, null);
@@ -234,10 +246,12 @@ public partial class ScreenshotViewerWindow
         {
             if (textPanelTransition != transition || isClosing) return;
             ExtractedTextHost.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            UpdateEditorLayout();
             if (open) RevealSelectedText();
         }
 
-        if (!IsLoaded || !SystemParameters.ClientAreaAnimation)
+        UpdateEditorLayout();
+        if (!IsLoaded || compact || !SystemParameters.ClientAreaAnimation)
         {
             Finish();
             return;
@@ -268,13 +282,16 @@ public partial class ScreenshotViewerWindow
         ExtractedTextBox.Select(0, 0);
         OcrSelectionHighlight.Visibility = Visibility.Collapsed;
         SetTextPanelOpen(false);
+        ExtractTextButton.Focus();
     }
 
     private async void CopyExtractedText_Click(object sender, RoutedEventArgs e)
     {
         if (copyingExtractedText || string.IsNullOrWhiteSpace(ExtractedTextBox.Text)) return;
+        ActionButtonFeedback.Reset(CopyExtractedTextButton);
         copyingExtractedText = true;
-        var text = ExtractedTextBox.Text;
+        var selection = ExtractedTextBox.SelectionLength > 0;
+        var text = selection ? ExtractedTextBox.SelectedText : ExtractedTextBox.Text;
         try
         {
             for (var attempt = 0; ; attempt++)
@@ -286,7 +303,8 @@ public partial class ScreenshotViewerWindow
                     await Task.Delay(75);
                 }
             }
-            SetOcrStatus(null);
+            SetOcrStatus(selection ? "Copied selected text" : "Copied all text");
+            ActionButtonFeedback.Show(CopyExtractedTextButton, "Copied");
         }
         catch (Exception error)
         {

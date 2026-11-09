@@ -217,6 +217,7 @@ internal static class ApplicationInstaller
         }
         finally { Marshal.FinalReleaseComObject(shortcut); Marshal.FinalReleaseComObject(shell); }
         StartupRegistration.SetEnabled(target, startupEnabled);
+        FileAssociationRegistration.Register(target);
         using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\BetterScreenShot");
         foreach (var (name, value) in new Dictionary<string, string>
         {

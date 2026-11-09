@@ -1,7 +1,10 @@
 using Microsoft.Win32;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using SystemColors = System.Windows.SystemColors;
 
 namespace BetterScreenShot
 {
@@ -13,10 +16,50 @@ namespace BetterScreenShot
 
     internal static class ThemeIconService
     {
+        private const int DwmwaUseImmersiveDarkMode = 20;
         private const string PersonalizeRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
         private const string AppsUseLightThemeValueName = "AppsUseLightTheme";
         private static ImageSource? lightScanIcon;
         private static ImageSource? darkScanIcon;
+        private static Style? toolTipStyle;
+
+        internal static void ApplyTitleBarTheme(Window window, AppTheme theme)
+        {
+            var handle = new WindowInteropHelper(window).Handle;
+            if (handle == IntPtr.Zero) return;
+
+            var darkModeEnabled = theme == AppTheme.Dark ? 1 : 0;
+            DwmSetWindowAttribute(handle, DwmwaUseImmersiveDarkMode, ref darkModeEnabled, sizeof(int));
+        }
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+        internal static void ApplyToolTipTheme(ResourceDictionary resources, AppTheme theme)
+        {
+            toolTipStyle ??= (Style)new ResourceDictionary
+            {
+                Source = new Uri("/BetterScreenShot;component/ToolTipStyles.xaml", UriKind.Relative)
+            }[typeof(System.Windows.Controls.ToolTip)];
+            var style = new Style(typeof(System.Windows.Controls.ToolTip), toolTipStyle);
+            foreach (var (key, light, dark) in new[]
+            {
+                ("ToolTipBackgroundBrush", "#FFFFFF", "#252833"),
+                ("ToolTipTextBrush", "#252735", "#F0F0F6"),
+                ("ToolTipBorderBrush", "#E3E3EA", "#3D4151")
+            })
+            {
+                var brush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(theme == AppTheme.Dark ? dark : light));
+                brush.Freeze();
+                style.Resources[key] = brush;
+            }
+            if (SystemParameters.HighContrast)
+            {
+                style.Resources["ToolTipBackgroundBrush"] = SystemColors.WindowBrush;
+                style.Resources["ToolTipTextBrush"] = style.Resources["ToolTipBorderBrush"] = SystemColors.WindowTextBrush;
+            }
+            resources[typeof(System.Windows.Controls.ToolTip)] = style;
+        }
         private static readonly Geometry sunIcon = CreateThemeGeometry(
             "M16 12 A4 4 0 1 1 8 12 A4 4 0 1 1 16 12 Z M12 2 V4 M12 20 V22 M4.93 4.93 L6.34 6.34 M17.66 17.66 L19.07 19.07 M2 12 H4 M20 12 H22 M4.93 19.07 L6.34 17.66 M17.66 6.34 L19.07 4.93");
         private static readonly Geometry moonIcon = CreateThemeGeometry(
@@ -36,11 +79,12 @@ namespace BetterScreenShot
             ("ViewerPageBackgroundBrush", "#F7F7F3", "#171922"),
             ("ViewerSurfaceBrush", "#FFFFFF", "#252833"),
             ("ViewerSurfaceBorderBrush", "#E3E3EA", "#3D4151"),
+            ("ViewerControlBorderBrush", "#797D8C", "#818797"),
             ("ViewerSurfaceHoverBrush", "#F0F0F8", "#343849"),
             ("ViewerSurfacePressedBrush", "#E8E7F7", "#444963"),
             ("ViewerPrimaryTextBrush", "#252735", "#F0F0F6"),
             ("ViewerSecondaryTextBrush", "#636978", "#B1B5C4"),
-            ("ViewerCanvasBrush", "#FBFBF8", "#1B1D27"),
+            ("ViewerCanvasBrush", "#F4F4F1", "#121319"),
             ("ViewerAccentBrush", "#625FC6", "#B9B5FF"),
             ("ViewerAccentTextBrush", "#FFFFFF", "#222345"),
             ("ViewerSelectedBrush", "#ECEBFF", "#403E6B"),
@@ -49,12 +93,20 @@ namespace BetterScreenShot
 
         public static void ApplyViewerTheme(ResourceDictionary resources, AppTheme theme)
         {
+            ApplyToolTipTheme(resources, theme);
             foreach (var (key, light, dark) in ViewerPalette)
             {
                 var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(theme == AppTheme.Dark ? dark : light);
                 var brush = new SolidColorBrush(color);
                 brush.Freeze();
                 resources[key] = brush;
+            }
+            if (SystemParameters.HighContrast)
+            {
+                foreach (var key in new[] { "ViewerPageBackgroundBrush", "ViewerSurfaceBrush", "ViewerCanvasBrush" }) resources[key] = SystemColors.WindowBrush;
+                foreach (var key in new[] { "ViewerPrimaryTextBrush", "ViewerSecondaryTextBrush", "ViewerSurfaceBorderBrush", "ViewerControlBorderBrush", "ViewerAccentBrush" }) resources[key] = SystemColors.WindowTextBrush;
+                foreach (var key in new[] { "ViewerSelectedBrush", "ViewerSurfaceHoverBrush", "ViewerSurfacePressedBrush", "ViewerSelectionFillBrush" }) resources[key] = SystemColors.HighlightBrush;
+                resources["ViewerAccentTextBrush"] = SystemColors.WindowBrush;
             }
         }
 

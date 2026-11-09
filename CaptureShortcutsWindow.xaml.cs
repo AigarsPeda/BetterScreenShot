@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Windows;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
@@ -46,7 +45,7 @@ public partial class CaptureShortcutsWindow : Window
         EditorDraft = EditorSettingsService.Current;
         currentTheme = ThemePreferenceService.CurrentTheme;
         ApplyTheme(currentTheme);
-        SourceInitialized += (_, _) => ApplyWindowChromeTheme(currentTheme);
+        SourceInitialized += (_, _) => ThemeIconService.ApplyTitleBarTheme(this, currentTheme);
         Deactivated += (_, _) => StopRecording();
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         ThemePreferenceService.Changed += ThemePreference_Changed;
@@ -63,6 +62,7 @@ public partial class CaptureShortcutsWindow : Window
         };
         UpdateLabels();
         InitializeEditorSettings();
+        SelectCategory("Capture");
     }
 
     private void RefreshUpdateButton()
@@ -129,11 +129,11 @@ public partial class CaptureShortcutsWindow : Window
         JpegQualityPicker.SelectedItem = JpegQualityPicker.Items.Cast<ComboBoxItem>().Single(item => Equals(item.Tag, quality));
         foreach (var tool in EditorSettings.Tools)
         {
-            DefaultToolPicker.Items.Add(new ComboBoxItem { Content = tool.ToString(), Tag = tool });
+            DefaultToolPicker.Items.Add(new ComboBoxItem { Content = ScreenshotViewerWindow.ToolLabel(tool), Tag = tool });
             var panel = new StackPanel { Width = 180, Margin = new Thickness(0, 0, 10, 12) };
-            panel.Children.Add(new TextBlock { Text = tool.ToString(), Margin = new Thickness(0, 0, 0, 5) });
+            panel.Children.Add(new TextBlock { Text = ScreenshotViewerWindow.ToolLabel(tool), Margin = new Thickness(0, 0, 0, 5) });
             var picker = new ComboBox();
-            System.Windows.Automation.AutomationProperties.SetName(picker, $"{tool} shortcut");
+            System.Windows.Automation.AutomationProperties.SetName(picker, $"{ScreenshotViewerWindow.ToolLabel(tool)} shortcut");
             foreach (var key in Enumerable.Range((int)Key.A, 26).Select(value => (Key)value).Where(key => key != Key.E))
                 picker.Items.Add(new ComboBoxItem { Content = key.ToString(), Tag = key });
             picker.SelectedItem = picker.Items.Cast<ComboBoxItem>().Single(item => (Key)item.Tag == EditorDraft.ToolKeys[tool]);
@@ -178,11 +178,6 @@ public partial class CaptureShortcutsWindow : Window
         Icon = ThemeIconService.CreateScanIcon(theme);
     }
 
-    private void ApplyWindowChromeTheme(AppTheme theme)
-    {
-        var dark = theme == AppTheme.Dark ? 1 : 0;
-        DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref dark, sizeof(int));
-    }
 
     private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
@@ -195,10 +190,9 @@ public partial class CaptureShortcutsWindow : Window
         Dispatcher.BeginInvoke(new Action(() =>
         {
             var theme = ThemePreferenceService.CurrentTheme;
-            if (theme == currentTheme) return;
             currentTheme = theme;
             ApplyTheme(theme);
-            ApplyWindowChromeTheme(theme);
+            ThemeIconService.ApplyTitleBarTheme(this, theme);
         }));
     }
 
@@ -273,6 +267,13 @@ public partial class CaptureShortcutsWindow : Window
     {
         ShortcutError.Text = error ?? "";
         ShortcutError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
+        if (error is null)
+        {
+            CaptureValidationText.Visibility = EditorValidationText.Visibility = Visibility.Collapsed;
+            foreach (var picker in editorKeyPickers.Values) System.Windows.Automation.AutomationProperties.SetHelpText(picker, "");
+            System.Windows.Automation.AutomationProperties.SetHelpText(FullScreenShortcutButton, "");
+            System.Windows.Automation.AutomationProperties.SetHelpText(AreaShortcutButton, "");
+        }
     }
 
     private void SaveShortcuts_Click(object sender, RoutedEventArgs e)
@@ -292,9 +293,47 @@ public partial class CaptureShortcutsWindow : Window
         };
         var error = Draft.ValidationError() ?? EditorDraft.ValidationError() ?? save(Draft, EditorDraft);
         ShowError(error);
+        if (error is not null)
+        {
+            var duplicates = editorKeyPickers.Values.GroupBy(p => ((ComboBoxItem)p.SelectedItem).Tag).FirstOrDefault(g => g.Count() > 1);
+            System.Windows.Controls.Control target;
+            if (Draft.ValidationError() is null && duplicates is not null)
+            {
+                SelectCategory("Editor");
+                EditorValidationText.Text = error;
+                EditorValidationText.Visibility = Visibility.Visible;
+                target = duplicates.First();
+            }
+            else
+            {
+                SelectCategory("Capture");
+                CaptureValidationText.Text = error;
+                CaptureValidationText.Visibility = Visibility.Visible;
+                target = error.Contains("Full Screen", StringComparison.OrdinalIgnoreCase) || Draft.FullScreen.ValidationError() is not null
+                    ? FullScreenShortcutButton : AreaShortcutButton;
+            }
+            System.Windows.Automation.AutomationProperties.SetHelpText(target, error);
+            target.BringIntoView();
+            target.Focus();
+        }
         if (error is null) DialogResult = true;
     }
 
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+    private void Category_Click(object sender, RoutedEventArgs e)
+    {
+        StopRecording();
+        SelectCategory((string)((Button)sender).Tag);
+    }
+
+    private void SelectCategory(string category)
+    {
+        foreach (var panel in new[] { CaptureCategory, EditorCategory, ExportCategory, AboutCategory })
+            panel.Visibility = panel.Name == category + "Category" ? Visibility.Visible : Visibility.Collapsed;
+        foreach (Button button in CategoryButtons.Children)
+        {
+            button.SetResourceReference(BackgroundProperty, Equals(button.Tag, category) ? "ViewerSelectedBrush" : "ViewerSurfaceBrush");
+            System.Windows.Automation.AutomationProperties.SetItemStatus(button, Equals(button.Tag, category) ? "Selected" : "");
+        }
+    }
+
 }

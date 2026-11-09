@@ -17,6 +17,7 @@ public partial class ScrollingCaptureWindow : Window
     private bool isStopping;
     private bool isClosed;
     private bool canExcludeControls;
+    internal Func<bool>? ConfirmDiscardCapture { get; set; }
 
     internal Task<ScrollingStitcher?> Completion => completion.Task;
     internal bool MayHaveGaps { get; private set; }
@@ -50,6 +51,11 @@ public partial class ScrollingCaptureWindow : Window
             if (captureTask is null || captureTask.IsCompleted) captureTask = CaptureStepAsync();
         };
         ThemePreferenceService.Changed += ThemePreference_Changed;
+        Closing += (_, e) =>
+        {
+            if (stitcher is not null && !completion.Task.IsCompleted && !(ConfirmDiscardCapture?.Invoke() ?? AppDialog.ConfirmDiscard(this,
+                "Discard this capture?", "The scrolling capture will be removed. Choose Keep, then Stop and keep to review it."))) e.Cancel = true;
+        };
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         Closed += (_, _) =>
         {
@@ -91,7 +97,8 @@ public partial class ScrollingCaptureWindow : Window
             if (isClosed) { started.Dispose(); return; }
             stitcher = started;
             StopButton.IsEnabled = true;
-            CaptureStatus.Text = $"Scroll {ScrollInstruction}. Press Stop capture when finished.";
+            CancelButton.Content = "Discard…";
+            CaptureStatus.Text = $"Scroll {ScrollInstruction}. Press Stop and keep when finished.";
             timer.Start();
         }
         catch (Exception error)
@@ -117,7 +124,7 @@ public partial class ScrollingCaptureWindow : Window
             {
                 ScrollFrameResult.Added => $"Captured {(Direction == ScrollDirection.Horizontal ? stitcher!.Width : stitcher!.Height):N0} pixels. Keep scrolling {ScrollInstruction}.",
                 ScrollFrameResult.NoOverlap => "No overlap. Scroll back, then continue more slowly.",
-                ScrollFrameResult.LimitReached => "Maximum image length reached. Press Stop capture.",
+                ScrollFrameResult.LimitReached => "Maximum image length reached. Press Stop and keep.",
                 _ => CaptureStatus.Text
             };
             if (result == ScrollFrameResult.LimitReached) timer.Stop();

@@ -1,0 +1,303 @@
+{
+  "errors": [],
+  "results": [
+    {
+      "width": 1024,
+      "theme": "light",
+      "mode": "default",
+      "height": 554,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "mode": "properties",
+      "height": 554,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "mode": "text",
+      "height": 554,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "mode": "default",
+      "height": 554,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "mode": "properties",
+      "height": 554,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "mode": "text",
+      "height": 554,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 810,
+      "theme": "light",
+      "mode": "default",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 810,
+      "theme": "light",
+      "mode": "properties",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 810,
+      "theme": "light",
+      "mode": "text",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 810,
+      "theme": "dark",
+      "mode": "default",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 810,
+      "theme": "dark",
+      "mode": "properties",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 810,
+      "theme": "dark",
+      "mode": "text",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "mode": "default",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "mode": "properties",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 760,
+      "theme": "light",
+      "mode": "text",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "mode": "default",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "mode": "properties",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 760,
+      "theme": "dark",
+      "mode": "text",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "mode": "default",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "mode": "properties",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 620,
+      "theme": "light",
+      "mode": "text",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "mode": "default",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "mode": "properties",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 620,
+      "theme": "dark",
+      "mode": "text",
+      "height": 450,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "mode": "default",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "mode": "properties",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 380,
+      "theme": "light",
+      "mode": "text",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "mode": "default",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "mode": "properties",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 380,
+      "theme": "dark",
+      "mode": "text",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "mode": "default",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "mode": "properties",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "mode": "text",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "mode": "default",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "mode": "properties",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "mode": "text",
+      "height": 488,
+      "overflow": [],
+      "overlaps": []
+    }
+  ],
+  "checks": [
+    "Color selection changes",
+    "Stroke selection changes",
+    "Text tool shows text size",
+    "Select hides unnecessary properties",
+    "Compact properties collapsed by default",
+    "Compact properties open on request",
+    "Closing properties returns focus"
+  ],
+  "failures": []
+}

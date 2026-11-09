@@ -6,7 +6,7 @@ namespace BetterScreenShot;
 
 internal static class SketchGeometry
 {
-    public static StreamGeometry Create(Geometry precise, int seed, double width)
+    public static StreamGeometry Create(Geometry precise, int seed, double width, double metricScale = 1)
     {
         // A stable seed keeps the stroke still during selection, repainting, and export.
         var random = new Random(seed);
@@ -21,7 +21,7 @@ internal static class SketchGeometry
                 {
                     var delta = end - previous;
                     var length = delta.Length;
-                    var amount = Math.Min(Math.Clamp(width * .22 + .6, .7, 2), length * .08);
+                    var amount = Math.Min(Math.Clamp(width * .22 + .6 * metricScale, .7 * metricScale, 2 * metricScale), length * .08);
                     var normal = length > 0 ? new Vector(-delta.Y / length, delta.X / length) : new Vector();
                     first += normal * ((random.NextDouble() * 2 - 1) * amount * 2);
                     second += normal * ((random.NextDouble() * 2 - 1) * amount * 2);

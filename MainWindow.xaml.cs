@@ -1,6 +1,4 @@
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Microsoft.Win32;
@@ -14,7 +12,6 @@ namespace BetterScreenShot
     /// </summary>
     public partial class MainWindow : Window
     {
-        private const int DwmwaUseImmersiveDarkMode = 20;
 
         private StatusTone _currentStatusTone;
         private string _currentStatusMessage = "Ready.";
@@ -58,7 +55,7 @@ namespace BetterScreenShot
 
         private void MainWindow_SourceInitialized(object? sender, EventArgs e)
         {
-            ApplyTitleBarTheme(currentTheme ?? AppTheme.Light);
+            ThemeIconService.ApplyTitleBarTheme(this, currentTheme ?? AppTheme.Light);
             InitializeCaptureShortcuts();
         }
 
@@ -275,7 +272,7 @@ namespace BetterScreenShot
             if (ImportedImageService.TryGetDroppedImage(e.Data, out var path)) OpenImage(path!);
         }
 
-        private void OpenImage(string filePath)
+        internal void OpenImage(string filePath)
         {
             try
             {
@@ -284,6 +281,7 @@ namespace BetterScreenShot
             }
             catch (Exception error)
             {
+                if (!IsVisible) ShowLauncher();
                 AppDialog.ShowError(this, "Could not open image", "Choose a PNG, JPEG, BMP, GIF, or TIFF image and try again.", error.Message);
             }
         }
@@ -408,16 +406,12 @@ namespace BetterScreenShot
             ThemeButton.ToolTip = switchLabel;
             ThemeButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, switchLabel);
             ThemeGlyphPath.Data = ThemeIconService.ThemeGlyph(theme);
-            if (currentTheme == theme)
-            {
-                return;
-            }
             var animateIcon = currentTheme.HasValue && IsLoaded;
             currentTheme = theme;
             ApplyTheme(theme);
             Icon = ThemeIconService.CreateScanIcon(theme);
             SetStatus(_currentStatusTone, _currentStatusMessage);
-            ApplyTitleBarTheme(theme);
+            ThemeIconService.ApplyTitleBarTheme(this, theme);
             if (animateIcon) AnimateThemeGlyph();
         }
 
@@ -437,6 +431,14 @@ namespace BetterScreenShot
 
         private void ApplyTheme(AppTheme theme)
         {
+            ThemeIconService.ApplyToolTipTheme(Resources, theme);
+            if (SystemParameters.HighContrast)
+            {
+                foreach (var key in new[] { "PageBackgroundBrush", "SurfaceBrush", "StatusNeutralBrush", "StatusSuccessBrush", "StatusInfoBrush", "StatusErrorBrush" }) Resources[key] = System.Windows.SystemColors.WindowBrush;
+                foreach (var key in new[] { "PrimaryTextBrush", "SecondaryTextBrush", "AccentBrush", "FocusBrush", "DividerBrush", "StatusNeutralTextBrush", "StatusSuccessTextBrush", "StatusInfoTextBrush", "StatusErrorTextBrush" }) Resources[key] = System.Windows.SystemColors.WindowTextBrush;
+                Resources["SurfaceHoverBrush"] = Resources["SurfacePressedBrush"] = System.Windows.SystemColors.ControlBrush;
+                return;
+            }
             if (theme == AppTheme.Dark)
             {
                 SetBrushColor("PageBackgroundBrush", "#171922");
@@ -486,17 +488,6 @@ namespace BetterScreenShot
             }
         }
 
-        private void ApplyTitleBarTheme(AppTheme theme)
-        {
-            var helper = new WindowInteropHelper(this);
-            if (helper.Handle == IntPtr.Zero)
-            {
-                return;
-            }
-
-            var darkModeEnabled = theme == AppTheme.Dark ? 1 : 0;
-            DwmSetWindowAttribute(helper.Handle, DwmwaUseImmersiveDarkMode, ref darkModeEnabled, sizeof(int));
-        }
 
         private enum StatusTone
         {
@@ -506,7 +497,5 @@ namespace BetterScreenShot
             Error
         }
 
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
     }
 }

@@ -26,5 +26,17 @@ $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'BetterScreenS
 if (Test-Path -LiteralPath $startMenu) { Remove-Item -LiteralPath $startMenu -Force }
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\BetterScreenShot'
 if (Test-Path -LiteralPath $uninstallKey) { Remove-Item -LiteralPath $uninstallKey -Recurse -Force }
+$classesRoot = 'HKCU:\Software\Classes'
+foreach ($extension in @('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff')) {
+    $progId = 'BetterScreenShot' + $extension
+    $choices = Join-Path $classesRoot ($extension + '\OpenWithProgids')
+    Remove-ItemProperty -LiteralPath $choices -Name $progId -ErrorAction SilentlyContinue
+    $typeKey = Join-Path $classesRoot $progId
+    if (Test-Path -LiteralPath $typeKey) { Remove-Item -LiteralPath $typeKey -Recurse -Force }
+}
+$applicationKey = Join-Path $classesRoot 'Applications\BetterScreenShot.exe'
+if (Test-Path -LiteralPath $applicationKey) { Remove-Item -LiteralPath $applicationKey -Recurse -Force }
+Add-Type -Namespace BetterScreenShot -Name Shell -MemberDefinition '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(uint eventId, uint flags, System.IntPtr item1, System.IntPtr item2);'
+[BetterScreenShot.Shell]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
 if (Test-Path -LiteralPath $installRoot) { Remove-Item -LiteralPath $installRoot -Recurse -Force }
 Write-Output 'BetterScreenShot was uninstalled. Saved screenshots and shortcut preferences were kept.'

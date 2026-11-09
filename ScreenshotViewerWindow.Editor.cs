@@ -7,24 +7,22 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Point = System.Windows.Point;
 using Color = System.Windows.Media.Color;
-using Brushes = System.Windows.Media.Brushes;
 using Button = System.Windows.Controls.Button;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ColorConverter = System.Windows.Media.ColorConverter;
-using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace BetterScreenShot;
 
 public partial class ScreenshotViewerWindow
 {
-    private sealed record NativeOwner(IntPtr Handle) : System.Windows.Forms.IWin32Window;
     private bool syncingControls;
     private int editingTextIndex = -1;
     private int editingNumberIndex = -1;
     private Point textPosition;
     private readonly List<ToggleButton> toolButtons = [];
-    private readonly List<MenuItem> colorItems = [];
+
+    private readonly List<ToggleButton> colorSwatches = [];
 
     private void InitializeEditor(BitmapSource image)
     {
@@ -60,36 +58,14 @@ public partial class ScreenshotViewerWindow
             {
                 RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(ToggleButton), 1)
             });
-            var content = new Grid { Width = 31, Height = 30 };
-            content.Children.Add(path);
-            content.Children.Add(new TextBlock { Text = EditorSettingsService.Current.ToolKeys[tool].ToString(), FontSize = 8, Opacity = 0.65, HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                VerticalAlignment = System.Windows.VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 1, 0), IsHitTestVisible = false });
-            var button = new ToggleButton { Style = (Style)FindResource("ToolStyle"), Tag = tool, Content = content, ToolTip = $"{label} ({EditorSettingsService.Current.ToolKeys[tool]})" };
+            var button = new ToggleButton { Style = (Style)FindResource("TopRowToolStyle"), Tag = tool, Content = path, ToolTip = $"{label} ({EditorSettingsService.Current.ToolKeys[tool]})" };
             AutomationProperties.SetName(button, label);
             button.Click += (_, _) => ChooseTool(tool);
             toolButtons.Add(button);
-            ToolsPanel.Children.Insert(ToolsPanel.Children.Count - 1, button);
+            ToolsPanel.Children.Add(button);
         }
 
-        (string Name, string Hex)[] colors = [("Red", "#FF453A"), ("Orange", "#FF9F0A"), ("Yellow", "#FFD60A"),
-            ("Green", "#30D158"), ("Blue", "#0A84FF"), ("Purple", "#BF5AF2"), ("White", "#FFFFFF"), ("Black", "#111111")];
-        foreach (var (name, hex) in colors)
-        {
-            var color = (Color)ColorConverter.ConvertFromString(hex);
-            var header = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
-            header.Children.Add(new System.Windows.Shapes.Ellipse { Width = 14, Height = 14, Margin = new Thickness(0, 0, 10, 0),
-                Fill = new SolidColorBrush(color), Stroke = new SolidColorBrush(Colors.Gray), StrokeThickness = .5 });
-            header.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center });
-            var item = new MenuItem { Header = header, Tag = color, IsCheckable = true, Style = (Style)FindResource("AnnotationMenuItemStyle") };
-            AutomationProperties.SetName(item, name);
-            item.Click += (_, _) => ChooseColor(color);
-            ColorPaletteMenu.Items.Add(item);
-            colorItems.Add(item);
-        }
-        var custom = new MenuItem { Header = "Custom color…", Style = (Style)FindResource("AnnotationMenuItemStyle") };
-        AutomationProperties.SetName(custom, "Custom color");
-        custom.Click += (_, _) => { ColorPaletteMenu.IsOpen = false; ChooseCustomColor(); };
-        ColorPaletteMenu.Items.Add(custom);
+        InitializeColorPicker();
         Annotations.SelectionChanged += SyncEditor;
         Annotations.TextRequested += BeginText;
         Annotations.NumberRequested += BeginNumberEdit;
@@ -113,6 +89,8 @@ public partial class ScreenshotViewerWindow
         CommitText();
         CancelOcrSelectionDrag();
         ExtractedTextBox.Select(0, 0);
+        propertiesOpen = null;
+        if (textPanelOpen) CloseTextPanel();
         Annotations.Tool = tool;
         foreach (var button in toolButtons) button.IsChecked = Equals(button.Tag, tool);
         SyncEditor();
@@ -125,7 +103,6 @@ public partial class ScreenshotViewerWindow
         {
             var tool = (AnnotationTool)button.Tag;
             var key = EditorSettingsService.Current.ToolKeys[tool];
-            ((TextBlock)((Grid)button.Content).Children[1]).Text = key.ToString();
             button.ToolTip = $"{AutomationProperties.GetName(button)} ({key})";
         }
     }
@@ -138,35 +115,25 @@ public partial class ScreenshotViewerWindow
         UpdateColorPicker(color);
     }
 
-    private void ColorPickerButton_Click(object sender, RoutedEventArgs e)
-    {
-        ColorPaletteMenu.PlacementTarget = ColorPickerButton;
-        ColorPaletteMenu.IsOpen = true;
-    }
-
-    private void UpdateColorPicker(Color color)
-    {
-        CurrentColorSwatch.Fill = new SolidColorBrush(color);
-        foreach (var item in colorItems)
-        {
-            item.IsChecked = Equals(item.Tag, color);
-            item.InputGestureText = item.IsChecked ? "✓" : "";
-        }
-        var name = colorItems.FirstOrDefault(item => Equals(item.Tag, color)) is { } selected
-            ? AutomationProperties.GetName(selected) : $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-        ColorPickerButton.ToolTip = $"Annotation color: {name}";
-    }
-
     private void SketchToggle_Click(object sender, RoutedEventArgs e)
     {
         CommitText();
         Annotations.CancelGesture();
         Annotations.Document.SketchEnabled = SketchToggle.IsChecked == true;
+        PreciseToggle.IsChecked = !Annotations.Document.SketchEnabled;
+    }
+
+    private void PreciseToggle_Click(object sender, RoutedEventArgs e)
+    {
+        SketchToggle.IsChecked = false;
+        SketchToggle_Click(sender, e);
     }
 
     private void SyncEditor()
     {
         syncingControls = true;
+        SketchToggle.IsChecked = Annotations.Document.SketchEnabled;
+        PreciseToggle.IsChecked = !Annotations.Document.SketchEnabled;
         var selected = Annotations.Selected;
         if (selected is not null)
         {
@@ -175,7 +142,7 @@ public partial class ScreenshotViewerWindow
             var width = selected.Width / (selected.Tool switch
             {
                 AnnotationTool.Highlight => 5,
-                AnnotationTool.Arrow or AnnotationTool.NumberedArrow => Annotations.ArrowScale,
+                AnnotationTool.Arrow or AnnotationTool.NumberedArrow => selected.ArrowMetricScale,
                 _ => 1
             });
             StrokeWidthPicker.SelectedIndex = width <= 2 ? 0 : width >= 7 ? 2 : 1;
@@ -197,7 +164,9 @@ public partial class ScreenshotViewerWindow
         NumberOptionsGroup.Visibility = selected?.Tool == AnnotationTool.NumberedArrow ? Visibility.Visible : Visibility.Collapsed;
         if (!NumberPicker.IsKeyboardFocused) NumberPicker.Text = selected?.Tool == AnnotationTool.NumberedArrow ? selected.Number.ToString() : "";
         SketchOptionsGroup.Visibility = sketchTool ? Visibility.Visible : Visibility.Collapsed;
-        AnnotationOptionsTray.Visibility = drawingTool || selected is not null ? Visibility.Visible : Visibility.Collapsed;
+        hasProperties = drawingTool || selected is not null;
+        PropertiesHeading.Text = ToolLabel(activeTool);
+        UpdateEditorLayout();
         syncingControls = false;
     }
 
@@ -205,7 +174,8 @@ public partial class ScreenshotViewerWindow
     {
         if (syncingControls || Annotations is null || StrokeWidthPicker.SelectedItem is not ComboBoxItem item) return;
         Annotations.InkWidth = double.Parse((string)item.Tag, System.Globalization.CultureInfo.InvariantCulture);
-        Annotations.ChangeSelected(annotation => annotation.Width = Annotations.WidthForTool(annotation.Tool));
+        Annotations.ChangeSelected(annotation => annotation.Width = annotation.Tool is AnnotationTool.Arrow or AnnotationTool.NumberedArrow
+            ? Annotations.InkWidth * annotation.ArrowMetricScale : Annotations.WidthForTool(annotation.Tool));
     }
 
     private void FontSize_Changed(object sender, SelectionChangedEventArgs e)
@@ -320,10 +290,7 @@ public partial class ScreenshotViewerWindow
     private void FitButton_Click(object sender, RoutedEventArgs e) { currentZoom = 1; UpdateZoomState(); }
     private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        ImageViewport.Clip = new RectangleGeometry(new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 12, 12);
-        var narrow = EditorContent.ActualWidth < 900;
-        MarkupToolbar.Margin = new Thickness(8, narrow ? 62 : 10, 8, 0);
-        ExtractedTextPanel.Margin = new Thickness(12, narrow ? 114 : 62, 0, 0);
+        ImageViewport.Clip = new RectangleGeometry(new Rect(0, 0, e.NewSize.Width, e.NewSize.Height));
         UpdateDisplayScale();
     }
     private void Viewport_LostMouseCapture(object sender, System.Windows.Input.MouseEventArgs e) { if (e.OriginalSource == ImageViewport) EndDrag(); }
@@ -331,9 +298,10 @@ public partial class ScreenshotViewerWindow
     private void UpdateDisplayScale()
     {
         if (Annotations is null || ImageStage.Width <= 0) return;
-        Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageViewport.ActualWidth - 8) / ImageStage.Width,
-            Math.Max(1, ImageViewport.ActualHeight - 8) / ImageStage.Height) * currentZoom);
-        Annotations.ArrowScale = Math.Clamp(currentZoom / Annotations.DisplayScale, 1, 4);
+        Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageViewport.ActualWidth) / ImageStage.Width,
+            Math.Max(1, ImageViewport.ActualHeight) / ImageStage.Height) * currentZoom);
+        // New arrows use screen-sized metrics; committed annotations retain their creation scale.
+        Annotations.ArrowScale = 1 / Annotations.DisplayScale;
         RenderOptions.SetBitmapScalingMode(ViewerImage, Annotations.DisplayScale > 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.HighQuality);
         Annotations.DrawSelection();
         OcrSelectionHighlight.StrokeThickness = 1.5 / Annotations.DisplayScale;
@@ -343,12 +311,15 @@ public partial class ScreenshotViewerWindow
 
     private void Editor_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (ColorPickerPopup.IsOpen) return;
         if (e.Key == Key.Escape && ocrDragAnchor >= 0)
         {
             CancelOcrSelectionDrag();
             e.Handled = true;
             return;
         }
+        if (e.Key == Key.Escape && AnnotationOptionsTray.IsVisible)
+        { HideProperties_Click(sender, e); e.Handled = true; return; }
         if (Keyboard.FocusedElement is TextBox || Keyboard.FocusedElement is ComboBox) return;
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         if (ctrl)
