@@ -287,19 +287,22 @@ public partial class ScreenshotViewerWindow
     private void RedoButton_Click(object sender, RoutedEventArgs e) { CommitText(); Annotations.CancelGesture(); Annotations.Select(-1); Annotations.Document.Redo(); }
     private void RemoveButton_Click(object sender, RoutedEventArgs e) { CommitText(); Annotations.CancelGesture(); Annotations.DeleteSelected(); }
     private void MoreButton_Click(object sender, RoutedEventArgs e) { var button = (Button)sender; button.ContextMenu.PlacementTarget = button; button.ContextMenu.IsOpen = true; }
-    private void FitButton_Click(object sender, RoutedEventArgs e) { currentZoom = 1; UpdateZoomState(); }
-    private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void FitButton_Click(object sender, RoutedEventArgs e)
     {
-        ImageViewport.Clip = new RectangleGeometry(new Rect(0, 0, e.NewSize.Width, e.NewSize.Height));
-        UpdateDisplayScale();
+        UpdateImageFitMargin(refit: true);
+        currentZoom = MinZoom;
+        UpdateZoomState();
     }
+    private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        ImageViewport.Clip = new RectangleGeometry(new Rect(0, 0, e.NewSize.Width, e.NewSize.Height));
+    private void ImageFit_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateDisplayScale();
     private void Viewport_LostMouseCapture(object sender, System.Windows.Input.MouseEventArgs e) { if (e.OriginalSource == ImageViewport) EndDrag(); }
 
     private void UpdateDisplayScale()
     {
         if (Annotations is null || ImageStage.Width <= 0) return;
-        Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageViewport.ActualWidth) / ImageStage.Width,
-            Math.Max(1, ImageViewport.ActualHeight) / ImageStage.Height) * currentZoom);
+        Annotations.DisplayScale = Math.Max(.01, Math.Min(Math.Max(1, ImageFit.ActualWidth) / ImageStage.Width,
+            Math.Max(1, ImageFit.ActualHeight) / ImageStage.Height) * currentZoom);
         // New arrows use screen-sized metrics; committed annotations retain their creation scale.
         Annotations.ArrowScale = 1 / Annotations.DisplayScale;
         RenderOptions.SetBitmapScalingMode(ViewerImage, Annotations.DisplayScale > 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.HighQuality);

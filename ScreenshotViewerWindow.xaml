@@ -253,7 +253,7 @@
             <Grid Name="ImageViewport" ClipToBounds="True" Background="Transparent" SizeChanged="Viewport_SizeChanged"
                   MouseWheel="ImageViewport_MouseWheel" MouseLeftButtonDown="ImageViewport_MouseLeftButtonDown"
                   MouseMove="ImageViewport_MouseMove" MouseLeftButtonUp="ImageViewport_MouseLeftButtonUp" LostMouseCapture="Viewport_LostMouseCapture">
-                <Viewbox Name="ImageFit" Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                <Viewbox Name="ImageFit" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" SizeChanged="ImageFit_SizeChanged">
                     <Viewbox.RenderTransform><TransformGroup><ScaleTransform x:Name="ImageScaleTransform" /><TranslateTransform x:Name="ImageTranslateTransform" /></TransformGroup></Viewbox.RenderTransform>
                     <Grid Name="ImageStage" PreviewMouseLeftButtonDown="ImageStage_PreviewMouseLeftButtonDown">
                         <Grid ClipToBounds="True">
@@ -467,7 +467,7 @@
                     <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24"><Path Data="M5 12h14" Stroke="{DynamicResource ViewerPrimaryTextBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
                 </Button>
                 <Button Name="FitButton" Style="{StaticResource ActionStyle}" Content="Fit" MinWidth="54" Height="{StaticResource ToolbarButtonSize}" Click="FitButton_Click" ToolTip="Fit image (Ctrl+0)" />
-                <Button Style="{StaticResource ActionStyle}" Width="{StaticResource ToolbarButtonSize}" Height="{StaticResource ToolbarButtonSize}" Padding="0" Click="ZoomInButton_Click" ToolTip="Zoom in (Ctrl++)" AutomationProperties.Name="Zoom in">
+                <Button Name="ZoomInButton" Style="{StaticResource ActionStyle}" Width="{StaticResource ToolbarButtonSize}" Height="{StaticResource ToolbarButtonSize}" Padding="0" Click="ZoomInButton_Click" ToolTip="Zoom in (Ctrl++)" AutomationProperties.Name="Zoom in">
                     <Viewbox Width="18" Height="18"><Canvas Width="24" Height="24"><Path Data="M5 12h14 M12 5v14" Stroke="{DynamicResource ViewerPrimaryTextBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
                 </Button>
                 <Border Width="1" Height="19" Margin="7,0" Background="{DynamicResource ViewerSurfaceBorderBrush}" VerticalAlignment="Center" />

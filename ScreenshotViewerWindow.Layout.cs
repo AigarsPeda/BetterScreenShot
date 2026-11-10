@@ -8,6 +8,7 @@ public partial class ScreenshotViewerWindow
 {
     private bool? propertiesOpen;
     private bool hasProperties;
+    private Thickness? fittedImageMargin;
 
     internal static string ToolLabel(AnnotationTool tool) => tool switch
     {
@@ -37,7 +38,7 @@ public partial class ScreenshotViewerWindow
         AnnotationOptionsTray.MaxHeight = Math.Max(80, EditorContent.ActualHeight - top - 92);
         PropertiesButton.IsEnabled = hasProperties && !textPanelOpen;
         PropertiesButton.IsChecked = showProperties;
-        // Tool surfaces overlay the canvas; opening properties must never refit the image.
+        UpdateImageFitMargin();
         ExtractedTextHost.Margin = new Thickness(0, top + 12, 12, 64);
         CanvasHost.Visibility = compact && textPanelOpen ? Visibility.Collapsed : Visibility.Visible;
         if (compact && textPanelOpen)
@@ -57,6 +58,16 @@ public partial class ScreenshotViewerWindow
         CloseExtractedTextButton.Width = compact ? 104 : 30;
         CloseExtractedTextButton.Content = compact ? "Back to image" : "×";
         System.Windows.Automation.AutomationProperties.SetName(CloseExtractedTextButton, compact ? "Back to image" : "Close text panel");
+    }
+
+    private void UpdateImageFitMargin(bool refit = false)
+    {
+        // Tool and selection changes can open properties in the middle of a drag.
+        if (refit || fittedImageMargin is null)
+            fittedImageMargin = AnnotationOptionsTray.Visibility == Visibility.Visible
+                ? new Thickness(AnnotationOptionsTray.Margin.Left + AnnotationOptionsTray.Width + 12, 0, 12, 0)
+                : new Thickness(0);
+        ImageFit.Margin = textPanelOpen ? new Thickness(0) : fittedImageMargin.Value;
     }
 
     private void PropertiesButton_Click(object sender, RoutedEventArgs e)

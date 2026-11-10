@@ -26,18 +26,43 @@ internal static class UxReviewTests
             return new ScreenshotViewerWindow(new TemporaryScreenshot(path), image, _ => { });
         }
 
-        check("Floating editor fits minimum size, aligns wide tools, and preserves compact OCR", () =>
+        check("Selecting an annotation with Pan active keeps the image in place at fit", () =>
+        {
+            var window = Editor("pan-at-fit");
+            try
+            {
+                Choose(window, AnnotationTool.Hand);
+                window.Show();
+                var surface = (AnnotationSurface)window.FindName("Annotations");
+                surface.Document.Add(new ImageAnnotation { Tool = AnnotationTool.Line, Points = [new(50, 50), new(150, 150)] });
+                var stage = (FrameworkElement)window.FindName("ImageStage");
+                var options = (FrameworkElement)window.FindName("AnnotationOptionsTray");
+                Rect ImageBounds() => stage.TransformToAncestor(window).TransformBounds(new Rect(stage.RenderSize));
+                var before = ImageBounds();
+                surface.Select(0);
+                window.UpdateLayout();
+                Require(options.IsVisible, "Selecting a mark in Pan shows its properties");
+                Require(ImageBounds() == before, "Selecting the mark must not shrink or move the image before the drag");
+                surface.Select(-1);
+                window.UpdateLayout();
+                Require(!options.IsVisible && ImageBounds() == before, "Returning to the canvas keeps the same view");
+            }
+            finally { window.DiscardAndClose(); }
+        });
+
+        check("Properties clear the fitted image and float over zoom, with responsive tools and OCR", () =>
         {
             var window = Editor("layout");
             try
             {
-                window.Show();
                 foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
-                foreach (var width in new[] { 620d, 750d, 780d, 1100d })
+                foreach (var width in new[] { 1100d, 780d, 750d, 620d })
                 {
                     window.Width = width; window.Height = width == 620 ? 450 : 680;
                     ThemeIconService.ApplyViewerTheme(window.Resources, theme);
                     Choose(window, AnnotationTool.Arrow);
+                    var opening = !window.IsVisible;
+                    if (opening) window.Show();
                     window.UpdateLayout();
                     var options = (FrameworkElement)window.FindName("AnnotationOptionsTray");
                     var dock = (FrameworkElement)window.FindName("ToolDock");
@@ -48,19 +73,41 @@ internal static class UxReviewTests
                     if (width >= 780) Require(Math.Abs(dock.TranslatePoint(new Point(0, dock.ActualHeight / 2), window).Y - copy.TranslatePoint(new Point(0, copy.ActualHeight / 2), window).Y) < 8, "One-row toolbar");
                     Require(viewport.ActualHeight > 150, "Usable image viewport");
                     if (compact) Click(window, "PropertiesButton");
+                    if (!opening) Click(window, "FitButton");
                     window.UpdateLayout();
-                    var bounds = options.TransformToAncestor(window).TransformBounds(new Rect(options.RenderSize));
+                    var bounds = WindowBounds(options);
                     Require(bounds.Left >= 0 && bounds.Right <= window.ActualWidth && bounds.Bottom < window.ActualHeight - 40, "Floating card bounds");
                     var canvas = (FrameworkElement)window.Content;
-                    Require(viewport.RenderSize == canvas.RenderSize, "Canvas fills the window behind floating controls");
-                    Require(Math.Abs(options.ActualHeight + options.Margin.Top + options.Margin.Bottom - canvas.ActualHeight) < 2, "Properties fill the available overlay height");
+                    Require(Math.Abs(options.ActualHeight + options.Margin.Top + options.Margin.Bottom - canvas.ActualHeight) < 2, "Properties fill the available height");
                     var stage = (FrameworkElement)window.FindName("ImageStage");
-                    var imageBounds = stage.TransformToAncestor(window).TransformBounds(new Rect(stage.RenderSize));
+                    Rect WindowBounds(FrameworkElement element) => element.TransformToAncestor(window).TransformBounds(new Rect(element.RenderSize));
+                    var imageBounds = WindowBounds(stage);
+                    Require(imageBounds.Left > bounds.Right, "The fitted image clears the properties panel");
+                    Require(imageBounds.Right <= WindowBounds(viewport).Right + 1, "The fitted image stays inside the viewport");
+                    Require(viewport.RenderSize == canvas.RenderSize, "The image can use the full canvas while properties are visible");
                     Click(window, "PropertiesButton"); window.UpdateLayout();
-                    Require(stage.TransformToAncestor(window).TransformBounds(new Rect(stage.RenderSize)) == imageBounds, "Hiding properties does not move or resize image");
+                    Require(WindowBounds(stage) == imageBounds, "Hiding properties leaves the fitted image in place");
+                    Click(window, "FitButton"); window.UpdateLayout();
+                    var fullImageBounds = WindowBounds(stage);
+                    Require(fullImageBounds.Width > imageBounds.Width, "Fit uses the available space with properties closed");
                     Click(window, "PropertiesButton"); window.UpdateLayout();
-                    Require(stage.TransformToAncestor(window).TransformBounds(new Rect(stage.RenderSize)) == imageBounds, "Showing properties does not move or resize image");
+                    Require(WindowBounds(stage) == fullImageBounds, "Opening properties leaves the fitted image in place");
+                    Click(window, "FitButton"); window.UpdateLayout();
+                    Require(WindowBounds(stage) == imageBounds, "Fit clears the open panel");
                     Render(window, Path.Combine(directory, $"editor-{theme}-{width}.png"));
+                    Click(window, "ZoomInButton"); window.UpdateLayout();
+                    Require(Math.Abs(WindowBounds(stage).Width - imageBounds.Width * 1.2) < 2, "The first zoom step scales the fitted image without jumping");
+                    for (var step = 0; step < 6; step++) Click(window, "ZoomInButton");
+                    window.UpdateLayout();
+                    var zoomedBounds = WindowBounds(stage);
+                    Require(zoomedBounds.Left < WindowBounds(viewport).Left, "Zoom reaches the left edge of the canvas");
+                    if (width == 1100) Render(window, Path.Combine(directory, $"editor-{theme}-zoomed.png"));
+                    Click(window, "PropertiesButton"); window.UpdateLayout();
+                    Require(WindowBounds(stage) == zoomedBounds, "Closing properties leaves the zoomed image in place");
+                    Click(window, "PropertiesButton"); window.UpdateLayout();
+                    Require(WindowBounds(stage) == zoomedBounds, "Opening properties leaves the zoomed image in place");
+                    Click(window, "FitButton"); window.UpdateLayout();
+                    Require(WindowBounds(stage) == imageBounds, "Fit restores the image beside properties");
                     window.SetTextPanelOpen(true);
                     Pump(Task.Delay(250), window);
                     window.UpdateLayout();
