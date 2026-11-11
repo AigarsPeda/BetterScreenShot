@@ -258,3 +258,26 @@ Coordinate tests do not replace checks on physical monitors with different scale
 | Save with each format, copy, zoom, and pan | Saved formats match their extensions, copied images retain full resolution, and viewer controls work. |
 
 Windows DPI awareness is declared in the manifest before windows are created. Toast placement uses physical monitor coordinates and the target window's DPI, following Microsoft's [desktop DPI guidance](https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows).
+
+## Image import performance — 1.2.11
+
+Imported images now keep their decoded pixels in memory without encoding an unused temporary PNG. Saving still produces the full-resolution edited image, and closing/discarding preserves the original. BetterQuickLook 1.0.1 can also send paths directly to the existing image pipe, avoiding a secondary application process.
+
+Measured on this PC on 2026-11-11 with deterministic synthetic 3840×2160 images, one warmup and five samples per format:
+
+| Import-only measurement (median) | 1.2.10 | 1.2.11 |
+| --- | ---: | ---: |
+| PNG | 745 ms | 144 ms |
+| JPEG | 597 ms | 88 ms |
+| PNG temporary disk write | 28,366,206 bytes | 0 bytes |
+| JPEG temporary disk write | 24,130,391 bytes | 0 bytes |
+
+Managed allocations on the measured thread fell from approximately 28.4 MB to 4.4 KB for PNG and 24.1 MB to 4.5 KB for JPEG. These counters exclude native image buffers; full-resolution decoded pixels still require memory. File creation and explicit garbage collection are outside the timed import operation. These are cached-file microbenchmarks, not application startup measurements. Raw data: `benchmarks/import-before.json` and `benchmarks/import-after.json`.
+
+The final regression suite passed 194 checks, including opening and saving through the editor, PNG/JPEG/BMP/GIF/TIFF imports, Unicode paths, missing/corrupt inputs, source-file release, unchanged originals, and lossless PNG pixel roundtrips. One initial video-duration timing test failed; the unchanged source's recording suite and the final full regression run passed. Existing ImageSharp dependency audit warnings remain.
+
+```powershell
+dotnet build .\Tests\BetterScreenShot.RegressionTests.csproj -c Release
+.\Tests\bin\Release\net8.0-windows\BetterScreenShot.RegressionTests.exe --import-benchmark .\benchmarks\import-repeat.json
+.\Tests\bin\Release\net8.0-windows\BetterScreenShot.RegressionTests.exe --image-open-tests
+```

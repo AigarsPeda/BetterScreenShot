@@ -1,0 +1,64 @@
+[
+  {
+    "Extension": ".png",
+    "SourceBytes": 28366206,
+    "Samples": [
+      {
+        "Ms": 741.1118,
+        "AllocatedBytes": 28382936,
+        "TemporaryBytes": 28366206
+      },
+      {
+        "Ms": 751.547,
+        "AllocatedBytes": 28382936,
+        "TemporaryBytes": 28366206
+      },
+      {
+        "Ms": 761.8215,
+        "AllocatedBytes": 28382936,
+        "TemporaryBytes": 28366206
+      },
+      {
+        "Ms": 745.0359,
+        "AllocatedBytes": 28382936,
+        "TemporaryBytes": 28366206
+      },
+      {
+        "Ms": 739.9348,
+        "AllocatedBytes": 28382936,
+        "TemporaryBytes": 28366206
+      }
+    ]
+  },
+  {
+    "Extension": ".jpg",
+    "SourceBytes": 7434484,
+    "Samples": [
+      {
+        "Ms": 547.2997,
+        "AllocatedBytes": 24145712,
+        "TemporaryBytes": 24130391
+      },
+      {
+        "Ms": 698.5931,
+        "AllocatedBytes": 24145712,
+        "TemporaryBytes": 24130391
+      },
+      {
+        "Ms": 597.8696,
+        "AllocatedBytes": 24145712,
+        "TemporaryBytes": 24130391
+      },
+      {
+        "Ms": 595.3299,
+        "AllocatedBytes": 24145712,
+        "TemporaryBytes": 24130391
+      },
+      {
+        "Ms": 597.1127,
+        "AllocatedBytes": 24145712,
+        "TemporaryBytes": 24130391
+      }
+    ]
+  }
+]

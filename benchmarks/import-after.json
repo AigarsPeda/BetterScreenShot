@@ -1,0 +1,64 @@
+[
+  {
+    "Extension": ".png",
+    "SourceBytes": 28366206,
+    "Samples": [
+      {
+        "Ms": 143.5333,
+        "AllocatedBytes": 4352,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 146.9157,
+        "AllocatedBytes": 4352,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 158.6514,
+        "AllocatedBytes": 4352,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 140.6506,
+        "AllocatedBytes": 4352,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 144.3866,
+        "AllocatedBytes": 4352,
+        "TemporaryBytes": 0
+      }
+    ]
+  },
+  {
+    "Extension": ".jpg",
+    "SourceBytes": 7434484,
+    "Samples": [
+      {
+        "Ms": 87.6049,
+        "AllocatedBytes": 4480,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 95.9283,
+        "AllocatedBytes": 4480,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 84.9894,
+        "AllocatedBytes": 4480,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 98.9883,
+        "AllocatedBytes": 4480,
+        "TemporaryBytes": 0
+      },
+      {
+        "Ms": 87.001,
+        "AllocatedBytes": 4480,
+        "TemporaryBytes": 0
+      }
+    ]
+  }
+]

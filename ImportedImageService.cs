@@ -60,17 +60,9 @@ internal static class ImportedImageService
         var directory = Path.Combine(Path.GetTempPath(), "BetterScreenShot");
         Directory.CreateDirectory(directory);
         var workingPath = Path.Combine(directory, $"import_{Guid.NewGuid():N}.png");
-        try
-        {
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(image));
-            using (var output = File.Create(workingPath)) encoder.Save(output);
-            return (new TemporaryScreenshot(workingPath, originalPath), image);
-        }
-        catch
-        {
-            ScreenshotFileService.TryDelete(workingPath);
-            throw;
-        }
+        // The editor owns the decoded pixels and encodes them only when saving.
+        // Reserve a separate working path for save/cleanup metadata; never use the
+        // original as the disposable working file, and avoid an unused PNG copy.
+        return (new TemporaryScreenshot(workingPath, originalPath), image);
     }
 }
