@@ -314,6 +314,11 @@ public partial class ScreenshotViewerWindow
 
     private void Editor_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (!IsImageReady)
+        {
+            if (e.Key == Key.Escape) { Close(); e.Handled = true; }
+            return;
+        }
         if (ColorPickerPopup.IsOpen) return;
         if (e.Key == Key.Escape && ocrDragAnchor >= 0)
         {

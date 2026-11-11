@@ -52,7 +52,7 @@ public partial class ScreenshotViewerWindow
 
     internal async Task ExtractTextAsync()
     {
-        if (isClosing) return;
+        if (isClosing || !IsImageReady) return;
         CommitText();
         Annotations.CancelGesture();
         SetTextPanelOpen(true);

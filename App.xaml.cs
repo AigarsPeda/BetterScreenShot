@@ -83,18 +83,33 @@ public partial class App : System.Windows.Application
         launcher = new MainWindow { Title = "BetterScreenShot" };
         MainWindow = launcher;
         launcher.EnableBackgroundMode();
-        tray = new TrayController(launcher, ExitApplication);
         try
         {
             var paths = ImportedImageService.GetLaunchPaths(e.Args);
-            if (paths.Length > 0) OpenImages(paths);
-            else if (!e.Args.Contains("--background")) launcher.ShowLauncher();
+            if (paths.Length > 0)
+            {
+                OpenImages(paths);
+                // Show the requested editor before initializing the tray menu.
+                _ = Dispatcher.BeginInvoke(new Action(StartBackgroundServices), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            }
+            else
+            {
+                StartBackgroundServices();
+                if (!e.Args.Contains("--background")) launcher.ShowLauncher();
+            }
         }
         catch (Exception error)
         {
+            StartBackgroundServices();
             launcher.ShowLauncher();
             AppDialog.ShowError(launcher, "Could not open image", "The image path is invalid.", error.Message);
         }
+    }
+
+    private void StartBackgroundServices()
+    {
+        if (tray is not null || launcher is null || Dispatcher.HasShutdownStarted) return;
+        tray = new TrayController(launcher, ExitApplication);
     }
 
     private void OpenImages(string[] paths)

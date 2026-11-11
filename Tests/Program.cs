@@ -13,6 +13,23 @@ internal static class Program
     private static int Main(string[] args)
     {
         if (args.Contains("--import-benchmark")) return ImportBenchmark.Run(args[^1]);
+        if (args.Contains("--image-loading-preview")) return AsyncImageTests.Preview(args[^1]);
+        if (args.Contains("--image-loading-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            AsyncImageTests.Run(Check, Path.Combine(Environment.CurrentDirectory, "obj", "image-loading-tests", Guid.NewGuid().ToString("N")));
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
+        if (args.Contains("--startup-tests"))
+        {
+            var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            ColdStartupTests.Run(Check, Path.Combine(Environment.CurrentDirectory, "obj", "startup-tests", Guid.NewGuid().ToString("N")));
+            application.Shutdown();
+            Console.WriteLine($"{passed} passed, {failed} failed.");
+            return failed == 0 ? 0 : 1;
+        }
         if (args.Contains("--ux-tests"))
         {
             var application = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };

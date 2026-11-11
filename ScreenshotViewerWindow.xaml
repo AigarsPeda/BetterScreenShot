@@ -246,6 +246,7 @@
             <Setter Property="VerticalAlignment" Value="Top" /><Setter Property="Margin" Value="0,0,0,16" />
         </Style>
     </Window.Resources>
+    <Grid>
     <Grid x:Name="EditorContent" SizeChanged="EditorContent_SizeChanged" Background="{DynamicResource ViewerCanvasBrush}">
         <Grid Name="Workspace">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -486,5 +487,21 @@
                 <TextBlock Name="EditorStatus" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource ViewerSecondaryTextBrush}" AutomationProperties.LiveSetting="Polite" />
             </Border>
         </Grid>
+    </Grid>
+        <Border Name="ImageLoadingOverlay" Visibility="Collapsed" Background="{DynamicResource ViewerCanvasBrush}">
+            <StackPanel MaxWidth="440" Margin="32" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Name="ImageLoadingHeading" Text="Loading image…" FontSize="20" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Foreground="{DynamicResource ViewerPrimaryTextBrush}" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Name="ImageLoadingName" Margin="0,12,0,20" TextTrimming="CharacterEllipsis" TextAlignment="Center"
+                           Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+                <ProgressBar Name="ImageLoadingProgress" Width="180" Height="4" BorderThickness="0"
+                             Foreground="{DynamicResource ViewerAccentBrush}" Background="{DynamicResource ViewerSurfaceBorderBrush}"
+                             AutomationProperties.Name="Loading image" />
+                <TextBlock Name="ImageLoadingDetail" Visibility="Collapsed" TextWrapping="Wrap" TextAlignment="Center"
+                           Foreground="{DynamicResource ViewerSecondaryTextBrush}" />
+                <Button Name="ImageLoadingClose" Content="Cancel" Style="{StaticResource ActionStyle}" Padding="18,8"
+                        HorizontalAlignment="Center" Margin="0,24,0,0" Click="CancelImageLoading_Click" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

@@ -57,7 +57,9 @@ internal sealed class TrayController : IDisposable
         notifyIcon.DoubleClick += (_, _) => launcher.ShowLauncher();
         updateTimer.Tick += async (_, _) => await CheckForUpdatesAsync(manual: false);
         updateTimer.Start();
-        _ = CheckForUpdatesAsync(manual: false);
+        // Network initialization and its JIT work must not delay the first window.
+        Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() => _ = CheckForUpdatesAsync(manual: false)),
+            DispatcherPriority.ApplicationIdle);
     }
 
     private async Task CheckForUpdatesAsync(bool manual)

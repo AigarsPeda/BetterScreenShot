@@ -37,6 +37,11 @@ namespace BetterScreenShot
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             Loaded -= MainWindow_Loaded;
+            WarmUpOverlaysWhenIdle();
+        }
+
+        private void WarmUpOverlaysWhenIdle()
+        {
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 try

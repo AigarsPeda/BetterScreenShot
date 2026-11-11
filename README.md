@@ -281,3 +281,62 @@ dotnet build .\Tests\BetterScreenShot.RegressionTests.csproj -c Release
 .\Tests\bin\Release\net8.0-windows\BetterScreenShot.RegressionTests.exe --import-benchmark .\benchmarks\import-repeat.json
 .\Tests\bin\Release\net8.0-windows\BetterScreenShot.RegressionTests.exe --image-open-tests
 ```
+
+## Cold startup performance — 1.2.12
+
+OCR models and native libraries now live in a separate assembly inside the same EXE. Opening an image populates the language picker without loading that assembly; the first text-recognition request loads it. OCR resource extraction uses the resource assembly's content identity, so unrelated app changes do not invalidate its cache. Capture overlays, initial update checks, and the image-launch tray menu are prepared after the requested editor can appear. Background startup still registers global shortcuts immediately.
+
+Five fresh-process measurements per installed version on 2026-11-11 used the same synthetic 3840×2160 PNG and Windows Shell launch path:
+
+| Launch to visible editor window | 1.2.11 | 1.2.12 |
+| --- | ---: | ---: |
+| Median cold start | 1,915 ms | 1,577 ms |
+| Observed range | 1,702–2,154 ms | 1,380–1,927 ms |
+
+The observed median improved about 18%. The earlier 2.11-second result was one sample; this comparison uses five samples on each side. Warm direct opening in the installed 1.2.12 build had a 311 ms median. These are fresh app processes with existing Windows caches, not reboot or cleared-disk-cache tests. A visible window is detected at 10 ms polling intervals and does not prove compositor completion. First executions of newly built binaries sometimes took 14–31 seconds even before the optimization; these noisy one-off results are retained separately and are not presented as solved.
+
+The main assembly shrank from 38,009,856 bytes to approximately 0.5 MB; the 37.5 MB OCR resource assembly stays unloaded during image opening. This is a structural loading change, not a measured process-RAM reduction. The final self-contained EXE is 90,052,855 bytes and has no companion files. Full assembly extraction and an uncompressed 201 MB EXE were evaluated but not retained. Microsoft documents the compression/startup tradeoff in its [single-file deployment guidance](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview).
+
+Validation: three fresh-process startup tests pass in both ordinary and single-file test builds, including closing before idle warmup. The packaged OCR smoke test recognizes its synthetic text. The full regression run passed 193 of 194 checks; one settings-file rename hit a transient access error, and all 11 image-quality checks passed on the targeted rerun. OCR, capture, shortcuts, image saving, and editor lifecycle checks passed. Existing ImageSharp audit warnings remain.
+
+Raw timing files are in `benchmarks/cold-repeat-before.json`, `cold-installed-after.json`, and `cold-update-warm-check.json`. The BetterQuickLook project retains the other experiment reports and the launch benchmark. BetterScreenShot 1.2.12 is installed, its hash matches the published EXE, and startup remains enabled. BetterQuickLook's production code is unchanged.
+
+```powershell
+dotnet build .\Tests\BetterScreenShot.RegressionTests.csproj -c Release
+.\Tests\bin\Release\net8.0-windows\BetterScreenShot.RegressionTests.exe --startup-tests
+.\Tests\bin\Release\net8.0-windows\BetterScreenShot.RegressionTests.exe --ocr-smoke
+```
+
+## Responsive image loading — 1.2.13
+
+Imported images now decode on a worker thread while WPF constructs and displays the editor. The same window shows a themed loading state, filename, and Cancel button; its position and size do not change when the image arrives. Editing, copy, save, and OCR are blocked until the real pixels are ready. Missing/corrupt files show an inline error. Closing cancels queued decoding and discards any late result without reopening the window or touching the original file. An already-running native decode finishes on its worker before releasing its resources.
+
+One native decoder runs at a time to bound temporary CPU and memory costs across multiple opens. The UI thread continues to handle rendering and input. This uses parallel work where it helps; it does not reserve all cores, fill available RAM, or add an idle polling loop. The progress animation stops after completion, failure, or close. Fast files do not receive an artificial loading delay.
+
+Five-run medians for the same synthetic 4K PNG, comparing installed 1.2.12 and 1.2.13:
+
+| Milestone | 1.2.12 | 1.2.13 |
+| --- | ---: | ---: |
+| Cold: window visible | 1,342 ms | 1,213 ms |
+| Cold: decoded image assigned and editing enabled | 1,342 ms | 1,282 ms |
+| Warm: window visible | 224 ms | 145 ms |
+| Warm: decoded image assigned and editing enabled | 224 ms | 251 ms |
+
+The earlier window is real feedback, not a claim that decoding has finished. Warm image readiness was 26 ms slower in this run; the early frame and UI transition have costs, and machine load varies. Cold means a fresh process with existing Windows caches. Readiness is detected from the document title changing out of its loading state, at 10 ms polling resolution; it is not a compositor/GPU completion measurement. The baseline includes a one-off 11.9-second launch; all raw samples remain in the reports. No claim is made to eliminate those first-launch delays.
+
+The 194-check regression suite passed. Six additional async-loading tests cover responsive input, placeholder-save prevention, close during success/failure, missing/corrupt files, out-of-order completion, queued cancellation, and decoder-gate release. After starting decoding earlier in construction, the six loading tests, seven image-open groups, and three startup tests were rerun successfully. The dark loading state was rendered and visually inspected. Installed 1.2.13 matches the final published EXE; code is uncommitted.
+
+Raw results: `benchmarks/async-window-before-cold.json`, `async-window-after-cold.json`, `async-window-before-warm.json`, and `async-window-after-warm.json`.
+
+```powershell
+dotnet build .\Tests\BetterScreenShot.RegressionTests.csproj -c Release
+.\Tests\bin\Release\net8.0-windows\BetterScreenShot.RegressionTests.exe --image-loading-tests
+```
+
+## Startup research follow-up
+
+Source inspection of [qView](https://github.com/jurplel/qView/blob/main/src/qvimagecore.cpp) and [JPEGView](https://github.com/sylikc/jpegview/blob/master/src/JPEGView/JPEGProvider.cpp) supports background decoding and bounded image caching. The current editor already shows its window while decoding; neighboring-file preloading was not added because opening isolated files gains little from it and decoded images consume extra RAM. Full-resolution editing and current color handling remain intact.
+
+An additional [ReadyToRun](https://learn.microsoft.com/en-us/dotnet/core/deploying/ready-to-run) publish experiment was slower on this computer. Across ten fresh-process launches per build, median window visibility was 1,265 ms for current 1.2.13 versus 1,603 ms for ReadyToRun; image readiness was 1,300 ms versus 1,744 ms. The compressed EXE grew from 90,056,723 to 102,153,589 bytes. The experiment was not retained. This was direct process launching with existing Windows caches, not a reboot-cold or Shell-handler comparison. A 28.4-second first candidate execution remains in the raw data. The reverse-order repeat also favored the current build.
+
+The four `benchmarks/research-r2r-*.json` files retain every sample. The BetterQuickLook benchmark README contains the research sources, decisions, build flags, and measurement details. Installed 1.2.13 remains the tested production build; this experiment did not change production source or the installed executable.

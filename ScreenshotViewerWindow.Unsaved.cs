@@ -65,7 +65,8 @@ public partial class ScreenshotViewerWindow
     private void UpdateDocumentTitle()
     {
         Title = "Screenshot editor" + (screenshot.IsImported ? " · " + System.IO.Path.GetFileName(screenshot.OriginalPath) : "")
-            + (HasUnsavedChanges ? " · Unsaved changes" : "");
+            + (!IsImageReady ? ImageLoadError is null ? " · Loading image…" : " · Couldn't open image"
+                : HasUnsavedChanges ? " · Unsaved changes" : "");
     }
 
     internal void DiscardAndClose()

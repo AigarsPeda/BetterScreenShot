@@ -208,7 +208,7 @@ namespace BetterScreenShot
 
         internal async Task CopyImageAsync()
         {
-            if (!CopyButton.IsEnabled) return;
+            if (!IsImageReady || !CopyButton.IsEnabled) return;
             ActionButtonFeedback.Reset(CopyButton);
             var originalContent = CopyButton.Content;
             CopyButton.IsEnabled = false;
@@ -253,7 +253,7 @@ namespace BetterScreenShot
 
         internal async Task<bool> SaveCopyAsync()
         {
-            if (!SaveButton.IsEnabled) return false;
+            if (!IsImageReady || !SaveButton.IsEnabled) return false;
             ActionButtonFeedback.Reset(SaveButton);
             var originalContent = SaveButton.Content;
             CommitText();
@@ -313,6 +313,9 @@ namespace BetterScreenShot
 
         private void ScreenshotViewerWindow_Closed(object? sender, EventArgs e)
         {
+            ImageLoadingProgress.IsIndeterminate = false;
+            imageLoadCancellation?.Dispose();
+            imageLoadCancellation = null;
             EndDrag();
             Annotations.CancelGesture();
             screenshot.Dispose();
@@ -342,6 +345,7 @@ namespace BetterScreenShot
             if (e.Cancel) isClosing = false;
             else
             {
+                imageLoadCancellation?.Cancel();
                 CancelTextExtraction();
                 CancelOcrSelectionDrag();
             }

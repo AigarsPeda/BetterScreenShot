@@ -13,7 +13,8 @@ public partial class MainWindow
         keepRunningInBackground = true;
         // Register hotkeys on a hidden HWND; never show a window just to initialize it.
         new WindowInteropHelper(this).EnsureHandle();
-        MonitorSelectionOverlayForm.WarmUpOverlays();
+        // Image launches should render before preparing capture overlays.
+        WarmUpOverlaysWhenIdle();
     }
 
     internal void ShowLauncher()

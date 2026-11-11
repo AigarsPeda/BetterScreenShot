@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Kept in a separate bundled assembly so image opening does not load OCR. -->
+    <EmbeddedResource Include="..\assets\ocr\*.traineddata" LogicalName="BetterScreenShot.ocr.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\assets\ocr\LICENSE" LogicalName="BetterScreenShot.ocr.LICENSE" />
+    <EmbeddedResource Include="..\THIRD-PARTY-NOTICES.md" LogicalName="BetterScreenShot.ocr.NOTICES" />
+    <PackageDownload Include="TesseractOCR" Version="[5.5.2]" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)tesseractocr\5.5.2\x64\leptonica-1.85.0.dll" LogicalName="BetterScreenShot.ocr.leptonica-1.85.0.dll" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)tesseractocr\5.5.2\x64\tesseract55.dll" LogicalName="BetterScreenShot.ocr.tesseract55.dll" />
+  </ItemGroup>
+</Project>

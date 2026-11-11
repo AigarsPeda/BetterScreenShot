@@ -251,13 +251,14 @@ internal static class TextExtractionService
             throw new PlatformNotSupportedException("Text extraction is currently available in the Windows x64 build. On an ARM64 PC, use the x64 build with Windows emulation.");
 
         var assembly = typeof(TextExtractionService).Assembly;
-        var directory = Path.Combine(Path.GetTempPath(), "BetterScreenShot", "ocr", assembly.ManifestModule.ModuleVersionId.ToString("N"));
+        var assets = OcrAssets.Resources.Assembly;
+        var directory = Path.Combine(Path.GetTempPath(), "BetterScreenShot", "ocr", assets.ManifestModule.ModuleVersionId.ToString("N"));
         Directory.CreateDirectory(directory);
         var resources = Languages.Keys.Select(code => code + ".traineddata")
             .Concat(["leptonica-1.85.0.dll", "tesseract55.dll", "LICENSE", "NOTICES"]);
         foreach (var name in resources)
         {
-            using var resource = assembly.GetManifestResourceStream("BetterScreenShot.ocr." + name)
+            using var resource = assets.GetManifestResourceStream("BetterScreenShot.ocr." + name)
                 ?? throw new InvalidOperationException($"Missing text recognition resource: {name}");
             var path = Path.Combine(directory, name);
             ExtractAsset(resource, path);
