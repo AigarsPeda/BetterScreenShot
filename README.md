@@ -11,6 +11,7 @@ For the code structure, release checks, and development pitfalls, see the [proje
 - Record a selected area as an MP4 video or animated GIF from a floating toolbar.
 - Per-monitor DPI-aware selection overlays. Area selection is clipped to the monitor where the drag starts.
 - Bottom-right preview with Copy, Save copy, Edit, and Discard actions, plus navigation between pending captures.
+- After copying, a corner countdown shows when the preview will close. Choose 5, 10, 15, 30, or 60 seconds in **Settings → Capture → Close preview after copying**. The default is 10 seconds; copying again restarts the countdown.
 - Save actual PNG, JPEG, or BMP images.
 - Screenshot editor with smoothed pen strokes, translucent highlights, underlines, arrows, rectangles, circles, and text. Open or drag a PNG, JPEG, BMP, GIF, or TIFF image onto the launcher or editor to annotate it without changing the original file.
 - Open images from File Explorer with **Open with → BetterScreenShot**, including while the app is running in the tray.

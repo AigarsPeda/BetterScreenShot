@@ -120,6 +120,19 @@
                     ClipToBounds="True">
                 <Grid>
                     <Image x:Name="PreviewImage" Stretch="UniformToFill" SizeChanged="PreviewImage_SizeChanged" />
+                    <Border x:Name="CountdownBadge" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                            Margin="7,0,0,7" Padding="9,0" Height="30" CornerRadius="8"
+                            Background="{DynamicResource ToastSurfaceBrush}" IsHitTestVisible="False">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Grid Width="18" Height="18" Margin="0,0,6,0">
+                                <Ellipse Margin="1" Stroke="{DynamicResource ToastAccentBrush}" StrokeThickness="2" Opacity="0.2" />
+                                <Path x:Name="CountdownRing" Stroke="{DynamicResource ToastAccentBrush}" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                            </Grid>
+                            <TextBlock x:Name="CountdownText" FontSize="11" FontWeight="SemiBold" MinWidth="62"
+                                       Foreground="{DynamicResource ToastPrimaryTextBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
                     <Button x:Name="DiscardButton" Style="{StaticResource ToastCornerStyle}"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top"

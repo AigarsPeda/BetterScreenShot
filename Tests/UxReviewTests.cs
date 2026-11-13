@@ -370,6 +370,77 @@ internal static class UxReviewTests
             }
             finally { ScreenshotToastWindow.CloseCurrent(); }
         });
+        check("Copy countdown preferences persist and older settings keep the ten-second default", () =>
+        {
+            var path = Path.Combine(directory, "countdown-settings.json");
+            var store = new EditorSettingsStore(path);
+            store.Save(new EditorSettings { CopyDismissSeconds = 30, Color = "#0A84FF" });
+            Require(new EditorSettingsStore(path).Load().CopyDismissSeconds == 30, "Saved delay survives reload");
+            var legacy = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!;
+            legacy.AsObject().Remove("copyDismissSeconds");
+            File.WriteAllText(path, legacy.ToJsonString());
+            Require(store.Load().CopyDismissSeconds == 10 && store.Load().Color == "#0A84FF", "Migration preserves existing preferences");
+            Require((new EditorSettings { CopyDismissSeconds = 0 }).ValidationError() is not null, "Zero is rejected");
+            Require((new EditorSettings { CopyDismissSeconds = 301 }).ValidationError() is not null, "Excessive delays are rejected");
+        });
+        check("Copy countdown renders in both themes, restarts, and closes the preview", () =>
+        {
+            var path = Path.Combine(directory, "countdown-preview.png");
+            File.Copy(Path.Combine(directory, "saved-copy.png"), path, true);
+            ScreenshotToastWindow.ShowToast(path, new System.Drawing.Rectangle(0, 0, 100, 100), image);
+            var toast = System.Windows.Application.Current.Windows.OfType<ScreenshotToastWindow>().Single(w => w.IsVisible);
+            var start = typeof(ScreenshotToastWindow).GetMethod("StartCopyCountdown", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var badge = (Border)toast.FindName("CountdownBadge");
+            var label = (TextBlock)toast.FindName("CountdownText");
+            var seconds = EditorSettingsService.Current.CopyDismissSeconds;
+            try
+            {
+                Require(badge.Visibility == Visibility.Collapsed, "No countdown before copying");
+                start.Invoke(toast, null);
+                Require(label.Text == $"Closes in {seconds}s", "Countdown uses the saved preference");
+                Pump(Task.Delay(1150), toast);
+                Require(label.Text != $"Closes in {seconds}s", "Remaining seconds decrease");
+                start.Invoke(toast, null);
+                Require(label.Text == $"Closes in {seconds}s", "Copy again restarts the countdown");
+                foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark })
+                {
+                    typeof(ScreenshotToastWindow).GetMethod("ApplyToastTheme", BindingFlags.Instance | BindingFlags.NonPublic,
+                        null, [typeof(AppTheme)], null)!.Invoke(toast, [theme]);
+                    toast.UpdateLayout();
+                    Render(toast, Path.Combine(directory, $"countdown-{theme}.png"));
+                }
+                var closed = new TaskCompletionSource();
+                toast.Closed += (_, _) => closed.TrySetResult();
+                Pump(closed.Task.WaitAsync(TimeSpan.FromSeconds(seconds + 3)), toast);
+                Require(!File.Exists(path) && ScreenshotToastWindow.PendingCount == 0, "Expiry releases the preview and temporary file");
+            }
+            finally { ScreenshotToastWindow.CloseCurrent(); }
+        });
+        check("Capture settings expose and save the preview delay", () =>
+        {
+            EditorSettings? saved = null;
+            var window = new CaptureShortcutsWindow(CaptureShortcutSettings.Disabled,
+                (_, settings) => { saved = settings; return "Keep open for this check."; });
+            try
+            {
+                window.Show();
+                var picker = (System.Windows.Controls.ComboBox)window.FindName("CopyDismissPicker");
+                Require((int)((ComboBoxItem)picker.SelectedItem).Tag == EditorSettingsService.Current.CopyDismissSeconds, "Current preference selected");
+                foreach (var width in new[] { 620d, 520d })
+                {
+                    window.Width = width;
+                    window.UpdateLayout();
+                    Render(window, Path.Combine(directory, $"countdown-settings-{width}.png"));
+                }
+                foreach (var seconds in new[] { 5, 10, 15, 30, 60 })
+                {
+                    picker.SelectedItem = picker.Items.Cast<ComboBoxItem>().Single(item => (int)item.Tag == seconds);
+                    Click(window, "SaveShortcutsButton");
+                    Require(saved?.CopyDismissSeconds == seconds, "Save callback receives selected delay");
+                }
+            }
+            finally { window.Close(); }
+        });
         check("Closing an unsaved capture notification needs no confirmation", () =>
         {
             var path = Path.Combine(directory, "dismiss-notification.png");

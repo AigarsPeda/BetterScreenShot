@@ -123,6 +123,9 @@ public partial class CaptureShortcutsWindow : Window
 
     private void InitializeEditorSettings()
     {
+        foreach (var seconds in new[] { 5, 10, 15, 30, 60 }.Append(EditorDraft.CopyDismissSeconds).Distinct().Order())
+            CopyDismissPicker.Items.Add(new ComboBoxItem { Content = $"{seconds} seconds", Tag = seconds });
+        CopyDismissPicker.SelectedItem = CopyDismissPicker.Items.Cast<ComboBoxItem>().Single(item => (int)item.Tag == EditorDraft.CopyDismissSeconds);
         var quality = EditorDraft.JpegQuality.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (!JpegQualityPicker.Items.Cast<ComboBoxItem>().Any(item => Equals(item.Tag, quality)))
             JpegQualityPicker.Items.Add(new ComboBoxItem { Content = $"Custom ({quality})", Tag = quality });
@@ -289,6 +292,7 @@ public partial class CaptureShortcutsWindow : Window
             TextSize = double.Parse((string)((ComboBoxItem)DefaultTextSizePicker.SelectedItem).Content, System.Globalization.CultureInfo.InvariantCulture),
             SketchEnabled = DefaultSketchCheck.IsChecked == true,
             JpegQuality = int.Parse((string)((ComboBoxItem)JpegQualityPicker.SelectedItem).Tag, System.Globalization.CultureInfo.InvariantCulture),
+            CopyDismissSeconds = (int)((ComboBoxItem)CopyDismissPicker.SelectedItem).Tag,
             ToolKeys = editorKeyPickers.ToDictionary(pair => pair.Key, pair => (Key)((ComboBoxItem)pair.Value.SelectedItem).Tag)
         };
         var error = Draft.ValidationError() ?? EditorDraft.ValidationError() ?? save(Draft, EditorDraft);

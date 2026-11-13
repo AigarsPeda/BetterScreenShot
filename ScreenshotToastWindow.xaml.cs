@@ -20,7 +20,10 @@ namespace BetterScreenShot
         private readonly TemporaryScreenshot screenshot;
         private readonly bool previewIsThumbnail;
         private readonly RecordingFormat? recordingFormat;
-        private readonly DispatcherTimer copyDismissTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+        private readonly DispatcherTimer copyDismissTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+        private readonly System.Diagnostics.Stopwatch copyCountdown = new();
+        private int copyDismissSeconds;
+        private int displayedSeconds = -1;
         private bool isAnimatingClose;
         private bool allowImmediateClose;
         private bool preserveTemporaryFileForViewer;
@@ -57,12 +60,12 @@ namespace BetterScreenShot
 
             Loaded += (_, _) => OnToastLoaded(captureBounds);
             Closing += ScreenshotToastWindow_Closing;
-            copyDismissTimer.Tick += (_, _) => DismissAfterCopy();
+            copyDismissTimer.Tick += (_, _) => UpdateCopyCountdown();
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
             ThemePreferenceService.Changed += ThemePreference_Changed;
             Closed += (_, _) =>
             {
-                copyDismissTimer.Stop();
+                StopCopyCountdown();
                 SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
                 ThemePreferenceService.Changed -= ThemePreference_Changed;
                 if (!preserveTemporaryFileForViewer)
@@ -226,6 +229,7 @@ namespace BetterScreenShot
 
         private void ScreenshotToastWindow_Closing(object? sender, CancelEventArgs e)
         {
+            StopCopyCountdown();
             if (allowImmediateClose || !IsLoaded || !IsVisible || !SystemParameters.ClientAreaAnimation ||
                 System.Windows.Application.Current.Dispatcher.HasShutdownStarted)
             {
@@ -291,7 +295,7 @@ namespace BetterScreenShot
         private async void CopyButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CopyButton.IsEnabled) return;
-            copyDismissTimer.Stop();
+            StopCopyCountdown();
             ActionButtonFeedback.Reset(CopyButton);
             CopyButton.IsEnabled = false;
             try
@@ -317,7 +321,7 @@ namespace BetterScreenShot
                     }
                 }
                 ActionButtonFeedback.Show(CopyButton, "Copied");
-                copyDismissTimer.Start();
+                StartCopyCountdown();
             }
             catch (Exception ex)
             {
@@ -327,9 +331,55 @@ namespace BetterScreenShot
             finally { CopyButton.IsEnabled = true; }
         }
 
-        private void DismissAfterCopy()
+        private void StartCopyCountdown()
+        {
+            copyDismissSeconds = EditorSettingsService.Current.CopyDismissSeconds;
+            dismissAfterSave = false;
+            displayedSeconds = -1;
+            CountdownBadge.Visibility = Visibility.Visible;
+            copyCountdown.Restart();
+            UpdateCopyCountdown();
+            copyDismissTimer.Start();
+        }
+
+        private void StopCopyCountdown()
         {
             copyDismissTimer.Stop();
+            copyCountdown.Reset();
+            CountdownBadge.Visibility = Visibility.Collapsed;
+        }
+
+        private void UpdateCopyCountdown()
+        {
+            var remaining = Math.Max(0, copyDismissSeconds - copyCountdown.Elapsed.TotalSeconds);
+            var seconds = (int)Math.Ceiling(remaining);
+            var changed = seconds != displayedSeconds;
+            if (changed)
+            {
+                displayedSeconds = seconds;
+                CountdownText.Text = $"Closes in {seconds}s";
+                System.Windows.Automation.AutomationProperties.SetName(CountdownBadge, $"Preview closes in {seconds} seconds");
+            }
+            if (SystemParameters.ClientAreaAnimation || changed)
+            {
+                var fraction = (SystemParameters.ClientAreaAnimation ? remaining : seconds) / copyDismissSeconds;
+                var angle = Math.Min(fraction, 0.9999) * Math.PI * 2;
+                var geometry = new StreamGeometry();
+                using (var context = geometry.Open())
+                {
+                    context.BeginFigure(new System.Windows.Point(9, 1), false, false);
+                    context.ArcTo(new System.Windows.Point(9 + 8 * Math.Sin(angle), 9 - 8 * Math.Cos(angle)),
+                        new System.Windows.Size(8, 8), 0, angle > Math.PI, SweepDirection.Clockwise, true, false);
+                }
+                geometry.Freeze();
+                CountdownRing.Data = geometry;
+            }
+            if (remaining == 0) DismissAfterCopy();
+        }
+
+        private void DismissAfterCopy()
+        {
+            StopCopyCountdown();
             if (isSaving)
             {
                 dismissAfterSave = true;
