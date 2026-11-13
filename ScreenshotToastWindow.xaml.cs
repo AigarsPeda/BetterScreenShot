@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Microsoft.Win32;
 
 namespace BetterScreenShot
@@ -19,9 +20,13 @@ namespace BetterScreenShot
         private readonly TemporaryScreenshot screenshot;
         private readonly bool previewIsThumbnail;
         private readonly RecordingFormat? recordingFormat;
+        private readonly DispatcherTimer copyDismissTimer = new() { Interval = TimeSpan.FromSeconds(10) };
         private bool isAnimatingClose;
         private bool allowImmediateClose;
         private bool preserveTemporaryFileForViewer;
+        private bool restorePendingOnClose = true;
+        private bool isSaving;
+        private bool dismissAfterSave;
         private bool savedCopy;
 
         internal ScreenshotToastWindow(string filePath, System.Drawing.Rectangle captureBounds, BitmapSource image,
@@ -52,10 +57,12 @@ namespace BetterScreenShot
 
             Loaded += (_, _) => OnToastLoaded(captureBounds);
             Closing += ScreenshotToastWindow_Closing;
+            copyDismissTimer.Tick += (_, _) => DismissAfterCopy();
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
             ThemePreferenceService.Changed += ThemePreference_Changed;
             Closed += (_, _) =>
             {
+                copyDismissTimer.Stop();
                 SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
                 ThemePreferenceService.Changed -= ThemePreference_Changed;
                 if (!preserveTemporaryFileForViewer)
@@ -69,7 +76,7 @@ namespace BetterScreenShot
                 }
                 pendingToasts.Remove(this);
                 RefreshPendingNavigation();
-                RestoreCurrent();
+                if (restorePendingOnClose) RestoreCurrent();
             };
         }
 
@@ -219,7 +226,8 @@ namespace BetterScreenShot
 
         private void ScreenshotToastWindow_Closing(object? sender, CancelEventArgs e)
         {
-            if (allowImmediateClose || !IsLoaded || !IsVisible || System.Windows.Application.Current.Dispatcher.HasShutdownStarted)
+            if (allowImmediateClose || !IsLoaded || !IsVisible || !SystemParameters.ClientAreaAnimation ||
+                System.Windows.Application.Current.Dispatcher.HasShutdownStarted)
             {
                 return;
             }
@@ -283,6 +291,7 @@ namespace BetterScreenShot
         private async void CopyButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CopyButton.IsEnabled) return;
+            copyDismissTimer.Stop();
             ActionButtonFeedback.Reset(CopyButton);
             CopyButton.IsEnabled = false;
             try
@@ -308,6 +317,7 @@ namespace BetterScreenShot
                     }
                 }
                 ActionButtonFeedback.Show(CopyButton, "Copied");
+                copyDismissTimer.Start();
             }
             catch (Exception ex)
             {
@@ -317,9 +327,24 @@ namespace BetterScreenShot
             finally { CopyButton.IsEnabled = true; }
         }
 
+        private void DismissAfterCopy()
+        {
+            copyDismissTimer.Stop();
+            if (isSaving)
+            {
+                dismissAfterSave = true;
+                return;
+            }
+
+            // A hidden toast must not bring back the pending previews during capture or editing.
+            restorePendingOnClose = IsVisible;
+            Close();
+        }
+
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
             ActionButtonFeedback.Reset(SaveButton);
+            isSaving = true;
             try
             {
                 string? savedPath;
@@ -354,6 +379,11 @@ namespace BetterScreenShot
             {
                 AppDialog.ShowError(this, recordingFormat is null ? "Could not save screenshot" : "Could not save recording",
                     "Choose another location and try again.", ex.Message);
+            }
+            finally
+            {
+                isSaving = false;
+                if (dismissAfterSave) DismissAfterCopy();
             }
         }
 
